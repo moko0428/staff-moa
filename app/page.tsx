@@ -12,6 +12,9 @@ import {
 import { Post } from '@/types/mockData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import Hero from '@/components/Hero';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 // Post를 JobItem으로 변환하는 함수
 function postToJobItem(post: Post, index: number): JobItem {
@@ -52,6 +55,8 @@ export default function Home() {
     placeText: '',
     categories: [],
   });
+
+  const [isManager, setIsManager] = useState(true);
 
   useEffect(() => {
     const updateHash = () => {
@@ -289,14 +294,10 @@ export default function Home() {
   // 기본 페이지 - 구인공고 (#open 또는 빈 해시)
   return (
     <div className="flex flex-col gap-2">
-      <div className="mb-2">
-        <h1 className="text-gray-900 text-2xl font-bold mb-2">
-          스탭 알바 구인공고
-        </h1>
-        <p className="text-gray-600 text-sm">
-          원하는 조건의 스탭 알바를 찾아보세요
-        </p>
-      </div>
+      <Hero
+        title="스탭 알바 구인공고"
+        description="원하는 조건의 스탭 알바를 찾아보세요"
+      />
       <PostingFilter
         filters={filters}
         onChange={setFilters}
@@ -304,6 +305,12 @@ export default function Home() {
         allLocations={allLocations}
         allSalaries={allSalaries}
       />
+      {isManager && (
+        <Button variant="default" size="sm">
+          <Plus className="size-4" />
+          <span className="text-sm font-medium">새 구인 공고 작성</span>
+        </Button>
+      )}
       {filtered.map((item) => (
         <JobCard key={item.id} item={item} />
       ))}

@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="bg-accent">
         <HeaderNav />
-        <main className="px-4 py-4">{children}</main>
+        <main className="max-w-7xl mx-auto px-4 py-4">{children}</main>
       </body>
     </html>
   );
