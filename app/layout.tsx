@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import HeaderNav from '@/components/HeaderNav';
 
 export const metadata: Metadata = {
   title: 'Staff MOA',
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="max-w-lg mx-auto">{children}</body>
+      <body className="bg-accent">
+        <HeaderNav />
+        <main className="px-4 py-4">{children}</main>
+      </body>
     </html>
   );
 }
