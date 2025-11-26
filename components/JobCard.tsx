@@ -10,12 +10,25 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  BriefcaseBusiness,
+  Calendar,
+  Check,
+  Clock,
+  CreditCard,
+  FileText,
+  MapPin,
+  Phone,
+  User,
+  Users,
+} from 'lucide-react';
+import { Separator } from './Separator';
 
 export interface JobItem {
   id: number;
   title: string;
   content?: string;
-  partTime?: string[];
+  date?: string;
   time?: string;
   need?: string;
   place?: string;
@@ -67,7 +80,7 @@ export function JobCard({ item }: JobCardProps) {
         statusClassName,
         enabledHoverClasses,
         item.status === '모집완료' && 'pointer-events-none'
-      )} relative overflow-hidden flex flex-col gap-4 rounded-xl border`}
+      )} relative overflow-hidden flex flex-col gap-2 rounded-xl border`}
     >
       {item.status === '모집완료' && (
         <div
@@ -80,8 +93,30 @@ export function JobCard({ item }: JobCardProps) {
         </div>
       )}
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'shrink-0 inline-flex items-center border px-2.5 py-0.5 text-xs font-medium sm:text-sm',
+              statusBadgeClassName
+            )}
+          >
+            {item.status}
+          </span>
+          <div className="mt-1 flex w-full items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              {item.categories.map((c) => (
+                <span
+                  key={c}
+                  className="text-xs sm:text-sm text-gray-700 border border-gray-300 rounded-full px-2.5 py-0.5 bg-gray-100"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 mt-2">
             <CardTitle className="text-lg sm:text-xl font-semibold leading-snug truncate">
               {item.title}
             </CardTitle>
@@ -91,56 +126,44 @@ export function JobCard({ item }: JobCardProps) {
               </CardDescription>
             )}
           </div>
-          <span
-            className={cn(
-              'shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
-              statusBadgeClassName
-            )}
-          >
-            {item.status}
-          </span>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        {item.pay && (
-          <p className="mb-2 text-base sm:text-lg font-semibold text-gray-900">
-            급여: {formatNumberWithComma(item.pay)}원
-          </p>
-        )}
-        {item.partTime && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">날짜:</span>{' '}
-            {item.partTime.join(', ')}
+      <CardContent className="pt-0 grid grid-cols-2 md:grid-cols-4 gap-2">
+        {item.date && (
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <Calendar className="size-4" />
+            <span>{item.date}</span>
           </p>
         )}
         {item.time && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">시간:</span> {item.time}
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <Clock className="size-4" />
+            <span>{item.time}</span>
           </p>
         )}
         {item.place && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">장소:</span> {item.place}
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <MapPin className="size-4" />
+            <span>{item.place}</span>
           </p>
         )}
+
         {item.need && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">준비물:</span> {item.need}
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <BriefcaseBusiness className="size-4" />
+            <span>{item.need}</span>
           </p>
         )}
-        {item.TO && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">TO:</span> {item.TO}
-          </p>
-        )}
+
         {item.manager && (
-          <p className="text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <User className="size-4" />
             <span className="text-gray-500">담당자:</span> {item.manager}
           </p>
         )}
         {item.managerPhone && (
-          <p className="text-sm text-gray-700">
-            <span className="text-gray-500">담당자 전화번호:</span>{' '}
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <Phone className="size-4" />
             <button
               type="button"
               onClick={() => navigator.clipboard.writeText(item.managerPhone!)}
@@ -148,53 +171,54 @@ export function JobCard({ item }: JobCardProps) {
               aria-label="전화번호 복사"
               title="전화번호 복사"
             >
-              {item.managerPhone}
+              <span>{item.managerPhone}</span>
             </button>
           </p>
         )}
-        {item.qualifications && item.qualifications.length > 0 && (
-          <div className="mt-3">
-            <p className="font-semibold text-sm text-gray-900">자격 요건</p>
-            <ul className="mt-1 list-disc list-inside text-sm text-gray-700 space-y-1">
-              {item.qualifications.map((q) => (
-                <li key={q}>{q}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {item.etc && (
-          <p className="mt-2 text-sm text-gray-700">
-            <span className="text-gray-500">기타:</span> {item.etc}
+        {item.pay && (
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <CreditCard className="size-4" />
+            <span>{formatNumberWithComma(item.pay)}원</span>
           </p>
         )}
       </CardContent>
-      <CardFooter className="pt-0">
-        <div className="mt-1 flex w-full items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {item.categories.map((c) => (
-              <span
-                key={c}
-                className="text-xs sm:text-sm text-gray-700 border border-gray-300 rounded-full px-2.5 py-0.5 bg-gray-100"
-              >
-                {c}
-              </span>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled={item.status === '모집완료'}
-            aria-label="지원하기"
-            title={
-              item.status === '모집완료'
-                ? '모집이 완료되어 지원할 수 없습니다'
-                : '지원하기'
-            }
-          >
-            지원하기
-          </Button>
+
+      <div className="flex flex-col gap-2 px-6 py-2">
+        {item.qualifications && item.qualifications.length > 0 && (
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <Check className="size-4" />
+            <span>{item.qualifications.join(', ')}</span>
+          </p>
+        )}
+        {item.etc && (
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <FileText className="size-4" />
+            <span>{item.etc}</span>
+          </p>
+        )}
+      </div>
+      <div className="px-6">
+        <Separator />
+      </div>
+      <CardFooter className="flex justify-between pt-0">
+        <div className="flex items-center gap-2">
+          <Users className="size-4" />
+          <span>0/10명 지원</span>
         </div>
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          disabled={item.status === '모집완료'}
+          aria-label="지원하기"
+          title={
+            item.status === '모집완료'
+              ? '모집이 완료되어 지원할 수 없습니다'
+              : '지원하기'
+          }
+        >
+          지원하기
+        </Button>
       </CardFooter>
     </Card>
   );

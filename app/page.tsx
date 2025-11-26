@@ -25,7 +25,7 @@ function postToJobItem(post: Post, index: number): JobItem {
     id: index + 1,
     title: post.title,
     content: post.description,
-    partTime: [post.date, post.time],
+    date: post.date,
     time: post.time,
     need: post.preparation,
     place: post.location,
@@ -105,7 +105,7 @@ export default function Home() {
         return false;
 
       if (filters.dateRange?.from) {
-        const jobDateStr = job.partTime?.[0];
+        const jobDateStr = job.date ?? '';
         if (!jobDateStr) return false;
 
         const jobDate = new Date(jobDateStr);
@@ -288,11 +288,15 @@ export default function Home() {
 
   // 기본 페이지 - 구인공고 (#open 또는 빈 해시)
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-2xl font-bold">스탭 알바 구인 공고</h2>
-      <p className="text-foreground text-sm">
-        원하는 조건의 스탭 알바를 찾아보세요
-      </p>
+    <div className="flex flex-col gap-2">
+      <div className="mb-2">
+        <h1 className="text-gray-900 text-2xl font-bold mb-2">
+          스탭 알바 구인공고
+        </h1>
+        <p className="text-gray-600 text-sm">
+          원하는 조건의 스탭 알바를 찾아보세요
+        </p>
+      </div>
       <PostingFilter
         filters={filters}
         onChange={setFilters}

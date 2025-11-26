@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { useState } from 'react';
+import { Separator } from './Separator';
 
 export type Filters = {
   status: '' | '급구' | '모집' | '모집완료';
@@ -215,7 +216,7 @@ export default function PostingFilter({
       </div>
       {showFilters && (
         <>
-          <div className="my-4 h-px w-full bg-gray-200" />
+          <Separator />
 
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div className="flex flex-col gap-1">
@@ -402,28 +403,6 @@ export default function PostingFilter({
           </div>
         </>
       )}
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            onChange({
-              status: '',
-              payMin: '',
-              payMax: '',
-              dateRange: undefined,
-              toText: '',
-              placeText: '',
-              categories: [],
-              showFilters: filters.showFilters,
-              dateMode: filters.dateMode ?? 'single',
-            })
-          }
-        >
-          초기화
-        </Button>
-      </div>
     </div>
   );
 }
