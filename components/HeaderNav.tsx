@@ -93,7 +93,7 @@ export default function HeaderNav() {
                   </NavigationMenuItem>
                   <NavigationMenuItem>
                     <NavigationMenuLink
-                      href="/#my-posting"
+                      href="/manager/worker"
                       className="text-foreground hover:text-primary transition-colors"
                     >
                       지원자 관리
@@ -101,7 +101,7 @@ export default function HeaderNav() {
                   </NavigationMenuItem>
                   <NavigationMenuItem>
                     <NavigationMenuLink
-                      href="/#my-posting"
+                      href="/manager/schedule"
                       className="text-foreground hover:text-primary transition-colors"
                     >
                       스케줄 관리
@@ -123,7 +123,7 @@ export default function HeaderNav() {
                   </NavigationMenuItem>
                   <NavigationMenuItem>
                     <NavigationMenuLink
-                      href="/#my-posting"
+                      href="/manager/worker"
                       className="text-foreground hover:text-primary transition-colors"
                     >
                       관심 목록
@@ -180,7 +180,7 @@ export default function HeaderNav() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/#my-posting"
+                        href="/manager/worker"
                         className="flex items-center gap-2"
                       >
                         <Users className="size-4" />
@@ -189,7 +189,7 @@ export default function HeaderNav() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/#my-posting"
+                        href="/manager/schedule"
                         className="flex items-center gap-2"
                       >
                         <Calendar className="size-4" />

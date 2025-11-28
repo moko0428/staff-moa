@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import Hero from '@/components/Hero';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
 
 // Post를 JobItem으로 변환하는 함수
 function postToJobItem(post: Post, index: number): JobItem {
@@ -306,9 +307,11 @@ export default function Home() {
         allSalaries={allSalaries}
       />
       {isManager && (
-        <Button variant="default" size="sm">
-          <Plus className="size-4" />
-          <span className="text-sm font-medium">새 구인 공고 작성</span>
+        <Button variant="default" size="sm" asChild>
+          <Link href="/my-post/create">
+            <Plus className="size-4" />
+            <span className="text-sm font-medium">새 구인 공고 작성</span>
+          </Link>
         </Button>
       )}
       {filtered.map((item) => (

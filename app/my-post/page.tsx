@@ -9,6 +9,7 @@ import { Post } from '@/types/mockData';
 import { Plus, FilterIcon, Search } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function MyPostPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -89,9 +90,11 @@ export default function MyPostPage() {
             <FilterIcon className="size-5" />
             필터
           </Button>
-          <Button variant="default" size="sm">
-            <Plus className="size-4" />
-            <span className="text-sm font-medium">새 공고 작성</span>
+          <Button variant="default" size="sm" asChild>
+            <Link href="/my-post/create">
+              <Plus className="size-4" />
+              <span className="text-sm font-medium">새 공고 작성</span>
+            </Link>
           </Button>
         </div>
       </div>
@@ -169,10 +172,10 @@ export default function MyPostPage() {
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <p className="text-gray-500 mb-4">작성한 공고가 없습니다.</p>
             <Button
-              onClick={() => console.log('create-post')}
+              asChild
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              첫 공고 작성하기
+              <Link href="/my-post/create">첫 공고 작성하기</Link>
             </Button>
           </div>
         ) : (
