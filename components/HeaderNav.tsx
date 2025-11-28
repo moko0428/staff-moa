@@ -33,8 +33,8 @@ export default function HeaderNav() {
   const pathname = usePathname();
   const [hash, setHash] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isManager, setIsManager] = useState(true);
-  const [isWorker, setIsWorker] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+  const [isWorker, setIsWorker] = useState(true);
 
   useEffect(() => {
     const updateHash = () => {
@@ -55,6 +55,24 @@ export default function HeaderNav() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    // 사용자 역할 확인
+    try {
+      if (typeof window !== 'undefined') {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+
+        if (userId && userRole) {
+          setIsAdmin(userRole === 'admin');
+          setIsManager(userRole === 'manager');
+          setIsWorker(userRole === 'member');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check user role:', error);
+    }
+  }, []);
+
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -66,73 +84,75 @@ export default function HeaderNav() {
           </Link>
 
           {/* 데스크톱 네비게이션 - md 이상에서만 표시 */}
-          <NavigationMenu className="hidden md:flex justify-between items-center h-16">
-            <NavigationMenuList className="flex items-center gap-2">
-              {/* 관리자 페이지 */}
-              {isAdmin && (
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    href="/#admin"
-                    className="text-foreground hover:text-primary transition-colors"
-                  >
-                    관리자
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              )}
+          {(isAdmin || isManager || isWorker) && (
+            <NavigationMenu className="hidden md:flex justify-between items-center h-16">
+              <NavigationMenuList className="flex items-center gap-2">
+                {/* 관리자 페이지 */}
+                {isAdmin && (
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      href="/#admin"
+                      className="text-foreground hover:text-primary transition-colors"
+                    >
+                      관리자
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                )}
 
-              {/* 매니저 페이지 */}
-              {isManager && (
-                <>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      href="/my-post"
-                      className="text-foreground hover:text-primary transition-colors"
-                    >
-                      내 공고
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      href="/manager/worker"
-                      className="text-foreground hover:text-primary transition-colors"
-                    >
-                      지원자 관리
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      href="/manager/schedule"
-                      className="text-foreground hover:text-primary transition-colors"
-                    >
-                      스케줄 관리
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                </>
-              )}
+                {/* 매니저 페이지 */}
+                {isManager && (
+                  <>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/my-post"
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        내 공고
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/manager/worker"
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        지원자 관리
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/manager/schedule"
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        스케줄 관리
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  </>
+                )}
 
-              {/* 일반회원 페이지 */}
-              {isWorker && (
-                <>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      href="/#normal-member"
-                      className="text-foreground hover:text-primary transition-colors"
-                    >
-                      내 스케줄
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      href="/manager/worker"
-                      className="text-foreground hover:text-primary transition-colors"
-                    >
-                      관심 목록
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                </>
-              )}
-            </NavigationMenuList>
-          </NavigationMenu>
+                {/* 일반회원 페이지 */}
+                {isWorker && (
+                  <>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/worker/schedule"
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        내 스케줄
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/worker/favorit"
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        관심 목록
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  </>
+                )}
+              </NavigationMenuList>
+            </NavigationMenu>
+          )}
 
           {/* 데스크톱 로그인 버튼 - md 이상에서만 표시 */}
           <div className="hidden md:block">
@@ -153,79 +173,100 @@ export default function HeaderNav() {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <Link href="/profile" className="flex items-center gap-2">
-                    <User className="size-4" />
-                    <span className="text-sm font-medium">프로필 관리</span>
-                  </Link>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                {/* 관리자 페이지 */}
-                {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/#admin" className="flex items-center gap-2">
-                      <ShieldCheck className="size-4" />
-                      <span className="text-sm font-medium">관리자</span>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-
-                {/* 매니저 페이지 */}
-                {isManager && (
+                {/* 로그인한 사용자만 프로필 및 메뉴 표시 */}
+                {(isAdmin || isManager || isWorker) && (
                   <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/my-post" className="flex items-center gap-2">
-                        <ListChecks className="size-4" />
-                        <span className="text-sm font-medium">내 공고</span>
+                    <DropdownMenuLabel className="flex items-center gap-2">
+                      <Link href="/profile" className="flex items-center gap-2">
+                        <User className="size-4" />
+                        <span className="text-sm font-medium">프로필 관리</span>
                       </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/manager/worker"
-                        className="flex items-center gap-2"
-                      >
-                        <Users className="size-4" />
-                        <span className="text-sm font-medium">지원자 관리</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/manager/schedule"
-                        className="flex items-center gap-2"
-                      >
-                        <Calendar className="size-4" />
-                        <span className="text-sm font-medium">스케줄 관리</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    {/* 관리자 페이지 */}
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/#admin"
+                          className="flex items-center gap-2"
+                        >
+                          <ShieldCheck className="size-4" />
+                          <span className="text-sm font-medium">관리자</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+
+                    {/* 매니저 페이지 */}
+                    {isManager && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/my-post"
+                            className="flex items-center gap-2"
+                          >
+                            <ListChecks className="size-4" />
+                            <span className="text-sm font-medium">내 공고</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/manager/worker"
+                            className="flex items-center gap-2"
+                          >
+                            <Users className="size-4" />
+                            <span className="text-sm font-medium">
+                              지원자 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/manager/schedule"
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="size-4" />
+                            <span className="text-sm font-medium">
+                              스케줄 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    {/* 일반회원 페이지 */}
+                    {isWorker && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/worker/schedule"
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="size-4" />
+                            <span className="text-sm font-medium">
+                              내 스케줄
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/worker/favorit"
+                            className="flex items-center gap-2"
+                          >
+                            <Heart className="size-4" />
+                            <span className="text-sm font-medium">
+                              관심 목록
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator />
                   </>
                 )}
 
-                {/* 일반회원 페이지 */}
-                {isWorker && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/#normal-member"
-                        className="flex items-center gap-2"
-                      >
-                        <Calendar className="size-4" />
-                        <span className="text-sm font-medium">내 스케줄</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/#my-posting"
-                        className="flex items-center gap-2"
-                      >
-                        <Heart className="size-4" />
-                        <span className="text-sm font-medium">관심 목록</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                <DropdownMenuSeparator />
+                {/* 로그인/회원가입 버튼 */}
                 <div className="p-2">
                   <AuthButtons />
                 </div>

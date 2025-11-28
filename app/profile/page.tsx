@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { mockUsers } from '@/lib/mockData';
+import { mockUsers, mockApplications, mockPosts } from '@/lib/mockData';
 import { User } from '@/types/mockData';
+import { parseDateString } from '@/lib/dateUtils';
 import {
   User as UserIcon,
   Mail,
@@ -32,6 +33,8 @@ import {
   Award,
   Plus,
   X,
+  Calendar as CalendarIcon,
+  MapPin,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -40,6 +43,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [newLanguage, setNewLanguage] = useState('');
   const [newCertificate, setNewCertificate] = useState('');
+  const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
 
   // 생년월일로부터 나이 계산
   const calculateAge = (birthDate: string): number => {
@@ -216,6 +220,98 @@ export default function ProfilePage() {
         certificates: updatedCertificates,
       },
     });
+  };
+
+  // 경력 삭제 함수
+  const removeExperience = (index: number) => {
+    if (!currentUser || !currentUser.experiences) return;
+
+    const updatedExperiences = currentUser.experiences.filter(
+      (_, i) => i !== index
+    );
+    setCurrentUser({
+      ...currentUser,
+      experiences: updatedExperiences,
+    });
+  };
+
+  // 내 스케줄에서 경력 불러오기
+  const loadExperiencesFromSchedules = () => {
+    if (!currentUser) return;
+
+    setIsLoadingExperiences(true);
+
+    try {
+      // mockApplications와 mockPosts를 사용하여 완료된 스케줄 가져오기
+      const acceptedApplications = mockApplications.filter(
+        (app) => app.applicantId === currentUser.id && app.status === 'accepted'
+      );
+
+      const now = new Date();
+      const newExperiences: Array<{
+        title: string;
+        date: string;
+        location: string;
+      }> = [];
+
+      acceptedApplications.forEach((app) => {
+        const post = mockPosts.find((p) => p.id === app.postId);
+        if (!post) return;
+
+        // parseDateString으로 날짜 파싱
+        const dates = parseDateString(post.date);
+
+        dates.forEach((dateStr) => {
+          const scheduleDate = new Date(dateStr);
+          const [startTime] = post.time.split('~');
+          const scheduleDateTime = new Date(scheduleDate);
+          const [hours, minutes] = startTime.trim().split(':');
+          scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+          // 완료된 스케줄만 추가
+          if (scheduleDateTime < now) {
+            newExperiences.push({
+              title: post.title,
+              date: dateStr,
+              location: post.location,
+            });
+          }
+        });
+      });
+
+      // 중복 제거 및 날짜순 정렬
+      const uniqueExperiences = newExperiences
+        .filter(
+          (exp, index, self) =>
+            index ===
+            self.findIndex((e) => e.title === exp.title && e.date === exp.date)
+        )
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+
+      // 기존 경력과 합치기 (중복 제거)
+      const currentExperiences = currentUser.experiences || [];
+      const existingKeys = new Set(
+        currentExperiences.map((e) => `${e.title}-${e.date}`)
+      );
+      const filtered = uniqueExperiences.filter(
+        (e) => !existingKeys.has(`${e.title}-${e.date}`)
+      );
+      const combined = [...currentExperiences, ...filtered];
+
+      setCurrentUser({
+        ...currentUser,
+        experiences: combined,
+      });
+
+      alert(`${filtered.length}개의 경력이 추가되었습니다.`);
+    } catch (error) {
+      console.error('Failed to load experiences:', error);
+      alert('경력 불러오기에 실패했습니다.');
+    } finally {
+      setIsLoadingExperiences(false);
+    }
   };
 
   // 프로필 이미지 업로드 핸들러
@@ -559,7 +655,23 @@ export default function ProfilePage() {
               {/* 경력 및 소개 */}
               <Card>
                 <CardHeader>
-                  <CardTitle>경력 및 자기소개</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>경력 및 자기소개</CardTitle>
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={loadExperiencesFromSchedules}
+                        disabled={isLoadingExperiences}
+                      >
+                        <Briefcase className="size-4 mr-2" />
+                        {isLoadingExperiences
+                          ? '불러오는 중...'
+                          : '내 경력 불러오기'}
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -567,20 +679,58 @@ export default function ProfilePage() {
                       <Briefcase className="size-4" />
                       경력
                     </Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={currentUser.experience}
-                        placeholder="경력을 입력하세요"
-                        rows={3}
-                        onChange={(e) =>
-                          handleInputChange('experience', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="text-sm leading-relaxed">
-                        {currentUser.experience || '-'}
-                      </p>
-                    )}
+                    <div className="space-y-3">
+                      {currentUser.experiences &&
+                      currentUser.experiences.length > 0 ? (
+                        <div className="space-y-2">
+                          {currentUser.experiences.map((exp, index) => (
+                            <div
+                              key={index}
+                              className="flex items-start justify-between p-3 border rounded-lg bg-gray-50"
+                            >
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-sm">
+                                  {exp.title}
+                                </h4>
+                                <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <CalendarIcon className="size-3" />
+                                    <span>
+                                      {new Date(exp.date).toLocaleDateString(
+                                        'ko-KR',
+                                        {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric',
+                                        }
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="size-3" />
+                                    <span>{exp.location}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {isEditing && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeExperience(index)}
+                                >
+                                  <X className="size-4 text-red-500" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          등록된 경력이 없습니다.
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label className="flex items-center gap-2 text-gray-500 mb-2">

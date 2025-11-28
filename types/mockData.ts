@@ -19,7 +19,11 @@ export interface User {
   weight?: number;
   personality?: string;
   features?: string;
-  experience?: string;
+  experiences?: Array<{
+    title: string;
+    date: string;
+    location: string;
+  }>;
   introduction?: string;
   documents?: {
     idCard?: string; // 파일 경로

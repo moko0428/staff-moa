@@ -634,21 +634,29 @@ function ApplicationDetailModal({
 
           {/* 경력 및 소개 */}
           {application.applicantInfo &&
-            (application.applicantInfo.experience ||
+            (application.applicantInfo.experiences ||
               application.applicantInfo.introduction) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">경력 및 자기소개</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {application.applicantInfo.experience && (
+                  {application.applicantInfo.experiences && (
                     <div>
                       <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
                         <Briefcase className="size-4" />
                         경력
                       </Label>
                       <p className="text-sm leading-relaxed">
-                        {application.applicantInfo.experience}
+                        {application.applicantInfo.experiences.map(
+                          (experience) => (
+                            <div key={experience.title}>
+                              <p>{experience.title}</p>
+                              <p>{experience.date}</p>
+                              <p>{experience.location}</p>
+                            </div>
+                          )
+                        )}
                       </p>
                     </div>
                   )}

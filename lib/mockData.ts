@@ -45,7 +45,18 @@ export const mockUsers: User[] = [
     weight: 52,
     personality: '밝고 긍정적이며 적극적인 성격입니다.',
     features: '친화력이 좋고 고객 응대에 능숙합니다.',
-    experience: '마라톤 행사 3회, 팝업스토어 5회, 박람회 안내 2회',
+    experiences: [
+      {
+        title: '서울 마라톤 대회 스탭',
+        date: '2024-03-15',
+        location: '잠실 종합운동장',
+      },
+      {
+        title: '팝업스토어 판매 보조',
+        date: '2024-05-20',
+        location: '성수동',
+      },
+    ],
     introduction: '성실하고 책임감 있게 일하겠습니다. 행사 경험이 풍부합니다.',
     attendanceScore: 92,
     createdAt: '2024-03-01',
@@ -72,7 +83,13 @@ export const mockUsers: User[] = [
     weight: 70,
     personality: '성실하고 책임감이 강합니다.',
     features: '체력이 좋고 장시간 근무 가능합니다.',
-    experience: '박람회 스탭 경험 2회, 프로모션 행사 4회',
+    experiences: [
+      {
+        title: '게임 박람회 안내 스탭',
+        date: '2024-06-10',
+        location: '코엑스',
+      },
+    ],
     introduction: '밝은 성격으로 고객 응대에 자신 있습니다.',
     attendanceScore: 88,
     createdAt: '2024-03-15',
@@ -505,6 +522,125 @@ export const mockPosts: Post[] = [
     createdAt: '2024-11-25',
     updatedAt: '2024-11-25',
   },
+
+  // ========== 지원자 스케줄용 공고 (11월) ==========
+
+  // 20. 11월 28일 - 오늘 (진행중)
+  {
+    id: 'post-worker-1128',
+    authorId: 'manager-1',
+    authorName: '김매니저',
+    status: 'recruiting',
+    title: '백화점 블랙프라이데이 세일 행사',
+    keywords: ['백화점', '세일', '판촉'],
+    date: '2025-11-28',
+    location: '강남 현대백화점',
+    time: '10:00 - 20:00',
+    salary: 120000,
+    paymentDate: '12월 5일',
+    preparation: '백화점 유니폼 제공',
+    notes: '점심 식사 제공',
+    description: '블랙프라이데이 세일 행사 안내 및 고객 응대',
+    managerInfo: { name: '김매니저', phone: '010-1111-1111' },
+    recruitCount: 15,
+    currentApplicants: 12,
+    createdAt: '2025-11-20',
+    updatedAt: '2025-11-20',
+  },
+
+  // 21. 11월 29일 - 내일 (예정)
+  {
+    id: 'post-worker-1129',
+    authorId: 'manager-1',
+    authorName: '김매니저',
+    status: 'recruiting',
+    title: '주말 팝업스토어 운영',
+    keywords: ['팝업스토어', '주말', 'MD'],
+    date: '2025-11-29',
+    location: '홍대 상상마당',
+    time: '12:00 - 21:00',
+    salary: 95000,
+    paymentDate: '12월 5일',
+    preparation: '캐주얼한 복장',
+    notes: '식비 별도 지급',
+    description: '주말 팝업스토어 고객 응대 및 상품 안내',
+    managerInfo: { name: '김매니저', phone: '010-1111-1111' },
+    recruitCount: 5,
+    currentApplicants: 5,
+    createdAt: '2025-11-22',
+    updatedAt: '2025-11-22',
+  },
+
+  // 22. 11월 30일 - 모레 (예정)
+  {
+    id: 'post-worker-1130',
+    authorId: 'manager-1',
+    authorName: '김매니저',
+    status: 'recruiting',
+    title: '주말 플리마켓 운영 스탭',
+    keywords: ['플리마켓', '주말', '야외'],
+    date: '2025-11-30',
+    location: '뚝섬 한강공원',
+    time: '09:00 - 18:00',
+    salary: 100000,
+    paymentDate: '12월 5일',
+    preparation: '편한 복장, 운동화',
+    notes: '야외 근무, 우천 시 취소',
+    description: '주말 플리마켓 부스 운영 및 판매 지원',
+    managerInfo: { name: '김매니저', phone: '010-1111-1111' },
+    recruitCount: 8,
+    currentApplicants: 7,
+    createdAt: '2025-11-23',
+    updatedAt: '2025-11-23',
+  },
+
+  // ========== 지원자 스케줄용 공고 (12월) ==========
+
+  // 23. 12월 5일 (예정)
+  {
+    id: 'post-worker-1205',
+    authorId: 'manager-1',
+    authorName: '김매니저',
+    status: 'recruiting',
+    title: '쇼핑몰 송년 세일 이벤트',
+    keywords: ['쇼핑몰', '송년', '세일'],
+    date: '2025-12-05',
+    location: '코엑스몰',
+    time: '11:00 - 20:00',
+    salary: 110000,
+    paymentDate: '12월 12일',
+    preparation: '정장 착용',
+    notes: '교통비 별도 지급',
+    description: '쇼핑몰 송년 세일 이벤트 진행 및 고객 안내',
+    managerInfo: { name: '김매니저', phone: '010-1111-1111' },
+    recruitCount: 12,
+    currentApplicants: 10,
+    createdAt: '2025-11-25',
+    updatedAt: '2025-11-25',
+  },
+
+  // 24. 12월 15일 (예정)
+  {
+    id: 'post-worker-1215',
+    authorId: 'manager-1',
+    authorName: '김매니저',
+    status: 'recruiting',
+    title: '크리스마스 마켓 운영',
+    keywords: ['크리스마스', '마켓', '시즌'],
+    date: '2025-12-15',
+    location: '명동 거리',
+    time: '14:00 - 22:00',
+    salary: 130000,
+    paymentDate: '12월 22일',
+    preparation: '크리스마스 테마 복장 선호',
+    notes: '저녁 식사 제공',
+    description: '크리스마스 마켓 부스 운영 및 상품 판매',
+    managerInfo: { name: '김매니저', phone: '010-1111-1111' },
+    recruitCount: 20,
+    currentApplicants: 15,
+    createdAt: '2025-11-26',
+    updatedAt: '2025-11-26',
+  },
 ];
 
 export const mockApplications: Application[] = [
@@ -894,6 +1030,63 @@ export const mockApplications: Application[] = [
     status: 'pending',
     appliedAt: '2025-11-28',
     message: '크리스마스 시즌 행사 경험 많습니다. 잘 부탁드립니다!',
+  },
+
+  // ========== 지원자 스케줄용 지원서 (member-1) ==========
+
+  // 11월 28일
+  {
+    id: 'app-worker-1128',
+    postId: 'post-worker-1128',
+    applicantId: 'member-1',
+    applicantName: '이서연',
+    status: 'accepted',
+    appliedAt: '2025-11-20',
+    message: '백화점 행사 경험 많습니다. 성실히 근무하겠습니다!',
+  },
+
+  // 11월 29일
+  {
+    id: 'app-worker-1129',
+    postId: 'post-worker-1129',
+    applicantId: 'member-1',
+    applicantName: '이서연',
+    status: 'accepted',
+    appliedAt: '2025-11-22',
+    message: '팝업스토어 운영 경험 있습니다. 잘 부탁드립니다!',
+  },
+
+  // 11월 30일
+  {
+    id: 'app-worker-1130',
+    postId: 'post-worker-1130',
+    applicantId: 'member-1',
+    applicantName: '이서연',
+    status: 'accepted',
+    appliedAt: '2025-11-23',
+    message: '야외 근무 가능합니다. 플리마켓 경험도 있습니다.',
+  },
+
+  // 12월 5일
+  {
+    id: 'app-worker-1205',
+    postId: 'post-worker-1205',
+    applicantId: 'member-1',
+    applicantName: '이서연',
+    status: 'accepted',
+    appliedAt: '2025-11-25',
+    message: '코엑스몰 위치 잘 알고 있습니다. 책임감 있게 일하겠습니다.',
+  },
+
+  // 12월 15일
+  {
+    id: 'app-worker-1215',
+    postId: 'post-worker-1215',
+    applicantId: 'member-1',
+    applicantName: '이서연',
+    status: 'accepted',
+    appliedAt: '2025-11-26',
+    message: '크리스마스 시즌 행사 경험 있습니다. 열심히 하겠습니다!',
   },
 ];
 
