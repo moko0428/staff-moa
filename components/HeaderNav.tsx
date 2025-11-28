@@ -154,8 +154,10 @@ export default function HeaderNav() {
 
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="flex items-center gap-2">
-                  <User className="size-4" />
-                  <span className="text-sm font-medium">프로필 관리</span>
+                  <Link href="/profile" className="flex items-center gap-2">
+                    <User className="size-4" />
+                    <span className="text-sm font-medium">프로필 관리</span>
+                  </Link>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
