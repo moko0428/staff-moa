@@ -124,6 +124,8 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSchedule, setSelectedSchedule] =
     useState<ScheduleWithPost | null>(null);
+  const [selectedDetailSchedule, setSelectedDetailSchedule] =
+    useState<ScheduleWithPost | null>(null); // 추가
   const [reviews, setReviews] = useState<AttendanceReview[]>(
     mockAttendanceReviews
   );
@@ -305,6 +307,9 @@ export default function SchedulePage() {
   const handleScheduleClick = (schedule: ScheduleWithPost) => {
     if (schedule.status === 'completed') {
       setSelectedSchedule(schedule);
+    } else {
+      // 예정/진행중 스케줄은 상세 모달 표시
+      setSelectedDetailSchedule(schedule);
     }
   };
 
@@ -466,6 +471,14 @@ export default function SchedulePage() {
             setSelectedDate(undefined);
           }}
           onSubmit={handleReviewSubmit}
+        />
+      )}
+
+      {/* 스케줄 상세 모달 - 새로 추가 */}
+      {selectedDetailSchedule && (
+        <ScheduleDetailModal
+          schedule={selectedDetailSchedule}
+          onClose={() => setSelectedDetailSchedule(null)}
         />
       )}
     </div>
@@ -927,8 +940,8 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
     },
   }[schedule.status];
 
-  // 완료된 스케줄만 클릭 가능하도록
-  const isClickable = clickable && schedule.status === 'completed';
+  // 모든 스케줄 클릭 가능하도록 변경
+  const isClickable = clickable || schedule.status !== 'completed';
 
   return (
     <div
@@ -969,7 +982,7 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
             </span>
           </div>
         </div>
-        {isClickable && (
+        {schedule.status === 'completed' && (
           <Badge variant="outline" className="shrink-0">
             평가하기
           </Badge>
@@ -1237,6 +1250,219 @@ function AttendanceReviewModal({
                   </div>
                 </div>
               </Card>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            닫기
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// 새로운 스케줄 상세 모달 컴포넌트
+interface ScheduleDetailModalProps {
+  schedule: ScheduleWithPost;
+  onClose: () => void;
+}
+
+function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
+  // schedule.date를 파싱하여 표시할 날짜 문자열 생성
+  const getScheduleDateDisplay = () => {
+    const dates = parseDateString(schedule.date);
+    if (dates.length === 0) return '';
+
+    if (dates.length === 1) {
+      return format(parseISO(dates[0]), 'yyyy년 MM월 dd일 (E)', { locale: ko });
+    } else if (schedule.date.includes('~')) {
+      const firstDate = format(parseISO(dates[0]), 'yyyy년 MM월 dd일 (E)', {
+        locale: ko,
+      });
+      const lastDate = format(
+        parseISO(dates[dates.length - 1]),
+        'MM월 dd일 (E)',
+        {
+          locale: ko,
+        }
+      );
+      return `${firstDate} ~ ${lastDate}`;
+    } else {
+      return dates
+        .map((d) => format(parseISO(d), 'MM월 dd일 (E)', { locale: ko }))
+        .join(', ');
+    }
+  };
+
+  const statusBadge = {
+    upcoming: {
+      label: '예정',
+      className: 'bg-blue-100 text-blue-700 border-blue-200',
+    },
+    ongoing: {
+      label: '진행중',
+      className: 'bg-orange-100 text-orange-700 border-orange-200',
+    },
+    completed: {
+      label: '완료',
+      className: 'bg-green-100 text-green-700 border-green-200',
+    },
+  }[schedule.status];
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn('text-sm', statusBadge.className)}
+            >
+              {statusBadge.label}
+            </Badge>
+            <DialogTitle>{schedule.title}</DialogTitle>
+          </div>
+          <DialogDescription>{getScheduleDateDisplay()}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* 기본 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">기본 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-gray-500">근무 시간</Label>
+                  <p className="font-semibold">{schedule.time}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-500">근무 장소</Label>
+                  <p className="font-semibold">{schedule.location}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-500">급여</Label>
+                  <p className="font-semibold text-primary">
+                    {schedule.salary.toLocaleString()}원
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-500">지급일</Label>
+                  <p className="font-semibold">{schedule.paymentDate}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 모집 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">모집 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-gray-500">모집 인원</Label>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-lg">
+                    {schedule.currentApplicants}
+                  </span>
+                  <span className="text-gray-500">/</span>
+                  <span className="text-gray-500">
+                    {schedule.recruitCount}명
+                  </span>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(
+                      (schedule.currentApplicants / schedule.recruitCount) *
+                        100,
+                      100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 상세 설명 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">상세 설명</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-sm text-gray-500">업무 설명</Label>
+                <p className="mt-1 text-sm leading-relaxed">
+                  {schedule.description}
+                </p>
+              </div>
+              {schedule.preparation && (
+                <div>
+                  <Label className="text-sm text-gray-500">준비사항</Label>
+                  <p className="mt-1 text-sm leading-relaxed">
+                    {schedule.preparation}
+                  </p>
+                </div>
+              )}
+              {schedule.requirements && (
+                <div>
+                  <Label className="text-sm text-gray-500">자격 요건</Label>
+                  <p className="mt-1 text-sm leading-relaxed">
+                    {schedule.requirements}
+                  </p>
+                </div>
+              )}
+              {schedule.preferences && (
+                <div>
+                  <Label className="text-sm text-gray-500">우대 사항</Label>
+                  <p className="mt-1 text-sm leading-relaxed">
+                    {schedule.preferences}
+                  </p>
+                </div>
+              )}
+              {schedule.notes && (
+                <div>
+                  <Label className="text-sm text-gray-500">기타 사항</Label>
+                  <p className="mt-1 text-sm leading-relaxed">
+                    {schedule.notes}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 매니저 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">담당자 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-gray-500">담당자</Label>
+                <p className="font-semibold">{schedule.managerInfo.name}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-gray-500">연락처</Label>
+                <p className="font-semibold">{schedule.managerInfo.phone}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 키워드 */}
+          {schedule.keywords && schedule.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {schedule.keywords.map((keyword, index) => (
+                <Badge key={index} variant="secondary">
+                  {keyword}
+                </Badge>
+              ))}
             </div>
           )}
         </div>
