@@ -755,16 +755,14 @@ function CalendarView({
             <div className="px-4">
               <Separator />
             </div>
-            <CardContent className="min-h-[40vh]">
-              <div className="h-full">
-                <ScheduleCalendar
-                  schedulesByDate={schedulesByDate}
-                  selectedDate={selectedDate}
-                  onDateSelect={onDateSelect}
-                  currentMonth={currentMonth}
-                  onMonthChange={setCurrentMonth}
-                />
-              </div>
+            <CardContent className="h-full min-h-[40vh]">
+              <ScheduleCalendar
+                schedulesByDate={schedulesByDate}
+                selectedDate={selectedDate}
+                onDateSelect={onDateSelect}
+                currentMonth={currentMonth}
+                onMonthChange={setCurrentMonth}
+              />
             </CardContent>
           </Card>
         </div>
