@@ -197,11 +197,14 @@ export default function WorkerManagementPage() {
       />
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-4 mb-6">
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col gap-2 justify-between">
-              <p className="text-xs text-gray-500">전체 지원자</p>
+            <div className="flex items-center gap-2 justify-between *:md:text-lg">
+              <p className="text-xs text-gray-500">
+                전체
+                <br className="block md:hidden" /> 지원자
+              </p>
               <div className="flex items-center justify-end gap-2">
                 <p className="text-2xl font-bold">{statistics.total}</p>
                 <User className="size-8 text-gray-400" />
