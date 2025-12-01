@@ -111,5 +111,6 @@ export interface Schedule {
 export interface Favorite {
   id: string;
   userId: string;
-  keywords: string[];
+  postIds: string[]; // 관심 공고 ID 목록
+  keywords?: string[]; // 관심 키워드 (선택적)
 }

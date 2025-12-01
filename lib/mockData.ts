@@ -4,6 +4,7 @@ import {
   Application,
   AttendanceReview,
   Schedule,
+  Favorite,
 } from '@/types/mockData';
 
 export const mockUsers: User[] = [
@@ -1185,5 +1186,48 @@ export const mockSchedules: Schedule[] = [
     date: '2025-11-25~2025-11-30',
     salary: 95000,
     paid: false,
+  },
+];
+
+// 관심 목록 Mock Data
+export const mockFavorites: Favorite[] = [
+  {
+    id: 'favorite-1',
+    userId: 'member-1',
+    postIds: [
+      'post-range-ongoing',
+      'post-daily-upcoming',
+      'post-range-upcoming',
+      'post-multi-ongoing',
+    ],
+    keywords: ['프로모션', '행사', '판매'],
+  },
+  {
+    id: 'favorite-2',
+    userId: 'member-2',
+    postIds: [
+      'post-daily-ongoing',
+      'post-range-completed',
+      'post-multi-upcoming',
+    ],
+    keywords: ['이벤트', '스탭'],
+  },
+  {
+    id: 'favorite-3',
+    userId: 'member-3',
+    postIds: ['post-daily-completed-today', 'post-range-upcoming'],
+    keywords: ['박람회', '전시'],
+  },
+  {
+    id: 'favorite-4',
+    userId: 'member-4',
+    postIds: [
+      'post-range-ongoing',
+      'post-daily-upcoming',
+      'post-multi-ongoing',
+      'post-range-completed',
+      'post-daily-completed-today',
+    ],
+    keywords: ['판매', '홍보', '안내'],
   },
 ];

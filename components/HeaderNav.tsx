@@ -33,7 +33,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
   const [hash, setHash] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isManager, setIsManager] = useState(false);
+  const [isManager, setIsManager] = useState(true);
   const [isWorker, setIsWorker] = useState(true);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -21,11 +22,13 @@ import {
   Phone,
   User,
   Users,
+  Heart,
 } from 'lucide-react';
 import { Separator } from './Separator';
+import { mockFavorites } from '@/lib/mockData';
 
 export interface JobItem {
-  id: number;
+  id: number | string;
   title: string;
   content?: string;
   date?: string;
@@ -47,6 +50,72 @@ interface JobCardProps {
 }
 
 export function JobCard({ item }: JobCardProps) {
+  const [isWorker, setIsWorker] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() => {
+    // 사용자 역할 확인
+    try {
+      if (typeof window !== 'undefined') {
+        const userRole = localStorage.getItem('userRole');
+        const userId = localStorage.getItem('userId');
+        setIsWorker(userRole === 'member');
+
+        // 관심 목록 확인
+        if (userId) {
+          // localStorage에서 확인
+          let saved = localStorage.getItem(`favorites_${userId}`);
+
+          // localStorage에 없으면 mockFavorites에서 초기화
+          if (!saved) {
+            const userFavorite = mockFavorites.find(
+              (fav) => fav.userId === userId
+            );
+            if (userFavorite) {
+              localStorage.setItem(
+                `favorites_${userId}`,
+                JSON.stringify(userFavorite.postIds)
+              );
+              saved = JSON.stringify(userFavorite.postIds);
+            }
+          }
+
+          if (saved) {
+            const favorites = JSON.parse(saved);
+            setIsFavorite(favorites.includes(item.id.toString()));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check user role or favorites:', error);
+    }
+  }, [item.id]);
+
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+
+      const saved = localStorage.getItem(`favorites_${userId}`);
+      const favorites: string[] = saved ? JSON.parse(saved) : [];
+      const itemId = item.id.toString();
+
+      const newFavorites = favorites.includes(itemId)
+        ? favorites.filter((id) => id !== itemId)
+        : [...favorites, itemId];
+
+      localStorage.setItem(`favorites_${userId}`, JSON.stringify(newFavorites));
+      setIsFavorite(!isFavorite);
+
+      // 관심 목록 업데이트 이벤트 발생
+      window.dispatchEvent(new Event('favorites-updated'));
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
   const statusClassName =
     item.status === '급구'
       ? 'border-red-300/70 bg-red-50'
@@ -92,6 +161,26 @@ export function JobCard({ item }: JobCardProps) {
           </span>
         </div>
       )}
+
+      {/* 관심 목록 버튼 (일반 회원만) */}
+      {isWorker && (
+        <Button
+          size="icon"
+          variant="ghost"
+          className="absolute top-4 right-4 z-10 hover:bg-white/80"
+          onClick={toggleFavorite}
+        >
+          <Heart
+            className={cn(
+              'size-5',
+              isFavorite
+                ? 'fill-red-500 text-red-500'
+                : 'text-gray-400 hover:text-red-500'
+            )}
+          />
+        </Button>
+      )}
+
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <span
