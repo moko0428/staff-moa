@@ -1,19 +1,6 @@
+// components/ApplicationDetailModal.tsx
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import Hero from '@/components/Hero';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -22,37 +9,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { mockPosts, mockApplications, mockUsers } from '@/lib/mockData';
-import { Application, User as UserType } from '@/types/mockData';
-import WorkerCard from '@/components/WorkerCard';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  User,
+  Award,
+  Car,
   CheckCircle2,
-  XCircle,
-  Clock,
-  Search,
-  Filter,
-  IdCard,
   CreditCard,
   FileCheck,
-  Car,
-  Award,
+  FileText,
+  IdCard,
   Languages,
   Ruler,
-  Weight,
   Smile,
   Star,
-  FileText,
+  User,
+  Weight,
+  XCircle,
   Briefcase,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { Application, User as UserType } from '@/types/mockData';
 
-type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
+export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 
-interface ApplicationWithPost extends Application {
+export interface ApplicationWithPost extends Application {
   postTitle: string;
   postDate: string;
   postLocation: string;
@@ -75,282 +60,13 @@ interface ApplicationWithPost extends Application {
   applicantWeight?: number;
 }
 
-export default function WorkerManagementPage() {
-  const [currentUserId, setCurrentUserId] = useState<string>('manager-1');
-  const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>(
-    'all'
-  );
-  const [selectedApplication, setSelectedApplication] =
-    useState<ApplicationWithPost | null>(null);
-  const [applications, setApplications] =
-    useState<Application[]>(mockApplications);
-
-  useEffect(() => {
-    setIsMounted(true);
-    try {
-      const userId =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('userId') || 'manager-1'
-          : 'manager-1';
-      setCurrentUserId(userId);
-    } catch {
-      setCurrentUserId('manager-1');
-    }
-  }, []);
-
-  // 현재 매니저의 공고에 지원한 지원자들
-  const managerApplications = useMemo(() => {
-    if (!isMounted || !currentUserId) return [];
-
-    const managerPostIds = mockPosts
-      .filter((post) => post.authorId === currentUserId)
-      .map((post) => post.id);
-
-    return applications
-      .filter((app) => managerPostIds.includes(app.postId))
-      .map((app) => {
-        const post = mockPosts.find((p) => p.id === app.postId);
-        const applicantInfo = mockUsers.find((u) => u.id === app.applicantId);
-        return {
-          ...app,
-          postTitle: post?.title || '',
-          postDate: post?.date || '',
-          postLocation: post?.location || '',
-          applicantInfo,
-          applicantPhoto: applicantInfo?.photo,
-          applicantDocuments: applicantInfo?.documents,
-          applicantAttendanceScore: applicantInfo?.attendanceScore,
-          applicantKakaoId: applicantInfo?.kakaoId,
-          applicantGender: applicantInfo?.gender,
-          applicantAge: applicantInfo?.age,
-          applicantBirthDate: applicantInfo?.birthDate,
-          applicantHeight: applicantInfo?.height,
-          applicantWeight: applicantInfo?.weight,
-        } as ApplicationWithPost;
-      });
-  }, [isMounted, currentUserId, applications]);
-
-  // 필터링 및 검색
-  const filteredApplications = useMemo(() => {
-    let filtered = managerApplications;
-
-    // 상태 필터
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((app) => app.status === statusFilter);
-    }
-
-    // 검색
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (app) =>
-          app.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          app.postTitle.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // 날짜순 정렬 (최신순)
-    return filtered.sort(
-      (a, b) =>
-        new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
-    );
-  }, [managerApplications, statusFilter, searchTerm]);
-
-  // 상태별 통계
-  const statistics = useMemo(() => {
-    return {
-      total: managerApplications.length,
-      pending: managerApplications.filter((app) => app.status === 'pending')
-        .length,
-      accepted: managerApplications.filter((app) => app.status === 'accepted')
-        .length,
-      rejected: managerApplications.filter((app) => app.status === 'rejected')
-        .length,
-    };
-  }, [managerApplications]);
-
-  const handleStatusChange = (
-    applicationId: string,
-    newStatus: ApplicationStatus
-  ) => {
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === applicationId ? { ...app, status: newStatus } : app
-      )
-    );
-
-    // 선택된 지원서도 업데이트
-    if (selectedApplication && selectedApplication.id === applicationId) {
-      setSelectedApplication({
-        ...selectedApplication,
-        status: newStatus,
-      });
-    }
-  };
-
-  return (
-    <div>
-      <Hero
-        title="지원자 관리"
-        description="공고에 지원한 지원자들을 확인하고 관리하세요"
-      />
-
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-2 gap-2  sm:gap-4 mb-4 sm:mb-6">
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex items-center justify-between gap-1 sm:gap-2">
-              <p className="text-[10px] sm:text-xs text-gray-500 leading-tight">
-                전체
-                <br className="block sm:hidden" /> 지원자
-              </p>
-              <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold">
-                  {statistics.total}
-                </p>
-                <User className="size-6 sm:size-8 text-gray-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">대기중</p>
-              <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-yellow-600">
-                  {statistics.pending}
-                </p>
-                <Clock className="size-6 sm:size-8 text-yellow-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">승인</p>
-              <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-green-600">
-                  {statistics.accepted}
-                </p>
-                <CheckCircle2 className="size-6 sm:size-8 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">거절</p>
-              <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-red-600">
-                  {statistics.rejected}
-                </p>
-                <XCircle className="size-6 sm:size-8 text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 필터 및 검색 */}
-      <Card className="mb-4 sm:mb-6">
-        <CardContent className="pt-4 sm:pt-6">
-          <div className="flex md:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 w-full md:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-                <Input
-                  placeholder="지원자 이름 또는 공고명 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="md:w-48">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) =>
-                  setStatusFilter(value as ApplicationStatus | 'all')
-                }
-              >
-                <SelectTrigger>
-                  <Filter className="size-4 mr-2" />
-                  <SelectValue placeholder="상태 필터" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  <SelectItem value="pending">대기중</SelectItem>
-                  <SelectItem value="accepted">승인</SelectItem>
-                  <SelectItem value="rejected">거절</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 지원자 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
-        {filteredApplications.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 sm:py-12 text-center">
-              <User className="size-10 sm:size-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-              <p className="text-sm sm:text-base text-gray-500">
-                지원자가 없습니다.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredApplications.map((application) => (
-            <WorkerCard
-              key={application.id}
-              application={{
-                id: application.id,
-                applicantName: application.applicantName,
-                postTitle: application.postTitle,
-                postLocation: application.postLocation,
-                appliedAt: application.appliedAt,
-                status: application.status,
-                applicantAge: application.applicantAge,
-                applicantGender: application.applicantGender,
-                applicantKakaoId: application.applicantKakaoId,
-                applicantAttendanceScore: application.applicantAttendanceScore,
-                applicantPhoto: application.applicantPhoto,
-              }}
-              onCardClick={() => setSelectedApplication(application)}
-              onStatusChange={handleStatusChange}
-            />
-          ))
-        )}
-      </div>
-
-      {/* 지원자 상세 모달 */}
-      {selectedApplication && (
-        <ApplicationDetailModal
-          application={selectedApplication}
-          onClose={() => setSelectedApplication(null)}
-          onStatusChange={handleStatusChange}
-        />
-      )}
-    </div>
-  );
-}
-
-// 지원자 상세 모달
 interface ApplicationDetailModalProps {
   application: ApplicationWithPost;
   onClose: () => void;
   onStatusChange: (applicationId: string, newStatus: ApplicationStatus) => void;
 }
 
-function ApplicationDetailModal({
+export default function ApplicationDetailModal({
   application,
   onClose,
   onStatusChange,
@@ -657,17 +373,18 @@ function ApplicationDetailModal({
                         <Briefcase className="size-4" />
                         경력
                       </Label>
-                      <p className="text-sm leading-relaxed">
+                      <div className="space-y-2 text-sm leading-relaxed">
                         {application.applicantInfo.experiences.map(
                           (experience) => (
                             <div key={experience.title}>
                               <p>{experience.title}</p>
-                              <p>{experience.date}</p>
-                              <p>{experience.location}</p>
+                              <p className="text-gray-500">
+                                {experience.date} · {experience.location}
+                              </p>
                             </div>
                           )
                         )}
-                      </p>
+                      </div>
                     </div>
                   )}
                   {application.applicantInfo.introduction && (
@@ -733,8 +450,8 @@ function ApplicationDetailModal({
           <div className="flex gap-2">
             {application.status === 'pending' && (
               <>
-                <Button
-                  variant="default"
+                <button
+                  className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   onClick={() => {
                     onStatusChange(application.id, 'accepted');
                     onClose();
@@ -742,9 +459,9 @@ function ApplicationDetailModal({
                 >
                   <CheckCircle2 className="size-4 mr-2" />
                   승인
-                </Button>
-                <Button
-                  variant="destructive"
+                </button>
+                <button
+                  className="inline-flex items-center justify-center rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => {
                     onStatusChange(application.id, 'rejected');
                     onClose();
@@ -752,13 +469,17 @@ function ApplicationDetailModal({
                 >
                   <XCircle className="size-4 mr-2" />
                   거절
-                </Button>
+                </button>
               </>
             )}
           </div>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent"
+            onClick={onClose}
+          >
             닫기
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

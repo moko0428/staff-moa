@@ -71,7 +71,7 @@ export default function WorkerCard({
       onClick={onCardClick}
     >
       <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-center">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="w-12 h-12">
@@ -101,7 +101,7 @@ export default function WorkerCard({
                 <p className="text-sm text-gray-600">{application.postTitle}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-sm">
               {application.applicantAge && (
                 <div className="flex items-center gap-2 text-gray-600">
                   <User className="size-4" />
@@ -127,8 +127,8 @@ export default function WorkerCard({
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mt-2">
-              <div className="flex items-center gap-2 text-gray-600">
+            <div className="grid grid-cols-3 md:grid-cols-2 gap-3 text-sm mt-2">
+              <div className="flex items-center gap-2 text-gray-600 col-span-1">
                 <Calendar className="size-4" />
                 <span>
                   {format(parseISO(application.appliedAt), 'yyyy.MM.dd', {
@@ -136,39 +136,39 @@ export default function WorkerCard({
                   })}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-600 col-span-2">
                 <Briefcase className="size-4" />
                 <span>{application.postLocation}</span>
               </div>
             </div>
-          </div>
-          <div className="flex gap-2 ml-4">
-            {application.status === 'pending' && (
-              <>
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(application.id, 'accepted');
-                  }}
-                >
-                  <CheckCircle2 className="size-4 mr-1" />
-                  승인
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(application.id, 'rejected');
-                  }}
-                >
-                  <XCircle className="size-4 mr-1" />
-                  거절
-                </Button>
-              </>
-            )}
+            {/* <div className="flex items-center justify-between">
+              {application.status === 'pending' && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(application.id, 'accepted');
+                    }}
+                  >
+                    <CheckCircle2 className="size-4 mr-1" />
+                    승인
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(application.id, 'rejected');
+                    }}
+                  >
+                    <XCircle className="size-4 mr-1" />
+                    거절
+                  </Button>
+                </>
+              )}
+            </div> */}
           </div>
         </div>
       </CardContent>
