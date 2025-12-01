@@ -197,14 +197,11 @@ export default function WorkerManagementPage() {
       />
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 gap-2  sm:gap-4 mb-4 sm:mb-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 sm:gap-4 mb-4 sm:mb-6">
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex items-center justify-between gap-1 sm:gap-2">
-              <p className="text-[10px] sm:text-xs text-gray-500 leading-tight">
-                전체
-                <br className="block sm:hidden" /> 지원자
-              </p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs text-gray-500 leading-tight">지원자 수</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold">
                   {statistics.total}
@@ -217,8 +214,8 @@ export default function WorkerManagementPage() {
 
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">대기중</p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs text-gray-500">대기중</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-yellow-600">
                   {statistics.pending}
@@ -231,8 +228,8 @@ export default function WorkerManagementPage() {
 
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">승인</p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs text-gray-500">승인</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   {statistics.accepted}
@@ -245,8 +242,8 @@ export default function WorkerManagementPage() {
 
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
-            <div className="flex flex-col justify-between gap-1">
-              <p className="text-[10px] sm:text-xs text-gray-500">거절</p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs text-gray-500">거절</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   {statistics.rejected}
