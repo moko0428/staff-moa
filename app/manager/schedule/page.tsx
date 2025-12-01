@@ -718,7 +718,7 @@ function CalendarView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 달력 */}
         <div className="lg:col-span-2">
-          <Card>
+          <Card className="min-h-[80vh] sm:min-h-[480px]">
             <CardHeader>
               <CardTitle>스케줄 달력</CardTitle>
             </CardHeader>
