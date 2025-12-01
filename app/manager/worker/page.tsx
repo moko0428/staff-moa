@@ -197,56 +197,61 @@ export default function WorkerManagementPage() {
       />
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 lg:gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4 mb-4 sm:mb-6">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 justify-between *:md:text-lg">
-              <p className="text-xs text-gray-500">
+          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+            <div className="flex items-center justify-between gap-1 sm:gap-2">
+              <p className="text-[10px] sm:text-xs text-gray-500 leading-tight">
                 전체
-                <br className="block md:hidden" /> 지원자
+                <br className="block sm:hidden" /> 지원자
               </p>
-              <div className="flex items-center justify-end gap-2">
-                <p className="text-2xl font-bold">{statistics.total}</p>
-                <User className="size-8 text-gray-400" />
+              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                <p className="text-lg sm:text-2xl font-bold">
+                  {statistics.total}
+                </p>
+                <User className="size-6 sm:size-8 text-gray-400" />
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-2 justify-between">
-              <p className="text-xs text-gray-500">대기중</p>
-              <div className="flex items-center justify-end gap-2">
-                <p className="text-2xl font-bold text-yellow-600">
+          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+            <div className="flex flex-col justify-between gap-1">
+              <p className="text-[10px] sm:text-xs text-gray-500">대기중</p>
+              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                <p className="text-lg sm:text-2xl font-bold text-yellow-600">
                   {statistics.pending}
                 </p>
-                <Clock className="size-8 text-yellow-400" />
+                <Clock className="size-6 sm:size-8 text-yellow-400" />
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-2 justify-between">
-              <p className="text-xs text-gray-500">승인</p>
-              <div className="flex items-center justify-end gap-2">
-                <p className="text-2xl font-bold text-green-600">
+          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+            <div className="flex flex-col justify-between gap-1">
+              <p className="text-[10px] sm:text-xs text-gray-500">승인</p>
+              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   {statistics.accepted}
                 </p>
-                <CheckCircle2 className="size-8 text-green-400" />
+                <CheckCircle2 className="size-6 sm:size-8 text-green-400" />
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-2 justify-between">
-              <p className="text-xs text-gray-500">거절</p>
-              <div className="flex items-center justify-end gap-2">
-                <p className="text-2xl font-bold text-red-600">
+          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+            <div className="flex flex-col justify-between gap-1">
+              <p className="text-[10px] sm:text-xs text-gray-500">거절</p>
+              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                <p className="text-lg sm:text-2xl font-bold text-red-600">
                   {statistics.rejected}
                 </p>
-                <XCircle className="size-8 text-red-400" />
+                <XCircle className="size-6 sm:size-8 text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -254,9 +259,9 @@ export default function WorkerManagementPage() {
       </div>
 
       {/* 필터 및 검색 */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+      <Card className="mb-4 sm:mb-6">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="flex flex-col md:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
@@ -292,12 +297,14 @@ export default function WorkerManagementPage() {
       </Card>
 
       {/* 지원자 목록 */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
         {filteredApplications.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center">
-              <User className="size-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">지원자가 없습니다.</p>
+            <CardContent className="py-10 sm:py-12 text-center">
+              <User className="size-10 sm:size-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+              <p className="text-sm sm:text-base text-gray-500">
+                지원자가 없습니다.
+              </p>
             </CardContent>
           </Card>
         ) : (
