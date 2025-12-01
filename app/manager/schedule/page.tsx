@@ -722,14 +722,16 @@ function CalendarView({
             <CardHeader>
               <CardTitle>스케줄 달력</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ScheduleCalendar
-                schedulesByDate={schedulesByDate}
-                selectedDate={selectedDate}
-                onDateSelect={onDateSelect}
-                currentMonth={currentMonth}
-                onMonthChange={setCurrentMonth}
-              />
+            <CardContent className="pt-4 pb-4 min-h-[420px] sm:min-h-[480px]">
+              <div className="h-full">
+                <ScheduleCalendar
+                  schedulesByDate={schedulesByDate}
+                  selectedDate={selectedDate}
+                  onDateSelect={onDateSelect}
+                  currentMonth={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
