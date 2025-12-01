@@ -37,6 +37,7 @@ import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { parseDateString } from '@/lib/dateUtils';
+import { Separator } from '@/components/Separator';
 
 type ViewType = 'card' | 'calendar';
 
@@ -718,7 +719,7 @@ function CalendarView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 달력 */}
         <div className="lg:col-span-2">
-          <Card className="min-h-[80vh] sm:min-h-[480px]">
+          <Card>
             <CardHeader>
               <CardTitle>스케줄 달력</CardTitle>
             </CardHeader>
@@ -751,6 +752,9 @@ function CalendarView({
                 </div>
               </div>
             </CardContent>
+            <div className="px-4">
+              <Separator />
+            </div>
             <CardContent>
               <ScheduleCalendar
                 schedulesByDate={schedulesByDate}

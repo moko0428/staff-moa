@@ -148,7 +148,7 @@ export default function ScheduleCalendar({
         components={{
           DayButton: CustomDayButton,
         }}
-        className="rounded-md border w-full"
+        className="rounded-md border w-full border-none"
       />
     </div>
   );
