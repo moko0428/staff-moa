@@ -150,34 +150,6 @@ export default function ScheduleCalendar({
         }}
         className="rounded-md border w-full"
       />
-      <div className="mt-4">
-        <div className="flex flex-wrap gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-blue-200 border border-gray-300 flex items-center justify-center">
-              <span className="text-sm font-bold text-blue-700">1</span>
-            </div>
-            <span>예정 (파란색)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-orange-200 border border-gray-300 flex items-center justify-center">
-              <span className="text-sm font-bold text-orange-700">1</span>
-            </div>
-            <span>진행중 (주황색)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-green-200 border border-gray-300 flex items-center justify-center">
-              <span className="text-sm font-bold text-green-700">1</span>
-            </div>
-            <span>완료 (초록색)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-white border border-gray-300 flex items-center justify-center">
-              <span className="text-sm text-gray-900">1</span>
-            </div>
-            <span>스케줄 없음 (검정색)</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
