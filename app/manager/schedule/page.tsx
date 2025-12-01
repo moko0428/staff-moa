@@ -755,7 +755,7 @@ function CalendarView({
             <div className="px-4">
               <Separator />
             </div>
-            <CardContent className="min-h-[50vh]">
+            <CardContent className="min-h-[40vh]">
               <div className="h-full">
                 <ScheduleCalendar
                   schedulesByDate={schedulesByDate}
