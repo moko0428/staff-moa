@@ -744,7 +744,8 @@ function CalendarView({
             <div className="px-6">
               <Separator />
             </div>
-            <CardContent className="h-full min-h-[40vh]">
+            {/* 모바일에서 카드가 수축되지 않도록 h-full 제거, 고정 최소 높이만 사용 */}
+            <CardContent className="pb-4 min-h-[360px] sm:min-h-[420px]">
               <ScheduleCalendar
                 schedulesByDate={schedulesByDate}
                 selectedDate={selectedDate}

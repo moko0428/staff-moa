@@ -505,7 +505,7 @@ export default function WorkerSchedulePage() {
                 <Separator />
               </div>
               {/* 모바일에서 카드가 수축되지 않도록 h-full 제거, 고정 최소 높이만 사용 */}
-              <CardContent className="pt-4 pb-4 min-h-[360px] sm:min-h-[420px]">
+              <CardContent className="pb-4 min-h-[360px] sm:min-h-[420px]">
                 <ScheduleCalendar
                   currentMonth={currentMonth}
                   schedulesByDate={schedulesByDate}
