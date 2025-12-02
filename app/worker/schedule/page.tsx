@@ -14,24 +14,19 @@ import {
   isSameDay,
   startOfMonth,
   endOfMonth,
-  addMonths,
-  subMonths,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
 import {
   Calendar as CalendarIcon,
-  DollarSign,
-  TrendingUp,
   Clock,
   MapPin,
   Briefcase,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   LayoutGrid,
   CalendarDays,
 } from 'lucide-react';
+import { Separator } from '@/components/Separator';
 
 interface WorkerSchedule {
   id: string;
@@ -334,7 +329,6 @@ export default function WorkerSchedulePage() {
                   {salaryStats.expectedThisMonth.toLocaleString()}원
                 </p>
               </div>
-              <TrendingUp className="size-10 text-blue-400" />
             </div>
           </CardContent>
         </Card>
@@ -344,11 +338,10 @@ export default function WorkerSchedulePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 mb-1">이번 달 총 급여</p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="flex items-center justify-end gap-1 text-2xl font-bold text-primary">
                   {salaryStats.totalThisMonth.toLocaleString()}원
                 </p>
               </div>
-              <DollarSign className="size-10 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -473,34 +466,46 @@ export default function WorkerSchedulePage() {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarIcon className="size-5" />
-                    {format(currentMonth, 'yyyy년 MM월', { locale: ko })}
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        setCurrentMonth(subMonths(currentMonth, 1))
-                      }
-                    >
-                      <ChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        setCurrentMonth(addMonths(currentMonth, 1))
-                      }
-                    >
-                      <ChevronRight className="size-4" />
-                    </Button>
+                <CardTitle>스케줄 달력</CardTitle>
+              </CardHeader>
+              {/* 상태 범례 */}
+              <CardContent>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="size-4 rounded bg-blue-200 border border-gray-300 flex items-center justify-center">
+                      <span className="text-xs font-bold text-blue-700">1</span>
+                    </div>
+                    <span className="text-xs">예정</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-4 rounded bg-orange-200 border border-gray-300 flex items-center justify-center">
+                      <span className="text-xs font-bold text-orange-700">
+                        1
+                      </span>
+                    </div>
+                    <span className="text-xs">진행중</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-4 rounded bg-green-200 border border-gray-300 flex items-center justify-center">
+                      <span className="text-xs font-bold text-green-700">
+                        1
+                      </span>
+                    </div>
+                    <span className="text-xs">완료</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-4 rounded bg-white border border-gray-300 flex items-center justify-center">
+                      <span className="text-xs text-gray-900">1</span>
+                    </div>
+                    <span className="text-xs">스케줄 없음</span>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
+              </CardContent>
+              <div className="px-6">
+                <Separator />
+              </div>
+              {/* 모바일에서 카드가 수축되지 않도록 h-full 제거, 고정 최소 높이만 사용 */}
+              <CardContent className="pt-4 pb-4 min-h-[360px] sm:min-h-[420px]">
                 <ScheduleCalendar
                   currentMonth={currentMonth}
                   schedulesByDate={schedulesByDate}
