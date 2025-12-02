@@ -20,8 +20,9 @@ import {
   mockPosts,
   mockApplications,
   mockAttendanceReviews,
+  mockUsers,
 } from '@/lib/mockData';
-import { Post, AttendanceReview } from '@/types/mockData';
+import { Post, AttendanceReview, User as UserType } from '@/types/mockData';
 import {
   CheckCircle2,
   Clock,
@@ -116,6 +117,9 @@ export interface ScheduleWithPost extends Omit<Post, 'status'> {
     userId: string;
     userName: string;
     applicationId: string;
+    phone?: string;
+    kakaoId?: string;
+    gender?: string;
     review?: AttendanceReview;
   }>;
 }
@@ -186,16 +190,25 @@ export default function SchedulePage() {
         const review = reviews.find(
           (r) => r.postId === post.id && r.userId === app.applicantId
         );
+        const user: UserType | undefined = mockUsers.find(
+          (u) => u.id === app.applicantId
+        );
         return {
           userId: app.applicantId,
           userName: app.applicantName,
           applicationId: app.id,
+          phone: user?.phone,
+          kakaoId: user?.kakaoId,
+          gender: user?.gender,
           review,
         };
       });
 
       const scheduleWithPost: ScheduleWithPost = {
         ...post,
+        // 모집 인원 정보와 카드(참여자 수)를 동기화하기 위해
+        // currentApplicants를 실제 참여자 수로 재설정
+        currentApplicants: participants.length,
         status: 'upcoming',
         participants,
       };
@@ -496,87 +509,6 @@ interface CardViewProps {
 }
 
 function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
-  // 날짜별로 그룹화하는 함수
-  const groupByDate = (schedules: ScheduleWithPost[]) => {
-    const grouped: Record<string, ScheduleWithPost[]> = {};
-    schedules.forEach((schedule) => {
-      const dates = parseDateString(schedule.date);
-
-      // 당일 스케줄 또는 기간 스케줄을 적절한 날짜에만 추가
-      let targetDate: string | null = null;
-
-      if (dates.length === 1) {
-        // 당일 스케줄: 해당 날짜에 표시
-        targetDate = dates[0];
-      } else if (dates.length > 1) {
-        // 기간 스케줄: 상태에 따라 첫날 또는 마지막날
-        if (schedule.status === 'completed') {
-          targetDate = dates[dates.length - 1]; // 완료: 마지막날
-        } else {
-          targetDate = dates[0]; // 예정/진행중: 첫날
-        }
-      }
-
-      if (targetDate) {
-        if (!grouped[targetDate]) {
-          grouped[targetDate] = [];
-        }
-        // 중복 방지
-        if (!grouped[targetDate].some((s) => s.id === schedule.id)) {
-          grouped[targetDate].push(schedule);
-        }
-      }
-    });
-    return grouped;
-  };
-
-  // 날짜별로 그룹화된 스케줄 렌더링
-  const renderGroupedSchedules = (
-    schedules: ScheduleWithPost[],
-    clickable = false
-  ) => {
-    if (schedules.length === 0) {
-      return (
-        <p className="text-sm text-gray-500 text-center py-4">
-          스케줄이 없습니다.
-        </p>
-      );
-    }
-
-    const grouped = groupByDate(schedules);
-    const sortedDates = Object.keys(grouped).sort();
-
-    return (
-      <div className="space-y-4">
-        {sortedDates.map((dateStr) => {
-          const dateSchedules = grouped[dateStr];
-          const date = parseISO(dateStr);
-
-          return (
-            <div key={dateStr} className="space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b">
-                <h4 className="font-semibold text-sm">
-                  {format(date, 'MM월 dd일 (E)', { locale: ko })}
-                </h4>
-                <Badge variant="outline" className="text-xs">
-                  {dateSchedules.length}개
-                </Badge>
-              </div>
-              {dateSchedules.map((schedule) => (
-                <ScheduleItem
-                  key={schedule.id}
-                  schedule={schedule}
-                  onClick={() => onScheduleClick(schedule)}
-                  clickable={clickable}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
       {/* 예정 스케줄 */}
@@ -587,8 +519,27 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             예정 스케줄
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-          {renderGroupedSchedules(categorizedSchedules.upcoming)}
+        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+            {categorizedSchedules.upcoming.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4 w-full">
+                스케줄이 없습니다.
+              </p>
+            ) : (
+              categorizedSchedules.upcoming.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="min-w-[300px] md:min-w-0 md:mb-2"
+                >
+                  <ScheduleItem
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    clickable={false}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -600,8 +551,27 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             진행중 스케줄
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-          {renderGroupedSchedules(categorizedSchedules.ongoing)}
+        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+            {categorizedSchedules.ongoing.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4 w-full">
+                스케줄이 없습니다.
+              </p>
+            ) : (
+              categorizedSchedules.ongoing.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="min-w-[300px] md:min-w-0 md:mb-2"
+                >
+                  <ScheduleItem
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    clickable={false}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -613,8 +583,27 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             완료된 스케줄
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-          {renderGroupedSchedules(categorizedSchedules.completed, true)}
+        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+            {categorizedSchedules.completed.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4 w-full">
+                스케줄이 없습니다.
+              </p>
+            ) : (
+              categorizedSchedules.completed.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="min-w-[300px] md:min-w-0 md:mb-2"
+                >
+                  <ScheduleItem
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    clickable
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -778,7 +767,7 @@ function CalendarView({
                     ' 스케줄'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 max-h-[600px] overflow-y-auto">
+            <CardContent className="space-y-4 max-h-[260px] md:max-h-[320px] overflow-y-auto">
               {selectedDate ? (
                 // 선택된 날짜의 스케줄
                 selectedDateSchedules.length === 0 ? (
@@ -996,7 +985,7 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
             </Badge>
             <h3 className="font-semibold text-sm truncate">{schedule.title}</h3>
           </div>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex flex-col gap-1 mt-2">
             <div className="flex items-center gap-1">
               <Clock className="size-3 text-gray-500" />
               <span className="text-xs font-medium text-gray-700">
@@ -1015,11 +1004,6 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
             </span>
           </div>
         </div>
-        {schedule.status === 'completed' && (
-          <Badge variant="outline" className="shrink-0">
-            평가하기
-          </Badge>
-        )}
       </div>
     </div>
   );
@@ -1330,6 +1314,11 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
     }
   };
 
+  // 근무 일수 계산 (기간 또는 불연속 날짜 모두 포함)
+  const workDates = parseDateString(schedule.date);
+  const workDaysCount = workDates.length || 1;
+  const totalSalary = workDaysCount * schedule.salary;
+
   const statusBadge = {
     upcoming: {
       label: '예정',
@@ -1380,7 +1369,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
                 <div>
                   <Label className="text-sm text-gray-500">급여</Label>
                   <p className="font-semibold text-primary">
-                    {schedule.salary.toLocaleString()}원
+                    {totalSalary.toLocaleString()}원
                   </p>
                 </div>
                 <div>
@@ -1470,6 +1459,40 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* 참여자 목록 (예정/진행중/완료 공통) */}
+          {schedule.participants && schedule.participants.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">참여자 목록</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {schedule.participants.map((p) => {
+                  const isReviewed = !!p.review;
+                  return (
+                    <div
+                      key={p.userId}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="font-medium">{p.userName}</span>
+                        <div className="flex flex-col text-xs text-gray-500">
+                          {p.phone && <span>전화번호: {p.phone}</span>}
+                          {p.kakaoId && <span>카카오톡: {p.kakaoId}</span>}
+                          {p.gender && <span>성별: {p.gender}</span>}
+                        </div>
+                      </div>
+                      {isReviewed && (
+                        <Badge variant="outline" className="text-xs">
+                          평가 {p.review?.score}점
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 매니저 정보 */}
           <Card>

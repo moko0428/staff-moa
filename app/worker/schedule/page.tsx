@@ -387,15 +387,22 @@ export default function WorkerSchedulePage() {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
               {categorizedSchedules.upcoming.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   예정된 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.upcoming.map((schedule) => (
-                  <ScheduleCard key={schedule.id} schedule={schedule} />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+                  {categorizedSchedules.upcoming.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      className="min-w-[300px] md:min-w-0 md:mb-2"
+                    >
+                      <ScheduleCard schedule={schedule} />
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -410,15 +417,22 @@ export default function WorkerSchedulePage() {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
               {categorizedSchedules.ongoing.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   진행중인 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.ongoing.map((schedule) => (
-                  <ScheduleCard key={schedule.id} schedule={schedule} />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+                  {categorizedSchedules.ongoing.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      className="min-w-[300px] md:min-w-0 md:mb-2"
+                    >
+                      <ScheduleCard schedule={schedule} />
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -433,15 +447,22 @@ export default function WorkerSchedulePage() {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
               {categorizedSchedules.completed.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   완료된 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.completed.map((schedule) => (
-                  <ScheduleCard key={schedule.id} schedule={schedule} />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+                  {categorizedSchedules.completed.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      className="min-w-[300px] md:min-w-0 md:mb-2"
+                    >
+                      <ScheduleCard schedule={schedule} />
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -502,7 +523,7 @@ export default function WorkerSchedulePage() {
                   스케줄
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 max-h-[600px] overflow-y-auto">
+              <CardContent className="space-y-4 max-h-[260px] md:max-h-[320px] overflow-y-auto">
                 {groupedByDate.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">
                     스케줄이 없습니다
@@ -566,13 +587,15 @@ function ScheduleCard({ schedule }: ScheduleCardProps) {
                 })}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="size-3" />
-              <span>{schedule.time}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="size-3" />
-              <span>{schedule.location}</span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <Clock className="size-3" />
+                <span>{schedule.time}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="size-3" />
+                <span>{schedule.location}</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Briefcase className="size-3" />
