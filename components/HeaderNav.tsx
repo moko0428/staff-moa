@@ -32,7 +32,7 @@ import Link from 'next/link';
 export default function HeaderNav() {
   const pathname = usePathname();
   const [hash, setHash] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
   const [isManager, setIsManager] = useState(true);
   const [isWorker, setIsWorker] = useState(true);
 
@@ -91,7 +91,7 @@ export default function HeaderNav() {
                 {isAdmin && (
                   <NavigationMenuItem>
                     <NavigationMenuLink
-                      href="/#admin"
+                      href="/admin"
                       className="text-foreground hover:text-primary transition-colors"
                     >
                       관리자
@@ -187,10 +187,7 @@ export default function HeaderNav() {
                     {/* 관리자 페이지 */}
                     {isAdmin && (
                       <DropdownMenuItem asChild>
-                        <Link
-                          href="/#admin"
-                          className="flex items-center gap-2"
-                        >
+                        <Link href="/admin" className="flex items-center gap-2">
                           <ShieldCheck className="size-4" />
                           <span className="text-sm font-medium">관리자</span>
                         </Link>
