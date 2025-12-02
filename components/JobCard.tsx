@@ -20,12 +20,20 @@ import {
   FileText,
   MapPin,
   Phone,
-  User,
   Users,
   Heart,
+  User2,
 } from 'lucide-react';
 import { Separator } from './Separator';
-import { mockFavorites } from '@/lib/mockData';
+import { mockFavorites, mockUsers } from '@/lib/mockData';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { User } from '@/types/mockData';
 
 export interface JobItem {
   id: number | string;
@@ -50,8 +58,18 @@ interface JobCardProps {
 }
 
 export function JobCard({ item }: JobCardProps) {
-  const [isWorker, setIsWorker] = useState(false);
+  const [isWorker, setIsWorker] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
+    {
+      name: true,
+      phone: true,
+      kakaoId: true,
+      gender: true,
+    }
+  );
 
   useEffect(() => {
     // 사용자 역할 확인
@@ -60,6 +78,11 @@ export function JobCard({ item }: JobCardProps) {
         const userRole = localStorage.getItem('userRole');
         const userId = localStorage.getItem('userId');
         setIsWorker(userRole === 'member');
+
+        if (userId) {
+          const user = mockUsers.find((u) => u.id === userId) || null;
+          setCurrentUser(user);
+        }
 
         // 관심 목록 확인
         if (userId) {
@@ -140,6 +163,43 @@ export function JobCard({ item }: JobCardProps) {
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return value;
     return numeric.toLocaleString('ko-KR');
+  };
+
+  const handleToggleField = (key: string) => {
+    setSelectedFields((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleApplyClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (item.status === '모집완료') return;
+    setApplyOpen(true);
+  };
+
+  const handleSubmitApplication = () => {
+    if (!currentUser) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    const payload: Record<string, unknown> = {};
+    if (selectedFields.name) payload.name = currentUser.name;
+    if (selectedFields.phone && currentUser.phone)
+      payload.phone = currentUser.phone;
+    if (selectedFields.kakaoId && currentUser.kakaoId)
+      payload.kakaoId = currentUser.kakaoId;
+    if (selectedFields.gender && currentUser.gender)
+      payload.gender = currentUser.gender;
+
+    console.log('지원 정보 전송:', {
+      postId: item.id,
+      applicantId: currentUser.id,
+      payload,
+    });
+    alert(
+      '선택한 정보로 지원 요청이 전송되었다고 가정합니다. (콘솔 확인 가능)'
+    );
+    setApplyOpen(false);
   };
 
   return (
@@ -246,7 +306,7 @@ export function JobCard({ item }: JobCardProps) {
 
         {item.manager && (
           <p className="flex items-center gap-2 text-sm text-gray-700">
-            <User className="size-4" />
+            <User2 className="size-4" />
             <span className="text-gray-500">담당자:</span> {item.manager}
           </p>
         )}
@@ -294,21 +354,118 @@ export function JobCard({ item }: JobCardProps) {
           <Users className="size-4" />
           <span>0/10명 지원</span>
         </div>
-        <Button
-          type="button"
-          variant="default"
-          size="sm"
-          disabled={item.status === '모집완료'}
-          aria-label="지원하기"
-          title={
-            item.status === '모집완료'
-              ? '모집이 완료되어 지원할 수 없습니다'
-              : '지원하기'
-          }
-        >
-          지원하기
-        </Button>
+        {isWorker && (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            disabled={item.status === '모집완료'}
+            aria-label="지원하기"
+            title={
+              item.status === '모집완료'
+                ? '모집이 완료되어 지원할 수 없습니다'
+                : '지원하기'
+            }
+            onClick={handleApplyClick}
+          >
+            지원하기
+          </Button>
+        )}
       </CardFooter>
+
+      {/* 지원 정보 선택 모달 */}
+      <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {item.title} 공고에 지원하기
+            </DialogTitle>
+          </DialogHeader>
+          {currentUser ? (
+            <div className="mt-2 space-y-4 text-sm">
+              <p className="text-xs text-gray-500">
+                아래 항목 중 지원 시 전달할 정보를 선택해주세요.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">이름</p>
+                    <p className="text-xs text-gray-500">{currentUser.name}</p>
+                  </div>
+                  <Switch
+                    checked={selectedFields.name}
+                    onCheckedChange={() => handleToggleField('name')}
+                  />
+                </div>
+                {currentUser.phone && (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">전화번호</p>
+                      <p className="text-xs text-gray-500">
+                        {currentUser.phone}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={selectedFields.phone}
+                      onCheckedChange={() => handleToggleField('phone')}
+                    />
+                  </div>
+                )}
+                {currentUser.kakaoId && (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">카카오톡 아이디</p>
+                      <p className="text-xs text-gray-500">
+                        {currentUser.kakaoId}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={selectedFields.kakaoId}
+                      onCheckedChange={() => handleToggleField('kakaoId')}
+                    />
+                  </div>
+                )}
+                {currentUser.gender && (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">성별</p>
+                      <p className="text-xs text-gray-500">
+                        {currentUser.gender}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={selectedFields.gender}
+                      onCheckedChange={() => handleToggleField('gender')}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setApplyOpen(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={handleSubmitApplication}
+                >
+                  선택한 정보로 지원하기
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-gray-500">
+              지원하려면 먼저 로그인해주세요.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

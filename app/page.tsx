@@ -233,7 +233,7 @@ export default function Home() {
   }
 
   // 매니저 페이지 - 내 공고 (#my-posting)
-  if (hash === '#my-posting') {
+  if (hash === '/manager/my-post') {
     const managerPosts = mockPosts.filter(
       (post) => post.authorId === 'manager-1'
     );
@@ -250,7 +250,7 @@ export default function Home() {
   }
 
   // 일반 회원 페이지 - 내 스케줄 (#normal-member)
-  if (hash === '#normal-member') {
+  if (hash === '/worker/schedule') {
     const userSchedules = mockSchedules.filter(
       (schedule) => schedule.userId === 'member-1'
     );
@@ -314,9 +314,11 @@ export default function Home() {
           </Link>
         </Button>
       )}
-      {filtered.map((item) => (
-        <JobCard key={item.id} item={item} />
-      ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        {filtered.map((item) => (
+          <JobCard key={item.id} item={item} />
+        ))}
+      </div>
     </div>
   );
 }
