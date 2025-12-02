@@ -28,8 +28,6 @@ import {
   Clock,
   Users,
   Star,
-  LayoutGrid,
-  CalendarDays,
   Calendar as CalendarIcon,
   ChevronRight,
   ChevronLeft,
@@ -39,6 +37,8 @@ import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { parseDateString } from '@/lib/dateUtils';
 import { Separator } from '@/components/Separator';
+import { ScheduleViewToggle } from '@/components/ScheduleViewToggle';
+import { ScheduleStatusLegend } from '@/components/ScheduleStatusLegend';
 
 type ViewType = 'card' | 'calendar';
 
@@ -441,26 +441,7 @@ export default function SchedulePage() {
       />
 
       {/* 뷰 토글 버튼 */}
-      <div className="flex justify-end gap-2 mb-4">
-        <Button
-          type="button"
-          variant={viewType === 'card' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setViewType('card')}
-        >
-          <LayoutGrid className="size-4" />
-          카드 뷰
-        </Button>
-        <Button
-          type="button"
-          variant={viewType === 'calendar' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setViewType('calendar')}
-        >
-          <CalendarDays className="size-4" />
-          달력 뷰
-        </Button>
-      </div>
+      <ScheduleViewToggle viewType={viewType} onChange={setViewType} />
 
       {viewType === 'card' ? (
         <CardView
@@ -511,102 +492,77 @@ interface CardViewProps {
 function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-      {/* 예정 스케줄 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="size-5 text-blue-500" />
-            예정 스케줄
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-            {categorizedSchedules.upcoming.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4 w-full">
-                스케줄이 없습니다.
-              </p>
-            ) : (
-              categorizedSchedules.upcoming.map((schedule) => (
-                <div
-                  key={schedule.id}
-                  className="min-w-[300px] md:min-w-0 md:mb-2"
-                >
-                  <ScheduleItem
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    clickable={false}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 진행중 스케줄 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="size-5 text-orange-500" />
-            진행중 스케줄
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-            {categorizedSchedules.ongoing.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4 w-full">
-                스케줄이 없습니다.
-              </p>
-            ) : (
-              categorizedSchedules.ongoing.map((schedule) => (
-                <div
-                  key={schedule.id}
-                  className="min-w-[300px] md:min-w-0 md:mb-2"
-                >
-                  <ScheduleItem
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    clickable={false}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 완료된 스케줄 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="size-5 text-green-500" />
-            완료된 스케줄
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-            {categorizedSchedules.completed.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4 w-full">
-                스케줄이 없습니다.
-              </p>
-            ) : (
-              categorizedSchedules.completed.map((schedule) => (
-                <div
-                  key={schedule.id}
-                  className="min-w-[300px] md:min-w-0 md:mb-2"
-                >
-                  <ScheduleItem
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    clickable
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <ScheduleStatusColumn
+        title="예정 스케줄"
+        icon={<Clock className="size-5 text-blue-500" />}
+        schedules={categorizedSchedules.upcoming}
+        onScheduleClick={onScheduleClick}
+        clickableCompleted={false}
+      />
+      <ScheduleStatusColumn
+        title="진행중 스케줄"
+        icon={<CalendarIcon className="size-5 text-orange-500" />}
+        schedules={categorizedSchedules.ongoing}
+        onScheduleClick={onScheduleClick}
+        clickableCompleted={false}
+      />
+      <ScheduleStatusColumn
+        title="완료된 스케줄"
+        icon={<CheckCircle2 className="size-5 text-green-500" />}
+        schedules={categorizedSchedules.completed}
+        onScheduleClick={onScheduleClick}
+        clickableCompleted={true}
+      />
     </div>
+  );
+}
+
+interface ScheduleStatusColumnProps {
+  title: string;
+  icon: React.ReactNode;
+  schedules: ScheduleWithPost[];
+  onScheduleClick: (schedule: ScheduleWithPost) => void;
+  clickableCompleted: boolean;
+}
+
+function ScheduleStatusColumn({
+  title,
+  icon,
+  schedules,
+  onScheduleClick,
+  clickableCompleted,
+}: ScheduleStatusColumnProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+        <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+          {schedules.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4 w-full">
+              스케줄이 없습니다.
+            </p>
+          ) : (
+            schedules.map((schedule) => (
+              <div
+                key={schedule.id}
+                className="min-w-[300px] md:min-w-0 md:mb-2"
+              >
+                <ScheduleItem
+                  schedule={schedule}
+                  onClick={() => onScheduleClick(schedule)}
+                  clickable={clickableCompleted}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -714,32 +670,7 @@ function CalendarView({
             </CardHeader>
             {/* 달력 아래 설명(범례) 영역 */}
             <CardContent>
-              <div className="flex flex-wrap gap-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-blue-200 border border-gray-300 flex items-center justify-center">
-                    <span className="text-xs font-bold text-blue-700">1</span>
-                  </div>
-                  <span className="text-xs">예정</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-orange-200 border border-gray-300 flex items-center justify-center">
-                    <span className="text-xs font-bold text-orange-700">1</span>
-                  </div>
-                  <span className="text-xs">진행중</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-green-200 border border-gray-300 flex items-center justify-center">
-                    <span className="text-xs font-bold text-green-700">1</span>
-                  </div>
-                  <span className="text-xs">완료</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-white border border-gray-300 flex items-center justify-center">
-                    <span className="text-xs text-gray-900">1</span>
-                  </div>
-                  <span className="text-xs">스케줄 없음</span>
-                </div>
-              </div>
+              <ScheduleStatusLegend />
             </CardContent>
             <div className="px-6">
               <Separator />

@@ -75,71 +75,7 @@ export default function MyPostPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-2">
         <Hero title="내 공고 관리" description="작성한 구인공고를 관리하세요" />
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(
-              'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
-              showFilters
-                ? 'bg-primary/10 border-primary text-primary'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-            )}
-          >
-            <FilterIcon className="size-5" />
-            필터
-          </Button>
-          <Button variant="default" size="sm" asChild>
-            <Link href="/my-post/create">
-              <Plus className="size-4" />
-              <span className="text-sm font-medium">새 공고 작성</span>
-            </Link>
-          </Button>
-        </div>
       </div>
-
-      {/* 필터 영역 */}
-      {showFilters && (
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
-          <div className="flex flex-col gap-4">
-            {/* 검색바 */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="공고 제목 또는 내용으로 검색..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-
-            {/* 정렬 옵션 */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">정렬:</span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={sortOrder === 'newest' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSortOrder('newest')}
-                >
-                  최신순
-                </Button>
-                <Button
-                  type="button"
-                  variant={sortOrder === 'oldest' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSortOrder('oldest')}
-                >
-                  오래된 순
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 개요 */}
       <div className="grid grid-cols-3 gap-4 mb-4">
@@ -166,6 +102,70 @@ export default function MyPostPage() {
         </div>
       </div>
 
+      {/* 필터 버튼과 새 공고 작성 버튼 */}
+      <div className="flex items-center justify-end mb-4 gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className={cn(
+            'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
+            showFilters
+              ? 'bg-primary/10 border-primary text-primary'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          <FilterIcon className="size-5" />
+          필터
+        </Button>
+        <Button variant="default" size="sm" asChild>
+          <Link href="/my-post/create">
+            <Plus className="size-4" />
+            <span className="text-sm font-medium">새 공고 작성</span>
+          </Link>
+        </Button>
+      </div>
+
+      {/* 필터 영역 */}
+      {showFilters && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
+          <div className="flex flex-col gap-4">
+            {/* 정렬 옵션 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">정렬:</span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={sortOrder === 'newest' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('newest')}
+                >
+                  최신순
+                </Button>
+                <Button
+                  type="button"
+                  variant={sortOrder === 'oldest' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('oldest')}
+                >
+                  오래된 순
+                </Button>
+              </div>
+            </div>
+            {/* 검색바 */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="공고 제목 또는 내용으로 검색..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {/* 공고 목록 */}
       <div className="space-y-4">
         {myPosts.length === 0 ? (

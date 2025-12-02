@@ -192,7 +192,7 @@ export default function WorkerFavoritePage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2  gap-6">
               {filteredAndSortedPosts.map((post) => (
                 <JobCard key={post.id} item={postToJobItem(post)} />
               ))}

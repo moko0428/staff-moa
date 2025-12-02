@@ -23,10 +23,10 @@ import {
   MapPin,
   Briefcase,
   CheckCircle2,
-  LayoutGrid,
-  CalendarDays,
 } from 'lucide-react';
 import { Separator } from '@/components/Separator';
+import { ScheduleViewToggle } from '@/components/ScheduleViewToggle';
+import { ScheduleStatusLegend } from '@/components/ScheduleStatusLegend';
 
 interface WorkerSchedule {
   id: string;
@@ -347,118 +347,37 @@ export default function WorkerSchedulePage() {
         </Card>
       </div>
 
-      {/* 뷰 전환 버튼 */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={viewType === 'card' ? 'default' : 'outline'}
-          onClick={() => {
-            setViewType('card');
+      {/* 뷰 전환 버튼 (공통 컴포넌트) */}
+      <ScheduleViewToggle
+        viewType={viewType}
+        onChange={(view) => {
+          setViewType(view);
+          if (view === 'card') {
             setSelectedDate(undefined);
-          }}
-        >
-          <LayoutGrid className="size-4 mr-2" />
-          카드 보기
-        </Button>
-        <Button
-          variant={viewType === 'calendar' ? 'default' : 'outline'}
-          onClick={() => setViewType('calendar')}
-        >
-          <CalendarDays className="size-4 mr-2" />
-          달력 보기
-        </Button>
-      </div>
+          }
+        }}
+      />
 
       {viewType === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 예정된 스케줄 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-blue-100 text-blue-700">예정</Badge>
-                <span className="text-lg">
-                  {categorizedSchedules.upcoming.length}건
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-              {categorizedSchedules.upcoming.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  예정된 스케줄이 없습니다
-                </p>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-                  {categorizedSchedules.upcoming.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="min-w-[300px] md:min-w-0 md:mb-2"
-                    >
-                      <ScheduleCard schedule={schedule} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 진행중 스케줄 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-orange-100 text-orange-700">진행중</Badge>
-                <span className="text-lg">
-                  {categorizedSchedules.ongoing.length}건
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-              {categorizedSchedules.ongoing.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  진행중인 스케줄이 없습니다
-                </p>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-                  {categorizedSchedules.ongoing.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="min-w-[300px] md:min-w-0 md:mb-2"
-                    >
-                      <ScheduleCard schedule={schedule} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 완료된 스케줄 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-green-100 text-green-700">완료</Badge>
-                <span className="text-lg">
-                  {categorizedSchedules.completed.length}건
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
-              {categorizedSchedules.completed.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
-                  완료된 스케줄이 없습니다
-                </p>
-              ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
-                  {categorizedSchedules.completed.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="min-w-[300px] md:min-w-0 md:mb-2"
-                    >
-                      <ScheduleCard schedule={schedule} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <WorkerScheduleStatusColumn
+            label="예정"
+            badgeClassName="bg-blue-100 text-blue-700"
+            count={categorizedSchedules.upcoming.length}
+            schedules={categorizedSchedules.upcoming}
+          />
+          <WorkerScheduleStatusColumn
+            label="진행중"
+            badgeClassName="bg-orange-100 text-orange-700"
+            count={categorizedSchedules.ongoing.length}
+            schedules={categorizedSchedules.ongoing}
+          />
+          <WorkerScheduleStatusColumn
+            label="완료"
+            badgeClassName="bg-green-100 text-green-700"
+            count={categorizedSchedules.completed.length}
+            schedules={categorizedSchedules.completed}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -470,36 +389,7 @@ export default function WorkerSchedulePage() {
               </CardHeader>
               {/* 상태 범례 */}
               <CardContent>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="size-4 rounded bg-blue-200 border border-gray-300 flex items-center justify-center">
-                      <span className="text-xs font-bold text-blue-700">1</span>
-                    </div>
-                    <span className="text-xs">예정</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-4 rounded bg-orange-200 border border-gray-300 flex items-center justify-center">
-                      <span className="text-xs font-bold text-orange-700">
-                        1
-                      </span>
-                    </div>
-                    <span className="text-xs">진행중</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-4 rounded bg-green-200 border border-gray-300 flex items-center justify-center">
-                      <span className="text-xs font-bold text-green-700">
-                        1
-                      </span>
-                    </div>
-                    <span className="text-xs">완료</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-4 rounded bg-white border border-gray-300 flex items-center justify-center">
-                      <span className="text-xs text-gray-900">1</span>
-                    </div>
-                    <span className="text-xs">스케줄 없음</span>
-                  </div>
-                </div>
+                <ScheduleStatusLegend />
               </CardContent>
               <div className="px-6">
                 <Separator />
@@ -555,6 +445,49 @@ export default function WorkerSchedulePage() {
         </div>
       )}
     </div>
+  );
+}
+
+interface WorkerScheduleStatusColumnProps {
+  label: string;
+  badgeClassName: string;
+  count: number;
+  schedules: WorkerSchedule[];
+}
+
+function WorkerScheduleStatusColumn({
+  label,
+  badgeClassName,
+  count,
+  schedules,
+}: WorkerScheduleStatusColumnProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Badge className={badgeClassName}>{label}</Badge>
+          <span className="text-lg">{count}건</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+        {schedules.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">
+            {label} 스케줄이 없습니다
+          </p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
+            {schedules.map((schedule) => (
+              <div
+                key={schedule.id}
+                className="min-w-[300px] md:min-w-0 md:mb-2"
+              >
+                <ScheduleCard schedule={schedule} />
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
