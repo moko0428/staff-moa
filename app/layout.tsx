@@ -14,9 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="bg-accent">
+      <body className="min-h-screen bg-accent text-foreground">
         <HeaderNav />
-        <main className="max-w-7xl mx-auto px-4 py-4">{children}</main>
+        <main>{children}</main>
       </body>
     </html>
   );

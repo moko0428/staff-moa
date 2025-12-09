@@ -150,11 +150,18 @@ export default function WorkerManagementPage() {
       );
     }
 
-    // 날짜순 정렬 (최신순)
-    return filtered.sort(
-      (a, b) =>
-        new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
-    );
+    // 상태 우선순위: pending > accepted > rejected, 동일 상태는 최신순
+    const priority: Record<ApplicationStatus, number> = {
+      pending: 0,
+      accepted: 1,
+      rejected: 2,
+    };
+
+    return filtered.slice().sort((a, b) => {
+      const pDiff = priority[a.status] - priority[b.status];
+      if (pDiff !== 0) return pDiff;
+      return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
+    });
   }, [managerApplications, statusFilter, searchTerm]);
 
   // 상태별 통계

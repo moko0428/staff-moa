@@ -120,7 +120,7 @@ export default function WorkerCard({
                   <span>{application.applicantKakaoId}</span>
                 </div>
               )}
-              {application.applicantAttendanceScore && (
+              {application.applicantAttendanceScore !== undefined && (
                 <div className="flex items-center gap-2 text-gray-600">
                   <Star className="size-4 fill-yellow-400 text-yellow-400" />
                   <span>{application.applicantAttendanceScore}점</span>

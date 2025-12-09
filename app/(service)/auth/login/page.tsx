@@ -36,11 +36,17 @@ export default function LoginPage() {
     localStorage.setItem('userId', user.id);
     localStorage.setItem('userRole', user.role);
     localStorage.setItem('userEmail', user.email);
+
+    // 서버 미들웨어/SSR에서도 인증을 감지할 수 있도록 쿠키로도 보관
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `userId=${user.id}; path=/; expires=${expires}`;
+    document.cookie = `authToken=mock-token; path=/; expires=${expires}`;
+
     // 로그인 상태 변화 이벤트 발행 (동일 탭 실시간 반영)
     window.dispatchEvent(new Event('auth-changed'));
 
     alert(`${user.name} (${user.role})으로 로그인되었습니다.`);
-    router.push('/');
+    router.push('/post');
   };
 
   return (

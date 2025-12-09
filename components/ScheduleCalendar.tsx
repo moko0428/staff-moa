@@ -6,7 +6,7 @@ import type { DayButton } from 'react-day-picker';
 import { format, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import type { ScheduleWithPost } from '@/app/manager/schedule/page';
+import type { ScheduleWithPost } from '@/app/(service)/manager/schedule/page';
 
 interface ScheduleCalendarProps {
   schedulesByDate: Record<string, ScheduleWithPost[]>;

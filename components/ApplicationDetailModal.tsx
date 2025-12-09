@@ -157,7 +157,7 @@ export default function ApplicationDetailModal({
                       </p>
                     </div>
                   )}
-                  {application.applicantInfo.attendanceScore && (
+                  {application.applicantInfo.attendanceScore !== undefined && (
                     <div className="flex items-center justify-between">
                       <Label className="text-sm text-gray-500">근태 점수</Label>
                       <div className="flex items-center gap-1">
