@@ -10,6 +10,7 @@ export interface User {
   phone?: string;
   kakaoId?: string;
   photo?: string;
+  password?: string;
 
   // Member 전용 필드
   birthDate?: string; // 'YYYY-MM-DD' 형식

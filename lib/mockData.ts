@@ -18,6 +18,7 @@ export const mockUsers: User[] = [
     photo: '/images/default-avatar.png',
     attendanceScore: 100,
     createdAt: '2024-01-01',
+    password: 'admin1234',
   },
   {
     id: 'manager-1',
@@ -30,6 +31,7 @@ export const mockUsers: User[] = [
     companyName: '(주)이벤트플러스',
     attendanceScore: 95,
     createdAt: '2024-02-01',
+    password: 'manager1234',
   },
   {
     id: 'member-1',
@@ -68,6 +70,7 @@ export const mockUsers: User[] = [
       certificates: ['바리스타 2급', '컴퓨터활용능력 2급'],
       language: ['영어(중급)', '일본어(초급)'],
     },
+    password: 'worker11234',
   },
   {
     id: 'member-2',

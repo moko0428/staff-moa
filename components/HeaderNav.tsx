@@ -17,7 +17,6 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
@@ -30,47 +29,32 @@ import {
 import Link from 'next/link';
 
 export default function HeaderNav() {
-  const pathname = usePathname();
-  const [hash, setHash] = useState('');
-  const [isAdmin, setIsAdmin] = useState(true);
-  const [isManager, setIsManager] = useState(true);
-  const [isWorker, setIsWorker] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+  const [isWorker, setIsWorker] = useState(false);
 
   useEffect(() => {
-    const updateHash = () => {
-      setHash(window.location.hash);
-    };
-
-    updateHash();
-    const handleHashChange = () => {
-      updateHash();
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    const intervalId = setInterval(updateHash, 100);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-      clearInterval(intervalId);
-    };
-  }, [pathname]);
-
-  useEffect(() => {
-    // 사용자 역할 확인
-    try {
-      if (typeof window !== 'undefined') {
+    const syncRole = () => {
+      try {
+        if (typeof window === 'undefined') return;
         const userId = localStorage.getItem('userId');
         const userRole = localStorage.getItem('userRole');
-
-        if (userId && userRole) {
-          setIsAdmin(userRole === 'admin');
-          setIsManager(userRole === 'manager');
-          setIsWorker(userRole === 'member');
-        }
+        setIsAdmin(!!userId && userRole === 'admin');
+        setIsManager(!!userId && userRole === 'manager');
+        setIsWorker(!!userId && userRole === 'member');
+      } catch (error) {
+        console.error('Failed to check user role:', error);
       }
-    } catch (error) {
-      console.error('Failed to check user role:', error);
-    }
+    };
+
+    syncRole();
+    window.addEventListener('storage', syncRole);
+    window.addEventListener('auth-changed', syncRole);
+
+    return () => {
+      window.removeEventListener('storage', syncRole);
+      window.removeEventListener('auth-changed', syncRole);
+    };
   }, []);
 
   return (

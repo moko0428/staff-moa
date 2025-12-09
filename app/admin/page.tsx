@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { mockUsers, mockPosts } from '@/lib/mockData';
 import { User, Post } from '@/types/mockData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,6 +76,8 @@ const managerRequests: ManagerRequest[] = mockUsers
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('members');
+  const [managerRequestsState, setManagerRequestsState] =
+    useState<ManagerRequest[]>(managerRequests);
 
   // 실제 구현에서는 서버에서 관리자를 판별하지만, 여기서는 role === 'admin' 유저를 관리자라고 가정
   const adminUser = useMemo(
@@ -95,6 +97,9 @@ export default function AdminPage() {
   );
   const [approvedManagerIds, setApprovedManagerIds] = useState<string[]>([]);
   const [rejectedManagerIds, setRejectedManagerIds] = useState<string[]>([]);
+  const [extraManagerRequests, setExtraManagerRequests] = useState<
+    ManagerRequest[]
+  >([]);
 
   // 검색 & 필터 상태
   const [memberSearch, setMemberSearch] = useState('');
@@ -169,7 +174,7 @@ export default function AdminPage() {
 
   const pendingManagerRequests = useMemo(
     () =>
-      managerRequests.filter(
+      managerRequestsState.filter(
         (req) =>
           !approvedManagerIds.includes(req.user.id) &&
           !rejectedManagerIds.includes(req.user.id) &&
@@ -177,8 +182,56 @@ export default function AdminPage() {
             req.user.name.toLowerCase().includes(managerSearch.toLowerCase()) ||
             req.user.email.toLowerCase().includes(managerSearch.toLowerCase()))
       ),
-    [approvedManagerIds, rejectedManagerIds, managerSearch]
+    [
+      approvedManagerIds,
+      rejectedManagerIds,
+      managerSearch,
+      managerRequestsState,
+    ]
   );
+
+  // 로컬 스토리지에 저장된 매니저 승인 요청 병합
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('managerRequestsExtra');
+      if (stored) {
+        const parsed = JSON.parse(stored) as ManagerRequest[];
+        setExtraManagerRequests(parsed);
+        setManagerRequestsState([...managerRequests, ...parsed]);
+      } else {
+        setManagerRequestsState(managerRequests);
+      }
+    } catch {
+      setManagerRequestsState(managerRequests);
+    }
+  }, []);
+
+  const persistExtraRequests = (requests: ManagerRequest[]) => {
+    setExtraManagerRequests(requests);
+    localStorage.setItem('managerRequestsExtra', JSON.stringify(requests));
+  };
+
+  const handleManagerDecision = (
+    req: ManagerRequest,
+    decision: 'approve' | 'reject'
+  ) => {
+    if (decision === 'approve') {
+      setApprovedManagerIds((prev) =>
+        prev.includes(req.user.id) ? prev : [...prev, req.user.id]
+      );
+    } else {
+      setRejectedManagerIds((prev) =>
+        prev.includes(req.user.id) ? prev : [...prev, req.user.id]
+      );
+    }
+
+    setManagerRequestsState((prev) => prev.filter((r) => r.id !== req.id));
+
+    if (req.id.startsWith('local-req')) {
+      const filtered = extraManagerRequests.filter((r) => r.id !== req.id);
+      persistExtraRequests(filtered);
+    }
+  };
 
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
@@ -549,13 +602,7 @@ export default function AdminPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setApprovedManagerIds((prev) =>
-                          prev.includes(req.user.id)
-                            ? prev
-                            : [...prev, req.user.id]
-                        )
-                      }
+                      onClick={() => handleManagerDecision(req, 'approve')}
                     >
                       <CheckCircle2 className="size-4 text-emerald-600" />
                       <span className="text-xs">승인</span>
@@ -563,13 +610,7 @@ export default function AdminPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() =>
-                        setRejectedManagerIds((prev) =>
-                          prev.includes(req.user.id)
-                            ? prev
-                            : [...prev, req.user.id]
-                        )
-                      }
+                      onClick={() => handleManagerDecision(req, 'reject')}
                     >
                       <ShieldCheck className="size-4" />
                       <span className="text-xs">거절</span>
