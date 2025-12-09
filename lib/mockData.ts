@@ -46,6 +46,7 @@ export const mockUsers: User[] = [
     gender: '여성',
     height: 165,
     weight: 52,
+    mbti: 'INFP',
     personality: '밝고 긍정적이며 적극적인 성격입니다.',
     features: '친화력이 좋고 고객 응대에 능숙합니다.',
     experiences: [
@@ -85,6 +86,7 @@ export const mockUsers: User[] = [
     gender: '남성',
     height: 178,
     weight: 70,
+    mbti: 'ISTJ',
     personality: '성실하고 책임감이 강합니다.',
     features: '체력이 좋고 장시간 근무 가능합니다.',
     experiences: [

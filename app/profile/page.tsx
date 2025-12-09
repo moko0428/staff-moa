@@ -395,6 +395,23 @@ export default function ProfilePage() {
                     {currentUser.attendanceScore}점
                   </span>
                 </div>
+                <div className="w-full pb-4 flex items-center justify-center">
+                  {isEditing ? (
+                    <Textarea
+                      value={currentUser.introduction}
+                      placeholder="자기소개를 입력하세요"
+                      rows={3}
+                      onChange={(e) =>
+                        handleInputChange('introduction', e.target.value)
+                      }
+                      className="resize-none text-sm"
+                    />
+                  ) : (
+                    <p className="text-sm leading-relaxed">
+                      {currentUser.introduction || '-'}
+                    </p>
+                  )}
+                </div>
                 <Button
                   className="w-full"
                   onClick={() => setIsEditing(!isEditing)}
@@ -495,6 +512,21 @@ export default function ProfilePage() {
                     <p className="font-semibold">
                       {currentUser.kakaoId || '-'}
                     </p>
+                  )}
+                </div>
+                <div>
+                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    MBTI
+                  </Label>
+                  {isEditing ? (
+                    <Input
+                      value={currentUser.mbti}
+                      onChange={(e) =>
+                        handleInputChange('mbti', e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p className="font-semibold">{currentUser.mbti || '-'}</p>
                   )}
                 </div>
                 {isManager && (
@@ -656,7 +688,7 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>경력 및 자기소개</CardTitle>
+                    <CardTitle>경력</CardTitle>
                     {isEditing && (
                       <Button
                         type="button"
@@ -731,26 +763,6 @@ export default function ProfilePage() {
                         </p>
                       )}
                     </div>
-                  </div>
-                  <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                      <FileText className="size-4" />
-                      자기소개
-                    </Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={currentUser.introduction}
-                        placeholder="자기소개를 입력하세요"
-                        rows={3}
-                        onChange={(e) =>
-                          handleInputChange('introduction', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="text-sm leading-relaxed">
-                        {currentUser.introduction || '-'}
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>

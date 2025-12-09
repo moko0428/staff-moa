@@ -51,6 +51,7 @@ export interface JobItem {
   categories: string[];
   qualifications?: string[];
   status: '급구' | '모집' | '모집완료';
+  createdAt?: string; // 정렬용
 }
 
 interface JobCardProps {
@@ -64,10 +65,11 @@ export function JobCard({ item }: JobCardProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
     {
-      name: true,
-      phone: true,
-      kakaoId: true,
-      gender: true,
+      personal: true, // 이름/전화/카톡/성별/MBTI
+      experiences: true,
+      documents: true,
+      certificates: true,
+      languages: true,
     }
   );
 
@@ -183,13 +185,25 @@ export function JobCard({ item }: JobCardProps) {
     }
 
     const payload: Record<string, unknown> = {};
-    if (selectedFields.name) payload.name = currentUser.name;
-    if (selectedFields.phone && currentUser.phone)
-      payload.phone = currentUser.phone;
-    if (selectedFields.kakaoId && currentUser.kakaoId)
-      payload.kakaoId = currentUser.kakaoId;
-    if (selectedFields.gender && currentUser.gender)
-      payload.gender = currentUser.gender;
+    if (selectedFields.personal) {
+      payload.name = currentUser.name;
+      if (currentUser.phone) payload.phone = currentUser.phone;
+      if (currentUser.kakaoId) payload.kakaoId = currentUser.kakaoId;
+      if (currentUser.gender) payload.gender = currentUser.gender;
+      const mbti = currentUser.mbti ?? currentUser.personality;
+      if (mbti) payload.mbti = mbti;
+    }
+    if (selectedFields.experiences && currentUser.experiences)
+      payload.experiences = currentUser.experiences;
+    if (selectedFields.documents && currentUser.documents)
+      payload.documents = currentUser.documents;
+    if (
+      selectedFields.certificates &&
+      currentUser.documents?.certificates?.length
+    )
+      payload.certificates = currentUser.documents.certificates;
+    if (selectedFields.languages && currentUser.documents?.language?.length)
+      payload.languages = currentUser.documents.language;
 
     console.log('지원 정보 전송:', {
       postId: item.id,
@@ -378,7 +392,7 @@ export function JobCard({ item }: JobCardProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-base">
-              {item.title} 공고에 지원하기
+              {item.title}에 지원하기
             </DialogTitle>
           </DialogHeader>
           {currentUser ? (
@@ -386,59 +400,82 @@ export function JobCard({ item }: JobCardProps) {
               <p className="text-xs text-gray-500">
                 아래 항목 중 지원 시 전달할 정보를 선택해주세요.
               </p>
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium">이름</p>
-                    <p className="text-xs text-gray-500">{currentUser.name}</p>
+                  <div className="space-y-1">
+                    <p className="font-medium">개인정보</p>
                   </div>
                   <Switch
-                    checked={selectedFields.name}
-                    onCheckedChange={() => handleToggleField('name')}
+                    checked={selectedFields.personal}
+                    onCheckedChange={() => handleToggleField('personal')}
                   />
                 </div>
-                {currentUser.phone && (
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">전화번호</p>
-                      <p className="text-xs text-gray-500">
-                        {currentUser.phone}
-                      </p>
+                {currentUser.experiences &&
+                  currentUser.experiences.length > 0 && (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">경력</p>
+                      </div>
+                      <Switch
+                        checked={selectedFields.experiences}
+                        onCheckedChange={() => handleToggleField('experiences')}
+                      />
                     </div>
-                    <Switch
-                      checked={selectedFields.phone}
-                      onCheckedChange={() => handleToggleField('phone')}
-                    />
-                  </div>
-                )}
-                {currentUser.kakaoId && (
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">카카오톡 아이디</p>
-                      <p className="text-xs text-gray-500">
-                        {currentUser.kakaoId}
-                      </p>
+                  )}
+                {currentUser.documents &&
+                  Object.values(currentUser.documents).some(Boolean) && (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">서류</p>
+                        <ul className="text-xs text-gray-500 space-y-0.5">
+                          {currentUser.documents.idCard && <li>신분증</li>}
+                          {currentUser.documents.bankbook && <li>통장사본</li>}
+                          {currentUser.documents.healthCertificate && (
+                            <li>보건증</li>
+                          )}
+                          {currentUser.documents.driverLicense && (
+                            <li>운전면허</li>
+                          )}
+                        </ul>
+                      </div>
+                      <Switch
+                        checked={selectedFields.documents}
+                        onCheckedChange={() => handleToggleField('documents')}
+                      />
                     </div>
-                    <Switch
-                      checked={selectedFields.kakaoId}
-                      onCheckedChange={() => handleToggleField('kakaoId')}
-                    />
-                  </div>
-                )}
-                {currentUser.gender && (
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">성별</p>
-                      <p className="text-xs text-gray-500">
-                        {currentUser.gender}
-                      </p>
+                  )}
+                {currentUser.documents?.certificates &&
+                  currentUser.documents.certificates.length > 0 && (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">자격증</p>
+                        <p className="text-xs text-gray-500">
+                          {currentUser.documents.certificates.join(', ')}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={selectedFields.certificates}
+                        onCheckedChange={() =>
+                          handleToggleField('certificates')
+                        }
+                      />
                     </div>
-                    <Switch
-                      checked={selectedFields.gender}
-                      onCheckedChange={() => handleToggleField('gender')}
-                    />
-                  </div>
-                )}
+                  )}
+                {currentUser.documents?.language &&
+                  currentUser.documents.language.length > 0 && (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">어학 능력</p>
+                        <p className="text-xs text-gray-500">
+                          {currentUser.documents.language.join(', ')}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={selectedFields.languages}
+                        onCheckedChange={() => handleToggleField('languages')}
+                      />
+                    </div>
+                  )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button

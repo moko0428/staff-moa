@@ -11,7 +11,7 @@ export interface User {
   kakaoId?: string;
   photo?: string;
   password?: string;
-
+  mbti?: string;
   // Member 전용 필드
   birthDate?: string; // 'YYYY-MM-DD' 형식
   age?: number; // 계산된 나이 (선택적)

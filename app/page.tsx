@@ -18,7 +18,7 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
 // Post를 JobItem으로 변환하는 함수
-function postToJobItem(post: Post, index: number): JobItem {
+function postToJobItem(post: Post): JobItem {
   const statusMap: Record<Post['status'], JobItem['status']> = {
     urgent: '급구',
     recruiting: '모집',
@@ -26,7 +26,7 @@ function postToJobItem(post: Post, index: number): JobItem {
   };
 
   return {
-    id: index + 1,
+    id: post.id, // 즐겨찾기/상세 링크 일관성
     title: post.title,
     content: post.description,
     date: post.date,
@@ -41,6 +41,7 @@ function postToJobItem(post: Post, index: number): JobItem {
     categories: post.keywords,
     qualifications: post.requirements ? [post.requirements] : [],
     status: statusMap[post.status],
+    createdAt: post.createdAt,
   };
 }
 
@@ -57,7 +58,7 @@ export default function Home() {
     categories: [],
   });
 
-  const [isManager, setIsManager] = useState(true);
+  const [isManager, setIsManager] = useState(false);
 
   useEffect(() => {
     const updateHash = () => {
@@ -72,9 +73,31 @@ export default function Home() {
     };
   }, []);
 
+  // userRole에 따른 매니저 권한 체크
+  useEffect(() => {
+    const syncRole = () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        setIsManager(!!userId && userRole === 'manager');
+      } catch {
+        setIsManager(false);
+      }
+    };
+
+    syncRole();
+    window.addEventListener('storage', syncRole);
+    window.addEventListener('auth-changed', syncRole);
+    return () => {
+      window.removeEventListener('storage', syncRole);
+      window.removeEventListener('auth-changed', syncRole);
+    };
+  }, []);
+
   // 구인공고 페이지 (#open 또는 기본)
   const jobPostings = useMemo(() => {
-    return mockPosts.map((post, index) => postToJobItem(post, index));
+    return mockPosts.map((post) => postToJobItem(post));
   }, []);
 
   const allCategories = useMemo(() => {
@@ -103,46 +126,62 @@ export default function Home() {
   }, [jobPostings]);
 
   const filtered = useMemo(() => {
-    return jobPostings.filter((job) => {
-      if (filters.status && job.status !== filters.status) return false;
-      if (filters.payMin && Number(job.pay ?? 0) < Number(filters.payMin))
-        return false;
-      if (filters.payMax && Number(job.pay ?? 0) > Number(filters.payMax))
-        return false;
+    const statusPriority: Record<JobItem['status'], number> = {
+      급구: 0,
+      모집: 1,
+      모집완료: 2,
+    };
 
-      if (filters.dateRange?.from) {
-        const jobDateStr = job.date ?? '';
-        if (!jobDateStr) return false;
+    return jobPostings
+      .filter((job) => {
+        if (filters.status && job.status !== filters.status) return false;
+        if (filters.payMin && Number(job.pay ?? 0) < Number(filters.payMin))
+          return false;
+        if (filters.payMax && Number(job.pay ?? 0) > Number(filters.payMax))
+          return false;
 
-        const jobDate = new Date(jobDateStr);
-        const from = new Date(filters.dateRange.from);
-        const to =
-          filters.dateMode === 'open-end'
-            ? undefined
-            : new Date(filters.dateRange.to ?? filters.dateRange.from);
+        if (filters.dateRange?.from) {
+          const jobDateStr = job.date ?? '';
+          if (!jobDateStr) return false;
 
-        const jobTime = jobDate.setHours(0, 0, 0, 0);
-        const fromTime = from.setHours(0, 0, 0, 0);
+          const jobDate = new Date(jobDateStr);
+          const from = new Date(filters.dateRange.from);
+          const to =
+            filters.dateMode === 'open-end'
+              ? undefined
+              : new Date(filters.dateRange.to ?? filters.dateRange.from);
 
-        if (jobTime < fromTime) return false;
-        if (filters.dateMode !== 'open-end') {
-          const toTime = (to ?? from).setHours(0, 0, 0, 0);
-          if (jobTime > toTime) return false;
+          const jobTime = jobDate.setHours(0, 0, 0, 0);
+          const fromTime = from.setHours(0, 0, 0, 0);
+
+          if (jobTime < fromTime) return false;
+          if (filters.dateMode !== 'open-end') {
+            const toTime = (to ?? from).setHours(0, 0, 0, 0);
+            if (jobTime > toTime) return false;
+          }
         }
-      }
 
-      if (filters.toText && !(job.TO ?? '').includes(filters.toText))
-        return false;
-      if (filters.placeText && !(job.place ?? '').includes(filters.placeText))
-        return false;
-      if (
-        filters.categories.length > 0 &&
-        !filters.categories.every((c) => job.categories.includes(c))
-      )
-        return false;
+        if (filters.toText && !(job.TO ?? '').includes(filters.toText))
+          return false;
+        if (filters.placeText && !(job.place ?? '').includes(filters.placeText))
+          return false;
+        if (
+          filters.categories.length > 0 &&
+          !filters.categories.every((c) => job.categories.includes(c))
+        )
+          return false;
 
-      return true;
-    });
+        return true;
+      })
+      .slice()
+      .sort((a, b) => {
+        const statusDiff = statusPriority[a.status] - statusPriority[b.status];
+        if (statusDiff !== 0) return statusDiff;
+
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // 최신순
+      });
   }, [filters, jobPostings]);
 
   // 관리자 페이지 (#admin)
@@ -241,8 +280,8 @@ export default function Home() {
       <div className="flex flex-col gap-6">
         <h2 className="text-2xl font-bold">내 공고</h2>
         <div className="space-y-4">
-          {managerPosts.map((post, index) => (
-            <JobCard key={post.id} item={postToJobItem(post, index)} />
+          {managerPosts.map((post) => (
+            <JobCard key={post.id} item={postToJobItem(post)} />
           ))}
         </div>
       </div>
