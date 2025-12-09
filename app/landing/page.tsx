@@ -163,7 +163,7 @@ export default function LandingPage() {
       {/* 주요 기능 소개 */}
       <section className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">주요 기능</h2>
-        <div className="grid lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {featuresByRole.map((group) => (
             <Card key={group.role} className="h-full">
               <CardContent className="p-5 space-y-3">
@@ -214,39 +214,6 @@ export default function LandingPage() {
               F&B/외식
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 사용자 등급 설명 */}
-      <section className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">사용자 등급</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-5 space-y-2">
-              <p className="text-sm font-semibold text-blue-600">일반 회원</p>
-              <p className="text-sm text-gray-700">
-                공고 검색 및 지원, 관심 목록 관리, 스케줄 확인, 지원 정보 선택
-                전송.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 space-y-2">
-              <p className="text-sm font-semibold text-blue-600">매니저</p>
-              <p className="text-sm text-gray-700">
-                공고 등록/수정, 지원자/스케줄 관리, 매니저 승인 프로세스 후
-                활성화.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 space-y-2">
-              <p className="text-sm font-semibold text-blue-600">관리자</p>
-              <p className="text-sm text-gray-700">
-                회원/공고/신고 관리, 매니저 승인, 시스템 운영 및 품질 관리.
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
