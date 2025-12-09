@@ -160,30 +160,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 주요 기능 소개 */}
-      <section className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">주요 기능</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {featuresByRole.map((group) => (
-            <Card key={group.role} className="h-full">
-              <CardContent className="p-5 space-y-3">
-                <p className="text-sm font-semibold text-blue-600">
-                  {group.role}
-                </p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  {group.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <CheckCircle2 className="size-4 text-emerald-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
       {/* 파트너 섹션 */}
       <section className="bg-slate-50 border-t border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-4">
