@@ -32,6 +32,7 @@ export default function AuthButtons() {
   const clearAuthCookies = () => {
     const expire = 'Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = `userId=; path=/; expires=${expire}`;
+    document.cookie = `userRole=; path=/; expires=${expire}`;
     document.cookie = `authToken=; path=/; expires=${expire}`;
   };
 
