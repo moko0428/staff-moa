@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LogOut } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export default function AuthButtons() {
+export default function AuthButtons({ isHome }: { isHome: boolean }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
@@ -78,7 +79,13 @@ export default function AuthButtons() {
       ) : (
         <>
           <Button variant="ghost" size="sm" type="button" asChild>
-            <Link href="/auth/login" className="text-white">
+            <Link
+              href="/auth/login"
+              className={cn(
+                'text-sm font-medium',
+                isHome ? 'text-white' : 'text-primary'
+              )}
+            >
               로그인
             </Link>
           </Button>

@@ -164,7 +164,7 @@ export default function HeaderNav() {
           {/* 데스크톱 로그인 버튼 - md 이상에서만 표시 (auth 페이지에서는 숨김) */}
           {!isAuthPage && (
             <div className="hidden md:block">
-              <AuthButtons />
+              <AuthButtons isHome={isHome} />
             </div>
           )}
 
@@ -282,13 +282,13 @@ export default function HeaderNav() {
                   {/* 로그인/회원가입 버튼 (auth 페이지에서는 숨김) */}
                   {!isAuthPage && (
                     <div className="p-2">
-                      <AuthButtons />
+                      <AuthButtons isHome={isHome} />
                     </div>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              !isAuthPage && <AuthButtons />
+              !isAuthPage && <AuthButtons isHome={isHome} />
             )}
           </div>
         </div>
