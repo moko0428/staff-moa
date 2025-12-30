@@ -1,57 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/utils/supabase/client';
+import { signOutAction } from '@/app/(service)/auth/action';
 
 export default function AuthButtons({ isHome }: { isHome: boolean }) {
+  const supabase = useMemo(() => createClient(), []);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    const syncAuth = () => {
+    const syncAuth = async () => {
       try {
-        if (typeof window === 'undefined') return;
-        const userId = localStorage.getItem('userId');
-        setIsAuthenticated(!!userId);
+        const { data } = await supabase.auth.getUser();
+        setIsAuthenticated(Boolean(data.user));
       } catch {
         setIsAuthenticated(false);
       }
     };
 
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      syncAuth();
+    });
+
     syncAuth();
-    window.addEventListener('storage', syncAuth);
-    window.addEventListener('auth-changed', syncAuth);
 
     return () => {
-      window.removeEventListener('storage', syncAuth);
-      window.removeEventListener('auth-changed', syncAuth);
+      listener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
-  const clearAuthCookies = () => {
-    const expire = 'Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = `userId=; path=/; expires=${expire}`;
-    document.cookie = `userRole=; path=/; expires=${expire}`;
-    document.cookie = `authToken=; path=/; expires=${expire}`;
-  };
-
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userEmail');
-      // 기존 auth 플래그가 있다면 제거
-      localStorage.removeItem('auth');
-      clearAuthCookies();
-      setIsAuthenticated(false);
-      // 동일 탭 실시간 반영
-      window.dispatchEvent(new Event('auth-changed'));
-      window.location.href = '/';
-    } catch {
-      // noop
-    }
+  const handleLogout = async () => {
+    startTransition(async () => {
+      try {
+        await signOutAction();
+      } finally {
+        // 세션 쿠키 반영을 위해 전체 리로드
+        window.location.href = '/';
+      }
+    });
   };
 
   return (
@@ -72,29 +63,23 @@ export default function AuthButtons({ isHome }: { isHome: boolean }) {
             size="sm"
             type="button"
             onClick={handleLogout}
+            disabled={isPending}
           >
             <LogOut className="size-4" />
           </Button>
         </>
       ) : (
-        <>
-          <Button variant="ghost" size="sm" type="button" asChild>
-            <Link
-              href="/auth/login"
-              className={cn(
-                'text-sm font-medium',
-                isHome ? 'text-white' : 'text-primary'
-              )}
-            >
-              로그인
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" type="button" asChild>
-            <Link href="/auth/join" className="text-primary">
-              회원가입
-            </Link>
-          </Button>
-        </>
+        <Button variant="outline" size="sm" type="button" asChild>
+          <Link
+            href="/auth/login"
+            className={cn(
+              'text-sm font-medium',
+              isHome ? 'text-white' : 'text-primary'
+            )}
+          >
+            로그인
+          </Link>
+        </Button>
       )}
     </div>
   );

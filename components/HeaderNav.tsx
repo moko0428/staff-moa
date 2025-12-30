@@ -17,7 +17,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,11 +29,14 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/utils/supabase/client';
+import { signOutAction } from '@/app/(service)/auth/action';
 
 export default function HeaderNav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
   const [isWorker, setIsWorker] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
   const isHome = pathname === '/';
   const isAuthPage =
@@ -44,28 +47,37 @@ export default function HeaderNav() {
     : 'text-foreground hover:text-primary/80 transition-colors';
 
   useEffect(() => {
-    const syncRole = () => {
+    const syncRole = async () => {
       try {
-        if (typeof window === 'undefined') return;
-        const userId = localStorage.getItem('userId');
-        const userRole = localStorage.getItem('userRole');
-        setIsAdmin(!!userId && userRole === 'admin');
-        setIsManager(!!userId && userRole === 'manager');
-        setIsWorker(!!userId && userRole === 'member');
+        const { data } = await supabase.auth.getUser();
+        const role = (data.user?.user_metadata as { role?: string } | undefined)
+          ?.role;
+        setIsAdmin(role === 'admin');
+        setIsManager(role === 'manager');
+        setIsWorker(role === 'member');
       } catch (error) {
-        console.error('Failed to check user role:', error);
+        console.error('Failed to fetch user role:', error);
       }
     };
 
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      syncRole();
+    });
+
     syncRole();
-    window.addEventListener('storage', syncRole);
-    window.addEventListener('auth-changed', syncRole);
 
     return () => {
-      window.removeEventListener('storage', syncRole);
-      window.removeEventListener('auth-changed', syncRole);
+      listener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    try {
+      await signOutAction();
+    } finally {
+      window.location.href = '/';
+    }
+  };
 
   return (
     <nav
@@ -161,10 +173,26 @@ export default function HeaderNav() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {/* 데스크톱 로그인 버튼 - md 이상에서만 표시 (auth 페이지에서는 숨김) */}
+          {/* 데스크톱 로그인/프로필 - md 이상 (auth 페이지에서는 숨김) */}
           {!isAuthPage && (
             <div className="hidden md:block">
-              <AuthButtons isHome={isHome} />
+              {isAuthed ? (
+                <Link
+                  href="/profile"
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    isHome
+                      ? 'text-white hover:text-white/80'
+                      : 'text-primary hover:text-primary/80'
+                  )}
+                  aria-label="프로필 관리"
+                >
+                  <User className="size-4" />
+                  프로필 관리
+                </Link>
+              ) : !isHome ? (
+                <AuthButtons isHome={isHome} />
+              ) : null}
             </div>
           )}
 
@@ -187,7 +215,11 @@ export default function HeaderNav() {
                   </button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-56 z-[60]"
+                >
                   {/* 프로필은 로그인 시에만 */}
                   {(isAdmin || isManager || isWorker) && (
                     <>
@@ -280,15 +312,30 @@ export default function HeaderNav() {
                   <DropdownMenuSeparator />
 
                   {/* 로그인/회원가입 버튼 (auth 페이지에서는 숨김) */}
-                  {!isAuthPage && (
-                    <div className="p-2">
-                      <AuthButtons isHome={isHome} />
+                  {!isAuthPage && !isHome && (
+                    <div className="p-2 space-y-2">
+                      {isAuthed ? (
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                        >
+                          로그아웃
+                        </button>
+                      ) : (
+                        <Link
+                          href="/auth/login"
+                          className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-primary hover:bg-gray-50"
+                        >
+                          로그인
+                        </Link>
+                      )}
                     </div>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              !isAuthPage && <AuthButtons isHome={isHome} />
+              !isAuthPage && !isHome && <AuthButtons isHome={isHome} />
             )}
           </div>
         </div>

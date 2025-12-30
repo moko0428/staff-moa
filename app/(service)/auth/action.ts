@@ -14,19 +14,22 @@ type ActionResult = {
     supabaseKeyPreview?: string;
     supabaseErrorCode?: string;
     supabaseErrorMessage?: string;
+    siteUrl?: string;
   };
 };
 
 const envStatus = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
   return {
-    ok: Boolean(supabaseUrl && supabaseKey),
+    ok: Boolean(supabaseUrl && supabaseKey && siteUrl),
     supabaseUrl: supabaseUrl ?? '(unset)',
     supabaseKeyPreview: supabaseKey
       ? `${supabaseKey.slice(0, 4)}...${supabaseKey.slice(-4)}`
       : '(unset)',
+    siteUrl: siteUrl ?? '(unset)',
   };
 };
 
@@ -97,10 +100,11 @@ export async function signInAction(
     return {
       ok: false,
       message:
-        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY를 확인해주세요.',
+        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY / SITE_URL을 확인해주세요.',
       debug: {
         supabaseUrl: env.supabaseUrl,
         supabaseKeyPreview: env.supabaseKeyPreview,
+        siteUrl: env.siteUrl,
       },
     };
   }
@@ -158,10 +162,11 @@ export async function signUpAction(
     return {
       ok: false,
       message:
-        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY를 확인해주세요.',
+        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY / SITE_URL을 확인해주세요.',
       debug: {
         supabaseUrl: env.supabaseUrl,
         supabaseKeyPreview: env.supabaseKeyPreview,
+        siteUrl: env.siteUrl,
       },
     };
   }
@@ -169,6 +174,7 @@ export async function signUpAction(
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (await createClient()) as any;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001';
     const { error } = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
@@ -177,13 +183,35 @@ export async function signUpAction(
           name: payload.name,
           role: payload.role,
         },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
     if (error) {
       const code = (error as { code?: string }).code ?? '';
       const message = (error.message ?? '').toLowerCase();
+      // 디버깅 로그
+      console.error(
+        '[signUpAction] Supabase signUp error',
+        code,
+        error.message
+      );
+      if (
+        code === 'redirect_to_not_allowed' ||
+        message.includes('redirect_to') ||
+        message.includes('email redirect')
+      ) {
+        return {
+          ok: false,
+          message:
+            '이메일 인증 리디렉션 URL이 허용되지 않았습니다. Supabase 콘솔의 Auth Redirect URLs에 NEXT_PUBLIC_SITE_URL/auth/callback을 등록한 후 다시 시도해주세요.',
+          debug: {
+            supabaseErrorCode: code,
+            supabaseErrorMessage: error.message,
+            siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+          },
+        };
+      }
       if (
         code === 'user_already_exists' ||
         code === 'email_exists' ||

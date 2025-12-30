@@ -1,21 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createClient } from './utils/supabase/middleware';
 
-function isAuthed(req: NextRequest) {
-  // 쿠키에 userId 또는 authToken이 있으면 인증된 것으로 간주
-  const userId = req.cookies.get('userId')?.value;
-  const token = req.cookies.get('authToken')?.value;
-  return Boolean(userId || token);
-}
-
-function getRole(req: NextRequest) {
-  return req.cookies.get('userRole')?.value;
-}
-
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const authed = isAuthed(req);
-  const role = getRole(req);
+
+  // Supabase 세션 기반으로 사용자/역할 확인
+  const { supabase, response } = createClient(req);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const authed = Boolean(user);
+  const role = (user?.user_metadata as { role?: string } | undefined)?.role;
 
   // 인증된 사용자는 랜딩 관련 경로 접근 시 /post로 이동
   if (authed && (pathname === '/' || pathname.startsWith('/landing'))) {
@@ -48,7 +45,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

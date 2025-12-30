@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Hero from '@/components/Hero';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { mockUsers, mockApplications, mockPosts } from '@/lib/mockData';
+import { mockApplications, mockPosts } from '@/lib/mockData';
 import { User } from '@/types/mockData';
 import { parseDateString } from '@/lib/dateUtils';
 import {
@@ -24,7 +24,6 @@ import {
   Weight,
   Smile,
   Star,
-  FileText,
   Languages,
   IdCard,
   CreditCard,
@@ -37,6 +36,8 @@ import {
   MapPin,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { createClient } from '@/utils/supabase/client';
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -44,6 +45,9 @@ export default function ProfilePage() {
   const [newLanguage, setNewLanguage] = useState('');
   const [newCertificate, setNewCertificate] = useState('');
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
 
   // 생년월일로부터 나이 계산
   const calculateAge = (birthDate: string): number => {
@@ -61,36 +65,58 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    try {
-      const userId =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('userId') || 'member-1'
-          : 'member-1';
-      const user = mockUsers.find((u) => u.id === userId);
-      if (user) {
-        // 생년월일이 있으면 나이 자동 계산
-        if (user.birthDate) {
-          const calculatedAge = calculateAge(user.birthDate);
-          setCurrentUser({ ...user, age: calculatedAge });
-        } else {
-          setCurrentUser(user);
+    const fetchUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) {
+          setCurrentUser(null);
+          return;
         }
-      }
-    } catch {
-      const user = mockUsers.find((u) => u.id === 'member-1');
-      if (user) {
-        // 생년월일이 있으면 나이 자동 계산
-        if (user.birthDate) {
-          const calculatedAge = calculateAge(user.birthDate);
-          setCurrentUser({ ...user, age: calculatedAge });
-        } else {
-          setCurrentUser(user);
-        }
-      }
-    }
-  }, []);
 
-  if (!currentUser) {
+        const meta = (data.user.user_metadata ?? {}) as {
+          name?: string;
+          role?: 'member' | 'manager' | 'admin';
+          introduction?: string;
+          phone?: string;
+          kakaoId?: string;
+          mbti?: string;
+          gender?: '남성' | '여성';
+          height?: number;
+          weight?: number;
+          companyName?: string;
+          attendanceScore?: number;
+        };
+
+        const profile: User = {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          name: meta.name || data.user.email || '사용자',
+          role: meta.role ?? 'member',
+          attendanceScore: meta.attendanceScore ?? 50,
+          createdAt: data.user.created_at ?? new Date().toISOString(),
+          introduction: meta.introduction,
+          phone: meta.phone,
+          kakaoId: meta.kakaoId,
+          mbti: meta.mbti,
+          gender: meta.gender,
+          height: meta.height,
+          weight: meta.weight,
+          companyName: meta.companyName,
+          documents: {},
+        };
+
+        setCurrentUser(profile);
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        setIsLoadingUser(false);
+      }
+    };
+
+    fetchUser();
+  }, [supabase]);
+
+  if (isLoadingUser) {
     return (
       <div>
         <Hero title="프로필" description="내 프로필 정보" />
@@ -101,8 +127,57 @@ export default function ProfilePage() {
     );
   }
 
+  if (!currentUser) {
+    return (
+      <div>
+        <Hero title="프로필" description="내 프로필 정보" />
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[400px] text-gray-600">
+          <p>로그인이 필요합니다.</p>
+          <div className="flex gap-2">
+            <Link href="/auth/login" className="text-primary underline">
+              로그인
+            </Link>
+            <span className="text-gray-400">|</span>
+            <Link href="/auth/join" className="text-primary underline">
+              회원가입
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isMember = currentUser.role === 'member';
   const isManager = currentUser.role === 'manager';
+  const isAdmin = currentUser.role === 'admin';
+
+  // 필수 정보 누락 여부 확인
+  const requiredFields: Array<[string, unknown]> = isAdmin
+    ? []
+    : [
+        ['전화번호', currentUser.phone],
+        ['성별', currentUser.gender],
+        ['자기소개', currentUser.introduction],
+      ];
+
+  if (!isAdmin && isMember) {
+    requiredFields.push(
+      ['생년월일', currentUser.birthDate],
+      ['키', currentUser.height],
+      ['몸무게', currentUser.weight],
+      ['신분증 사본', currentUser.documents?.idCard],
+      ['통장 사본', currentUser.documents?.bankbook],
+      ['보건증', currentUser.documents?.healthCertificate]
+    );
+  }
+
+  const missingFields = requiredFields
+    .filter(
+      ([, value]) => value === undefined || value === null || value === ''
+    )
+    .map(([label]) => label);
+
+  const avatarSrc = currentUser.photo ?? null;
 
   // 파일 업로드 핸들러 (시뮬레이션)
   const handleFileUpload = (
@@ -146,6 +221,43 @@ export default function ProfilePage() {
       birthDate,
       age,
     });
+  };
+
+  const handleSaveProfile = async () => {
+    if (!currentUser) return;
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: currentUser.name,
+        phone: currentUser.phone ?? '',
+        kakaoId: currentUser.kakaoId ?? '',
+        mbti: currentUser.mbti ?? '',
+        gender: currentUser.gender ?? '',
+        height: currentUser.height ?? null,
+        weight: currentUser.weight ?? null,
+        introduction: currentUser.introduction ?? '',
+        companyName: currentUser.companyName ?? '',
+        role: currentUser.role,
+        attendanceScore: currentUser.attendanceScore ?? 50,
+      };
+
+      const { error } = await supabase.auth.updateUser({
+        // 이메일 변경까지 포함하면 추가 인증 절차가 필요하므로 제외
+        data: payload,
+      });
+
+      if (error) {
+        alert('프로필 저장에 실패했습니다.');
+        return;
+      }
+
+      alert('프로필이 저장되었습니다.');
+      setIsEditing(false);
+    } catch {
+      alert('프로필 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 입력 필드 변경 핸들러
@@ -347,6 +459,25 @@ export default function ProfilePage() {
         }
       />
 
+      {!isAdmin && missingFields.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="py-4">
+            <div className="flex flex-col gap-2 text-sm text-amber-900">
+              <p className="font-semibold">
+                프로필을 모두 채우면 지원 성공 확률이 올라가요.
+              </p>
+              <p>
+                아직 입력되지 않은 항목: {missingFields.join(', ')}
+                {missingFields.length >= 3 && ' 등'}
+              </p>
+              <p className="text-xs text-amber-800">
+                기본 정보·증빙 서류를 채워 두면 매칭과 승인 속도가 빨라집니다.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 프로필 카드 */}
         <div className="lg:col-span-1">
@@ -355,10 +486,9 @@ export default function ProfilePage() {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <Avatar className="w-32 h-32">
-                    <AvatarImage
-                      src={currentUser.photo || '/images/default-avatar.png'}
-                      alt={currentUser.name}
-                    />
+                    {avatarSrc ? (
+                      <AvatarImage src={avatarSrc} alt={currentUser.name} />
+                    ) : null}
                     <AvatarFallback className="text-2xl">
                       {currentUser.name.charAt(0)}
                     </AvatarFallback>
@@ -389,29 +519,33 @@ export default function ProfilePage() {
                   {currentUser.role === 'manager' && '매니저'}
                   {currentUser.role === 'admin' && '관리자'}
                 </Badge>
-                <div className="flex items-center gap-2 mb-4">
-                  <Star className="size-5 text-yellow-500 fill-yellow-500" />
-                  <span className="text-lg font-semibold">
-                    {currentUser.attendanceScore}점
-                  </span>
-                </div>
-                <div className="w-full pb-4 flex items-center justify-center">
-                  {isEditing ? (
-                    <Textarea
-                      value={currentUser.introduction}
-                      placeholder="자기소개를 입력하세요"
-                      rows={3}
-                      onChange={(e) =>
-                        handleInputChange('introduction', e.target.value)
-                      }
-                      className="resize-none text-sm"
-                    />
-                  ) : (
-                    <p className="text-sm leading-relaxed">
-                      {currentUser.introduction || '-'}
-                    </p>
-                  )}
-                </div>
+                {!isAdmin && (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Star className="size-5 text-yellow-500 fill-yellow-500" />
+                      <span className="text-lg font-semibold">
+                        {currentUser.attendanceScore}점
+                      </span>
+                    </div>
+                    <div className="w-full pb-4 flex items-center justify-center">
+                      {isEditing ? (
+                        <Textarea
+                          value={currentUser.introduction}
+                          placeholder="자기소개를 입력하세요"
+                          rows={3}
+                          onChange={(e) =>
+                            handleInputChange('introduction', e.target.value)
+                          }
+                          className="resize-none text-sm"
+                        />
+                      ) : (
+                        <p className="text-sm leading-relaxed">
+                          {currentUser.introduction || '-'}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
                 <Button
                   className="w-full"
                   onClick={() => setIsEditing(!isEditing)}
@@ -514,41 +648,47 @@ export default function ProfilePage() {
                     </p>
                   )}
                 </div>
-                <div>
-                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                    MBTI
-                  </Label>
-                  {isEditing ? (
-                    <Input
-                      value={currentUser.mbti}
-                      onChange={(e) =>
-                        handleInputChange('mbti', e.target.value)
-                      }
-                    />
-                  ) : (
-                    <p className="font-semibold">{currentUser.mbti || '-'}</p>
-                  )}
-                </div>
-                {isManager && (
-                  <div className="md:col-span-2">
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                      <Building2 className="size-4" />
-                      회사명 (선택)
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        value={currentUser.companyName}
-                        placeholder="회사명 입력"
-                        onChange={(e) =>
-                          handleInputChange('companyName', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="font-semibold">
-                        {currentUser.companyName || '-'}
-                      </p>
+                {!isAdmin && (
+                  <>
+                    <div>
+                      <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                        MBTI
+                      </Label>
+                      {isEditing ? (
+                        <Input
+                          value={currentUser.mbti}
+                          onChange={(e) =>
+                            handleInputChange('mbti', e.target.value)
+                          }
+                        />
+                      ) : (
+                        <p className="font-semibold">
+                          {currentUser.mbti || '-'}
+                        </p>
+                      )}
+                    </div>
+                    {isManager && (
+                      <div className="md:col-span-2">
+                        <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                          <Building2 className="size-4" />
+                          회사명 (선택)
+                        </Label>
+                        {isEditing ? (
+                          <Input
+                            value={currentUser.companyName}
+                            placeholder="회사명 입력"
+                            onChange={(e) =>
+                              handleInputChange('companyName', e.target.value)
+                            }
+                          />
+                        ) : (
+                          <p className="font-semibold">
+                            {currentUser.companyName || '-'}
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -1145,13 +1285,15 @@ export default function ProfilePage() {
             </>
           )}
 
-          {/* 저장 버튼 */}
+          {/* 저장 버튼: 편집 모드에서만 노출 (역할 무관) */}
           {isEditing && (
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 취소
               </Button>
-              <Button onClick={() => setIsEditing(false)}>저장</Button>
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? '저장 중...' : '저장'}
+              </Button>
             </div>
           )}
         </div>
