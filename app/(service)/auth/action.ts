@@ -9,20 +9,52 @@ type ActionResult = {
   message: string;
   redirectTo?: string;
   fieldErrors?: Record<string, string>;
+  debug?: {
+    supabaseUrl?: string;
+    supabaseKeyPreview?: string;
+    supabaseErrorCode?: string;
+    supabaseErrorMessage?: string;
+  };
+};
+
+const envStatus = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+  return {
+    ok: Boolean(supabaseUrl && supabaseKey),
+    supabaseUrl: supabaseUrl ?? '(unset)',
+    supabaseKeyPreview: supabaseKey
+      ? `${supabaseKey.slice(0, 4)}...${supabaseKey.slice(-4)}`
+      : '(unset)',
+  };
 };
 
 const signInSchema = z.object({
-  email: z.string().email('유효한 이메일을 입력해주세요.'),
+  email: z
+    .string()
+    .min(1, '이메일을 입력해주세요.')
+    .email('유효한 이메일을 입력해주세요.'),
   password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
 });
 
 const signUpSchema = z
   .object({
-    email: z.string().email('유효한 이메일을 입력해주세요.'),
+    email: z
+      .string()
+      .min(1, '이메일을 입력해주세요.')
+      .email('유효한 이메일을 입력해주세요.'),
     password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
-    passwordConfirm: z.string().min(8),
+    passwordConfirm: z
+      .string()
+      .min(8, '비밀번호 확인을 8자 이상 입력해주세요.'),
     name: z.string().min(2, '이름은 2자 이상 입력해주세요.'),
-    role: z.enum(['member', 'manager']),
+    role: z
+      .string({ message: '가입 유형을 선택해주세요.' })
+      .min(1, '가입 유형을 선택해주세요.')
+      .refine((value) => value === 'member' || value === 'manager', {
+        message: '가입 유형을 선택해주세요.',
+      }) as z.ZodType<'member' | 'manager'>,
     termsAgree: z.literal(true, {
       message: '약관에 동의해주세요.',
     }),
@@ -60,11 +92,30 @@ export async function signInAction(
     return { ok: false, message: firstError, fieldErrors };
   }
 
+  const env = envStatus();
+  if (!env.ok) {
+    return {
+      ok: false,
+      message:
+        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY를 확인해주세요.',
+      debug: {
+        supabaseUrl: env.supabaseUrl,
+        supabaseKeyPreview: env.supabaseKeyPreview,
+      },
+    };
+  }
+
   try {
-    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (await createClient()) as any;
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
     if (error) {
+      const code = (error as { code?: string }).code ?? '';
+      const message = (error.message ?? '').toLowerCase();
+      if (code === 'email_not_confirmed' || message.includes('not confirmed')) {
+        return { ok: false, message: errorMessages.emailNotConfirmed };
+      }
       return { ok: false, message: errorMessages.invalidCredentials };
     }
 
@@ -102,8 +153,22 @@ export async function signUpAction(
   const { passwordConfirm: _passwordConfirm, ...payload } = parsed.data;
   void _passwordConfirm;
 
+  const env = envStatus();
+  if (!env.ok) {
+    return {
+      ok: false,
+      message:
+        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY를 확인해주세요.',
+      debug: {
+        supabaseUrl: env.supabaseUrl,
+        supabaseKeyPreview: env.supabaseKeyPreview,
+      },
+    };
+  }
+
   try {
-    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (await createClient()) as any;
     const { error } = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
@@ -112,11 +177,36 @@ export async function signUpAction(
           name: payload.name,
           role: payload.role,
         },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
     });
 
     if (error) {
-      return { ok: false, message: errorMessages.signUpFailed };
+      const code = (error as { code?: string }).code ?? '';
+      const message = (error.message ?? '').toLowerCase();
+      if (
+        code === 'user_already_exists' ||
+        code === 'email_exists' ||
+        message.includes('already registered') ||
+        message.includes('already exists')
+      ) {
+        return {
+          ok: false,
+          message: errorMessages.emailExists,
+          debug: {
+            supabaseErrorCode: code,
+            supabaseErrorMessage: error.message,
+          },
+        };
+      }
+      return {
+        ok: false,
+        message: errorMessages.signUpFailed,
+        debug: {
+          supabaseErrorCode: code,
+          supabaseErrorMessage: error.message,
+        },
+      };
     }
 
     return {
@@ -130,7 +220,8 @@ export async function signUpAction(
 }
 
 export async function signOutAction() {
-  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = (await createClient()) as any;
   const { error } = await supabase.auth.signOut();
   if (error) {
     return { ok: false, message: errorMessages.signOutFailed };

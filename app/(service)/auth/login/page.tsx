@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,10 @@ const initialState: ActionState = {
 export default function LoginPage() {
   const router = useRouter();
   const [state, formAction] = useActionState(signInAction, initialState);
+  const [formValues, setFormValues] = useState({
+    email: '',
+    password: '',
+  });
 
   useEffect(() => {
     if (state?.redirectTo) {
@@ -51,6 +55,10 @@ export default function LoginPage() {
                 type="email"
                 placeholder="email@example.com"
                 required
+                value={formValues.email}
+                onChange={(e) =>
+                  setFormValues((prev) => ({ ...prev, email: e.target.value }))
+                }
               />
               {state?.fieldErrors?.email && (
                 <p className="text-xs text-red-500">
@@ -66,6 +74,13 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 required
+                value={formValues.password}
+                onChange={(e) =>
+                  setFormValues((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }))
+                }
               />
               {state?.fieldErrors?.password && (
                 <p className="text-xs text-red-500">

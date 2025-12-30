@@ -31,6 +31,13 @@ export default function JoinPage() {
   const [state, formAction] = useActionState(signUpAction, initialState);
   const [role, setRole] = useState<RoleOption>('member');
   const [activeTab, setActiveTab] = useState<'integrated' | 'social'>('social');
+  const [formValues, setFormValues] = useState({
+    name: '',
+    email: '',
+    password: '',
+    passwordConfirm: '',
+    termsAgree: false,
+  });
 
   useEffect(() => {
     if (state?.redirectTo) {
@@ -107,7 +114,19 @@ export default function JoinPage() {
               <form className="space-y-4" action={formAction}>
                 <div className="space-y-2">
                   <Label htmlFor="name">이름</Label>
-                  <Input id="name" name="name" placeholder="홍길동" required />
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="홍길동"
+                    required
+                    value={formValues.name}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                  />
                   {state?.fieldErrors?.name && (
                     <p className="text-xs text-red-500">
                       {state.fieldErrors.name}
@@ -123,6 +142,13 @@ export default function JoinPage() {
                     type="email"
                     placeholder="email@example.com"
                     required
+                    value={formValues.email}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
                   />
                   {state?.fieldErrors?.email && (
                     <p className="text-xs text-red-500">
@@ -139,6 +165,13 @@ export default function JoinPage() {
                     type="password"
                     placeholder="••••••••"
                     required
+                    value={formValues.password}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
                   />
                   {state?.fieldErrors?.password && (
                     <p className="text-xs text-red-500">
@@ -155,6 +188,13 @@ export default function JoinPage() {
                     type="password"
                     placeholder="••••••••"
                     required
+                    value={formValues.passwordConfirm}
+                    onChange={(e) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        passwordConfirm: e.target.value,
+                      }))
+                    }
                   />
                   {state?.fieldErrors?.passwordConfirm && (
                     <p className="text-xs text-red-500">
@@ -164,7 +204,17 @@ export default function JoinPage() {
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Checkbox id="termsAgree" name="termsAgree" />
+                  <Checkbox
+                    id="termsAgree"
+                    name="termsAgree"
+                    checked={formValues.termsAgree}
+                    onCheckedChange={(checked) =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        termsAgree: Boolean(checked),
+                      }))
+                    }
+                  />
                   <Label htmlFor="termsAgree" className="text-sm leading-tight">
                     약관에 동의합니다. (필수)
                   </Label>
