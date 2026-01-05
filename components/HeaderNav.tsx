@@ -12,6 +12,7 @@ import {
   Calendar,
   Heart,
   ListChecks,
+  LogOut,
   Menu,
   ShieldCheck,
   User,
@@ -35,6 +36,7 @@ import { useUserStore } from '@/store/useUserStore';
 
 export default function HeaderNav() {
   const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
   const setRole = useUserStore((state) => state.setRole);
   const hydrateRole = useUserStore((state) => state.hydrateRole);
   const refreshRole = useUserStore((state) => state.refreshRole);
@@ -183,22 +185,38 @@ export default function HeaderNav() {
           </NavigationMenu>
 
           {/* 데스크톱 로그인/프로필 - md 이상 (auth 페이지에서는 숨김) */}
-          {!isAuthPage && (
-            <div className="hidden md:block">
+          {!isAuthPage && roleHydrated && (
+            <div className="hidden md:flex items-center gap-2">
               {isAuthed ? (
-                <Link
-                  href="/profile"
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                    isHome
-                      ? 'text-white hover:text-white/80'
-                      : 'text-primary hover:text-primary/80'
-                  )}
-                  aria-label="프로필 관리"
-                >
-                  <User className="size-4" />
-                  프로필 관리
-                </Link>
+                <>
+                  <Link
+                    href="/profile"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isHome
+                        ? 'text-white hover:text-white/80'
+                        : 'text-primary hover:text-primary/80'
+                    )}
+                    aria-label="프로필 관리"
+                  >
+                    <User className="size-4" />
+                    프로필 관리
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                      isHome
+                        ? 'text-white hover:text-white/80'
+                        : 'text-primary hover:text-primary/80'
+                    )}
+                    aria-label="로그아웃"
+                    title="로그아웃"
+                  >
+                    <LogOut className="size-4" />
+                  </button>
+                </>
               ) : !isHome ? (
                 <AuthButtons isHome={isHome} />
               ) : null}
@@ -206,147 +224,153 @@ export default function HeaderNav() {
           )}
 
           {/* 모바일 - 인증 시 드롭다운, 미인증 시 버튼 (auth 페이지에서는 숨김) */}
-          <div className="block md:hidden">
-            {isAuthed ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      'inline-flex items-center justify-center rounded-md p-2 transition-colors',
-                      isHome
-                        ? 'text-white hover:text-white/80'
-                        : 'text-primary hover:text-primary/80'
-                    )}
-                    aria-label="메뉴 열기"
-                  >
-                    <Menu className="size-5" />
-                  </button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={8}
-                  className="w-56 z-[60]"
-                >
-                  {/* 프로필은 로그인 시에만 */}
-                  {(isAdmin || isManager || isWorker) && (
-                    <>
-                      <DropdownMenuLabel className="flex items-center gap-2">
-                        <Link
-                          href="/profile"
-                          className="flex items-center gap-2"
-                        >
-                          <User className="size-4" />
-                          <span className="text-sm font-medium">
-                            프로필 관리
-                          </span>
-                        </Link>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {/* 관리자 페이지 */}
-                  {isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin" className="flex items-center gap-2">
-                        <ShieldCheck className="size-4" />
-                        <span className="text-sm font-medium">관리자</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* 매니저 페이지 */}
-                  {isManager && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/my-post"
-                          className="flex items-center gap-2"
-                        >
-                          <ListChecks className="size-4" />
-                          <span className="text-sm font-medium">내 공고</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/manager/worker"
-                          className="flex items-center gap-2"
-                        >
-                          <Users className="size-4" />
-                          <span className="text-sm font-medium">
-                            지원자 관리
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/manager/schedule"
-                          className="flex items-center gap-2"
-                        >
-                          <Calendar className="size-4" />
-                          <span className="text-sm font-medium">
-                            스케줄 관리
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {/* 일반회원 페이지 */}
-                  {isWorker && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/worker/schedule"
-                          className="flex items-center gap-2"
-                        >
-                          <Calendar className="size-4" />
-                          <span className="text-sm font-medium">내 스케줄</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/worker/favorit"
-                          className="flex items-center gap-2"
-                        >
-                          <Heart className="size-4" />
-                          <span className="text-sm font-medium">관심 목록</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  {/* 로그인/회원가입 버튼 (auth 페이지에서는 숨김) */}
-                  {!isAuthPage && !isHome && (
-                    <div className="p-2 space-y-2">
-                      {isAuthed ? (
-                        <button
-                          type="button"
-                          onClick={handleLogout}
-                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50"
-                        >
-                          로그아웃
-                        </button>
-                      ) : (
-                        <Link
-                          href="/auth/login"
-                          className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-primary hover:bg-gray-50"
-                        >
-                          로그인
-                        </Link>
+          {roleHydrated && (
+            <div className="block md:hidden">
+              {isAuthed ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'inline-flex items-center justify-center rounded-md p-2 transition-colors',
+                        isHome
+                          ? 'text-white hover:text-white/80'
+                          : 'text-primary hover:text-primary/80'
                       )}
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              !isAuthPage && !isHome && <AuthButtons isHome={isHome} />
-            )}
-          </div>
+                      aria-label="메뉴 열기"
+                    >
+                      <Menu className="size-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    align="end"
+                    sideOffset={8}
+                    className="w-56 z-[60]"
+                  >
+                    {/* 프로필은 로그인 시에만 */}
+                    {(isAdmin || isManager || isWorker) && (
+                      <>
+                        <DropdownMenuLabel className="flex items-center gap-2">
+                          <Link
+                            href="/profile"
+                            className="flex items-center gap-2"
+                          >
+                            <User className="size-4" />
+                            <span className="text-sm font-medium">
+                              프로필 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+
+                    {/* 관리자 페이지 */}
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center gap-2">
+                          <ShieldCheck className="size-4" />
+                          <span className="text-sm font-medium">관리자</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+
+                    {/* 매니저 페이지 */}
+                    {isManager && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/my-post"
+                            className="flex items-center gap-2"
+                          >
+                            <ListChecks className="size-4" />
+                            <span className="text-sm font-medium">내 공고</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/manager/worker"
+                            className="flex items-center gap-2"
+                          >
+                            <Users className="size-4" />
+                            <span className="text-sm font-medium">
+                              지원자 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/manager/schedule"
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="size-4" />
+                            <span className="text-sm font-medium">
+                              스케줄 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    {/* 일반회원 페이지 */}
+                    {isWorker && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/worker/schedule"
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="size-4" />
+                            <span className="text-sm font-medium">
+                              내 스케줄
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/worker/favorit"
+                            className="flex items-center gap-2"
+                          >
+                            <Heart className="size-4" />
+                            <span className="text-sm font-medium">
+                              관심 목록
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator />
+
+                    {/* 로그인/회원가입 버튼 (auth 페이지에서는 숨김) */}
+                    {!isAuthPage && !isHome && (
+                      <div className="p-2 space-y-2">
+                        {isAuthed ? (
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                          >
+                            로그아웃
+                          </button>
+                        ) : (
+                          <Link
+                            href="/auth/login"
+                            className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-primary hover:bg-gray-50"
+                          >
+                            로그인
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                !isAuthPage && !isHome && <AuthButtons isHome={isHome} />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </nav>
