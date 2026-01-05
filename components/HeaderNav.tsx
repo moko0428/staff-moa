@@ -17,7 +17,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,50 +31,59 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 import { signOutAction } from '@/app/(service)/auth/action';
+import { useUserStore } from '@/store/useUserStore';
 
 export default function HeaderNav() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isManager, setIsManager] = useState(false);
-  const [isWorker, setIsWorker] = useState(false);
+  const role = useUserStore((state) => state.role);
+  const setRole = useUserStore((state) => state.setRole);
+  const hydrateRole = useUserStore((state) => state.hydrateRole);
+  const refreshRole = useUserStore((state) => state.refreshRole);
   const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
   const isHome = pathname === '/';
   const isAuthPage =
     pathname.startsWith('/auth/login') || pathname.startsWith('/auth/join');
-  const isAuthed = isAdmin || isManager || isWorker;
+  const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
+  const isWorker = role === 'member';
+  const isAuthed = !!role;
   const linkClass = isHome
     ? 'text-white hover:text-white/80 transition-colors'
     : 'text-foreground hover:text-primary/80 transition-colors';
 
+  const roleGetter = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const nextRole = (
+        data.user?.user_metadata as { role?: string } | undefined
+      )?.role;
+      return nextRole === 'admin' ||
+        nextRole === 'manager' ||
+        nextRole === 'member'
+        ? nextRole
+        : null;
+    } catch (error) {
+      console.error('Failed to fetch user role:', error);
+      return null;
+    }
+  }, [supabase]);
+
   useEffect(() => {
-    const syncRole = async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        const role = (data.user?.user_metadata as { role?: string } | undefined)
-          ?.role;
-        setIsAdmin(role === 'admin');
-        setIsManager(role === 'manager');
-        setIsWorker(role === 'member');
-      } catch (error) {
-        console.error('Failed to fetch user role:', error);
-      }
-    };
-
+    hydrateRole(roleGetter);
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      syncRole();
+      refreshRole(roleGetter);
     });
-
-    syncRole();
 
     return () => {
       listener?.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [hydrateRole, refreshRole, roleGetter, supabase]);
 
   const handleLogout = async () => {
     try {
       await signOutAction();
     } finally {
+      setRole(null);
       window.location.href = '/';
     }
   };

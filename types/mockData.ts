@@ -15,7 +15,7 @@ export interface User {
   // Member 전용 필드
   birthDate?: string; // 'YYYY-MM-DD' 형식
   age?: number; // 계산된 나이 (선택적)
-  gender?: '남성' | '여성' | '기타';
+  gender?: '남성' | '여성';
   height?: number;
   weight?: number;
   personality?: string;
@@ -30,13 +30,16 @@ export interface User {
     idCard?: string; // 파일 경로
     bankbook?: string; // 파일 경로
     healthCertificate?: string; // 파일 경로
-    driverLicense?: string; // 파일 경로
     certificates?: string[]; // 자격증 이름 배열
     language?: string[];
+    extraDocuments?: string[];
   };
 
   // Manager 전용 필드
   companyName?: string;
+  businessNumber?: string;
+  companyCertificate?: string;
+  companyVerifyStatus?: 'pending' | 'approved' | 'rejected';
 
   attendanceScore: number;
   createdAt: string;
