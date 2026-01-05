@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { mockApplications, mockPosts } from '@/lib/mockData';
-import { User } from '@/types/mockData';
+import { User, UserRole } from '@/types/mockData';
 import { parseDateString } from '@/lib/dateUtils';
 import {
   User as UserIcon,
@@ -17,19 +17,15 @@ import {
   Phone,
   MessageSquare,
   Briefcase,
-  CheckCircle2,
-  XCircle,
   Building2,
   Ruler,
   Weight,
   Smile,
   Star,
   Languages,
-  IdCard,
+  Award,
   CreditCard,
   FileCheck,
-  Car,
-  Award,
   Plus,
   X,
   Calendar as CalendarIcon,
@@ -38,13 +34,25 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
+import React from 'react';
 
 export default function ProfilePage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [newLanguage, setNewLanguage] = useState('');
   const [newCertificate, setNewCertificate] = useState('');
+  const [newDocumentLabel, setNewDocumentLabel] = useState('');
+  const [newExperience, setNewExperience] = useState({
+    title: '',
+    date: '',
+    location: '',
+  });
+  const [showCertificateInput, setShowCertificateInput] = useState(false);
+  const [showLanguageInput, setShowLanguageInput] = useState(false);
+  const [showDocumentInput, setShowDocumentInput] = useState(false);
+  const [showExperienceInput, setShowExperienceInput] = useState(false);
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const supabase = useMemo(() => createClient(), []);
@@ -83,7 +91,28 @@ export default function ProfilePage() {
           gender?: '남성' | '여성';
           height?: number;
           weight?: number;
+          birthDate?: string;
+          age?: number;
+          photo?: string;
+          personality?: string;
+          features?: string;
+          experiences?: Array<{
+            title: string;
+            date: string;
+            location: string;
+          }>;
+          documents?: {
+            idCard?: string;
+            bankbook?: string;
+            healthCertificate?: string;
+            certificates?: string[];
+            language?: string[];
+            extraDocuments?: string[];
+          };
           companyName?: string;
+          businessNumber?: string;
+          companyCertificate?: string;
+          companyVerifyStatus?: 'pending' | 'approved' | 'rejected';
           attendanceScore?: number;
         };
 
@@ -92,6 +121,7 @@ export default function ProfilePage() {
           email: data.user.email ?? '',
           name: meta.name || data.user.email || '사용자',
           role: meta.role ?? 'member',
+          photo: meta.photo,
           attendanceScore: meta.attendanceScore ?? 50,
           createdAt: data.user.created_at ?? new Date().toISOString(),
           introduction: meta.introduction,
@@ -99,10 +129,18 @@ export default function ProfilePage() {
           kakaoId: meta.kakaoId,
           mbti: meta.mbti,
           gender: meta.gender,
+          birthDate: meta.birthDate,
+          age: meta.age,
+          personality: meta.personality,
+          features: meta.features,
+          experiences: meta.experiences ?? [],
           height: meta.height,
           weight: meta.weight,
           companyName: meta.companyName,
-          documents: {},
+          businessNumber: meta.businessNumber,
+          companyCertificate: meta.companyCertificate,
+          companyVerifyStatus: meta.companyVerifyStatus ?? 'pending',
+          documents: meta.documents ?? {},
         };
 
         setCurrentUser(profile);
@@ -152,22 +190,28 @@ export default function ProfilePage() {
   const isAdmin = currentUser.role === 'admin';
 
   // 필수 정보 누락 여부 확인
-  const requiredFields: Array<[string, unknown]> = isAdmin
-    ? []
-    : [
-        ['전화번호', currentUser.phone],
-        ['성별', currentUser.gender],
-        ['자기소개', currentUser.introduction],
-      ];
+  const requiredFields: Array<[string, unknown]> = [];
 
-  if (!isAdmin && isMember) {
+  if (isMember) {
     requiredFields.push(
+      ['전화번호', currentUser.phone],
+      ['성별', currentUser.gender],
+      ['자기소개', currentUser.introduction],
       ['생년월일', currentUser.birthDate],
       ['키', currentUser.height],
       ['몸무게', currentUser.weight],
       ['신분증 사본', currentUser.documents?.idCard],
       ['통장 사본', currentUser.documents?.bankbook],
       ['보건증', currentUser.documents?.healthCertificate]
+    );
+  }
+
+  if (isManager) {
+    requiredFields.push(
+      ['전화번호', currentUser.phone],
+      ['회사명', currentUser.companyName],
+      ['사업자등록번호', currentUser.businessNumber],
+      ['기업인증 파일', currentUser.companyCertificate]
     );
   }
 
@@ -179,36 +223,34 @@ export default function ProfilePage() {
 
   const avatarSrc = currentUser.photo ?? null;
 
-  // 파일 업로드 핸들러 (시뮬레이션)
-  const handleFileUpload = (
-    docType: keyof NonNullable<User['documents']>,
+  const savePartialData = async (
+    data: Record<string, unknown>,
+    successMessage?: string
+  ) => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ data });
+      if (error) {
+        console.error('자동 저장 실패:', error);
+        alert('자동 저장에 실패했습니다.');
+        return false;
+      }
+      if (successMessage) alert(successMessage);
+      return true;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 회사 인증 파일 업로드 핸들러
+  const handleCompanyCertUpload = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file || !currentUser) return;
-
-    // 실제로는 서버에 업로드하고 URL을 받아야 하지만, 여기서는 시뮬레이션
-    const fakeUrl = `/uploads/${currentUser.id}-${docType}-${Date.now()}.jpg`;
-
     setCurrentUser({
       ...currentUser,
-      documents: {
-        ...currentUser.documents,
-        [docType]: fakeUrl,
-      },
-    });
-  };
-
-  // 파일 삭제 함수
-  const removeDocument = (docType: keyof NonNullable<User['documents']>) => {
-    if (!currentUser) return;
-
-    setCurrentUser({
-      ...currentUser,
-      documents: {
-        ...currentUser.documents,
-        [docType]: undefined,
-      },
+      companyCertificate: file.name,
     });
   };
 
@@ -232,13 +274,19 @@ export default function ProfilePage() {
         phone: currentUser.phone ?? '',
         kakaoId: currentUser.kakaoId ?? '',
         mbti: currentUser.mbti ?? '',
+        birthDate: currentUser.birthDate ?? '',
+        age: currentUser.age ?? null,
         gender: currentUser.gender ?? '',
         height: currentUser.height ?? null,
         weight: currentUser.weight ?? null,
         introduction: currentUser.introduction ?? '',
         companyName: currentUser.companyName ?? '',
+        businessNumber: currentUser.businessNumber ?? '',
+        companyCertificate: currentUser.companyCertificate ?? '',
+        companyVerifyStatus: currentUser.companyVerifyStatus ?? 'pending',
         role: currentUser.role,
         attendanceScore: currentUser.attendanceScore ?? 50,
+        photo: currentUser.photo ?? '',
       };
 
       const { error } = await supabase.auth.updateUser({
@@ -273,22 +321,29 @@ export default function ProfilePage() {
   };
 
   // 언어 추가 함수
-  const addLanguage = () => {
+  const addLanguage = async () => {
     if (!newLanguage.trim() || !currentUser) return;
 
     const currentLanguages = currentUser.documents?.language || [];
+    const updatedLanguages = [...currentLanguages, newLanguage.trim()];
     setCurrentUser({
       ...currentUser,
       documents: {
         ...currentUser.documents,
-        language: [...currentLanguages, newLanguage.trim()],
+        language: updatedLanguages,
       },
     });
     setNewLanguage('');
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        language: updatedLanguages,
+      },
+    });
   };
 
   // 언어 삭제 함수
-  const removeLanguage = (index: number) => {
+  const removeLanguage = async (index: number) => {
     if (!currentUser || !currentUser.documents?.language) return;
 
     const updatedLanguages = currentUser.documents.language.filter(
@@ -301,25 +356,78 @@ export default function ProfilePage() {
         language: updatedLanguages,
       },
     });
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        language: updatedLanguages,
+      },
+    });
   };
 
-  // 자격증 추가 함수
-  const addCertificate = () => {
-    if (!newCertificate.trim() || !currentUser) return;
-
-    const currentCertificates = currentUser.documents?.certificates || [];
+  // 서류 커스텀 항목 추가/삭제
+  const addDocumentItem = async () => {
+    if (!newDocumentLabel.trim() || !currentUser) return;
+    const currentExtra = currentUser.documents?.extraDocuments ?? [];
+    const updated = [...currentExtra, newDocumentLabel.trim()];
     setCurrentUser({
       ...currentUser,
       documents: {
         ...currentUser.documents,
-        certificates: [...currentCertificates, newCertificate.trim()],
+        extraDocuments: updated,
+      },
+    });
+    setNewDocumentLabel('');
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        extraDocuments: updated,
+      },
+    });
+  };
+
+  const removeDocumentItem = async (index: number) => {
+    if (!currentUser) return;
+    const currentExtra = currentUser.documents?.extraDocuments ?? [];
+    const updated = currentExtra.filter((_, i) => i !== index);
+    setCurrentUser({
+      ...currentUser,
+      documents: {
+        ...currentUser.documents,
+        extraDocuments: updated,
+      },
+    });
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        extraDocuments: updated,
+      },
+    });
+  };
+
+  // 자격증 추가 함수
+  const addCertificate = async () => {
+    if (!newCertificate.trim() || !currentUser) return;
+
+    const currentCertificates = currentUser.documents?.certificates || [];
+    const updatedCertificates = [...currentCertificates, newCertificate.trim()];
+    setCurrentUser({
+      ...currentUser,
+      documents: {
+        ...currentUser.documents,
+        certificates: updatedCertificates,
       },
     });
     setNewCertificate('');
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        certificates: updatedCertificates,
+      },
+    });
   };
 
   // 자격증 삭제 함수
-  const removeCertificate = (index: number) => {
+  const removeCertificate = async (index: number) => {
     if (!currentUser || !currentUser.documents?.certificates) return;
 
     const updatedCertificates = currentUser.documents.certificates.filter(
@@ -332,10 +440,45 @@ export default function ProfilePage() {
         certificates: updatedCertificates,
       },
     });
+    await savePartialData({
+      documents: {
+        ...currentUser.documents,
+        certificates: updatedCertificates,
+      },
+    });
+  };
+
+  // 경력 직접 추가
+  const addExperienceManual = async () => {
+    if (
+      !currentUser ||
+      !newExperience.title.trim() ||
+      !newExperience.date.trim() ||
+      !newExperience.location.trim()
+    )
+      return;
+
+    const currentExperiences = currentUser.experiences || [];
+    const updatedExperiences = [
+      ...currentExperiences,
+      {
+        title: newExperience.title.trim(),
+        date: newExperience.date.trim(),
+        location: newExperience.location.trim(),
+      },
+    ];
+
+    setCurrentUser({
+      ...currentUser,
+      experiences: updatedExperiences,
+    });
+    setNewExperience({ title: '', date: '', location: '' });
+    setShowExperienceInput(false);
+    await savePartialData({ experiences: updatedExperiences });
   };
 
   // 경력 삭제 함수
-  const removeExperience = (index: number) => {
+  const removeExperience = async (index: number) => {
     if (!currentUser || !currentUser.experiences) return;
 
     const updatedExperiences = currentUser.experiences.filter(
@@ -345,10 +488,11 @@ export default function ProfilePage() {
       ...currentUser,
       experiences: updatedExperiences,
     });
+    await savePartialData({ experiences: updatedExperiences });
   };
 
   // 내 스케줄에서 경력 불러오기
-  const loadExperiencesFromSchedules = () => {
+  const loadExperiencesFromSchedules = async () => {
     if (!currentUser) return;
 
     setIsLoadingExperiences(true);
@@ -417,6 +561,7 @@ export default function ProfilePage() {
         experiences: combined,
       });
 
+      await savePartialData({ experiences: combined });
       alert(`${filtered.length}개의 경력이 추가되었습니다.`);
     } catch (error) {
       console.error('Failed to load experiences:', error);
@@ -426,28 +571,89 @@ export default function ProfilePage() {
     }
   };
 
-  // 프로필 이미지 업로드 핸들러
-  const handleProfileImageUpload = (
+  const getBucketInfo = (role: UserRole) => {
+    // 단일 버킷(profiles) 내 역할별 폴더 분리
+    const bucket = 'profiles';
+    const folder = role === 'manager' ? 'manager' : 'member';
+    return { bucket, folder };
+  };
+
+  const extractBucketPath = (url?: string | null) => {
+    if (!url) return null;
+    const match = url.match(/\/object\/public\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+    return { bucket: match[1], path: match[2] };
+  };
+
+  const sanitizeFileName = (name: string) => {
+    // 한글/공백/특수문자를 모두 안전한 ASCII로 변환
+    const base = name
+      .normalize('NFKD')
+      .replace(/[^\w.-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return base || `file-${Date.now()}`;
+  };
+
+  // 프로필 이미지 업로드 핸들러 (스토리지 업로드 & 메타 저장)
+  const handleProfileImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file || !currentUser) return;
-
-    // 이미지 파일인지 확인
     if (!file.type.startsWith('image/')) {
       alert('이미지 파일만 업로드 가능합니다.');
       return;
     }
 
-    // FileReader를 사용하여 이미지 미리보기
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    setIsUploadingPhoto(true);
+    try {
+      const { bucket, folder } = getBucketInfo(currentUser.role);
+      const safeName = sanitizeFileName(file.name);
+      const filePath = `${folder}/${currentUser.id}/${Date.now()}-${safeName}`;
+
+      // 이전 이미지 삭제
+      const prev = extractBucketPath(currentUser.photo);
+      if (prev) {
+        await supabase.storage.from(prev.bucket).remove([prev.path]);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) {
+        console.error(uploadError);
+        alert('프로필 이미지 업로드에 실패했습니다.');
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
       setCurrentUser({
         ...currentUser,
-        photo: reader.result as string,
+        photo: publicUrl,
       });
-    };
-    reader.readAsDataURL(file);
+      await savePartialData({ photo: publicUrl });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemoveProfileImage = async () => {
+    if (!currentUser || !currentUser.photo) return;
+    setIsUploadingPhoto(true);
+    try {
+      const prev = extractBucketPath(currentUser.photo);
+      if (prev) {
+        await supabase.storage.from(prev.bucket).remove([prev.path]);
+      }
+      setCurrentUser({ ...currentUser, photo: undefined });
+      await savePartialData({ photo: null });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   return (
@@ -459,24 +665,26 @@ export default function ProfilePage() {
         }
       />
 
-      {!isAdmin && missingFields.length > 0 && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
-          <CardContent className="py-4">
-            <div className="flex flex-col gap-2 text-sm text-amber-900">
-              <p className="font-semibold">
-                프로필을 모두 채우면 지원 성공 확률이 올라가요.
-              </p>
-              <p>
-                아직 입력되지 않은 항목: {missingFields.join(', ')}
-                {missingFields.length >= 3 && ' 등'}
-              </p>
-              <p className="text-xs text-amber-800">
-                기본 정보·증빙 서류를 채워 두면 매칭과 승인 속도가 빨라집니다.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {!isAdmin &&
+        currentUser.role === 'member' &&
+        missingFields.length > 0 && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="py-4">
+              <div className="flex flex-col gap-2 text-sm text-amber-900">
+                <p className="font-semibold">
+                  프로필을 모두 채우면 지원 성공 확률이 올라가요.
+                </p>
+                <p>
+                  아직 입력되지 않은 항목: {missingFields.join(', ')}
+                  {missingFields.length >= 3 && ' 등'}
+                </p>
+                <p className="text-xs text-amber-800">
+                  기본 정보·증빙 서류를 채워 두면 매칭과 승인 속도가 빨라집니다.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 프로필 카드 */}
@@ -494,16 +702,34 @@ export default function ProfilePage() {
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="absolute bottom-0 right-0 rounded-full w-10 h-10 p-0"
-                      onClick={() =>
-                        document.getElementById('profile-image-upload')?.click()
-                      }
-                    >
-                      <Plus className="size-4" />
-                    </Button>
+                    <div className="absolute bottom-0 right-0 flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full w-10 h-10 p-0"
+                        onClick={() =>
+                          document
+                            .getElementById('profile-image-upload')
+                            ?.click()
+                        }
+                        disabled={isUploadingPhoto}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                      {currentUser.photo && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="rounded-full w-10 h-10 p-0"
+                          onClick={handleRemoveProfileImage}
+                          disabled={isUploadingPhoto}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                   <input
                     id="profile-image-upload"
@@ -519,7 +745,7 @@ export default function ProfilePage() {
                   {currentUser.role === 'manager' && '매니저'}
                   {currentUser.role === 'admin' && '관리자'}
                 </Badge>
-                {!isAdmin && (
+                {isMember && (
                   <>
                     <div className="flex items-center gap-2 mb-4">
                       <Star className="size-5 text-yellow-500 fill-yellow-500" />
@@ -556,14 +782,29 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* 매니저 회사 정보 */}
+          {/* 매니저 회사 정보 (요약) */}
           {isManager && currentUser.companyName && (
             <Card className="mt-6">
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between flex-row">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Building2 className="size-5" />
                   회사 정보
                 </CardTitle>
+                <Badge
+                  variant={
+                    currentUser.companyVerifyStatus === 'approved'
+                      ? 'default'
+                      : currentUser.companyVerifyStatus === 'rejected'
+                      ? 'destructive'
+                      : 'outline'
+                  }
+                >
+                  {currentUser.companyVerifyStatus === 'approved'
+                    ? '인증 완료'
+                    : currentUser.companyVerifyStatus === 'rejected'
+                    ? '인증 거절'
+                    : '인증 처리중'}
+                </Badge>
               </CardHeader>
               <CardContent>
                 <p className="font-semibold">{currentUser.companyName}</p>
@@ -648,51 +889,145 @@ export default function ProfilePage() {
                     </p>
                   )}
                 </div>
-                {!isAdmin && (
-                  <>
-                    <div>
-                      <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                        MBTI
-                      </Label>
-                      {isEditing ? (
+                {isMember && (
+                  <div>
+                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      MBTI
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        value={currentUser.mbti}
+                        onChange={(e) =>
+                          handleInputChange('mbti', e.target.value)
+                        }
+                      />
+                    ) : (
+                      <p className="font-semibold">{currentUser.mbti || '-'}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {isManager && (
+                <p className="text-sm text-gray-500 text-right">
+                  프로필을 모두 채우면 기업 신뢰도가 상승해요.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 매니저 회사 정보 */}
+          {isManager && (
+            <Card>
+              <CardHeader className="flex items-center justify-between flex-row">
+                <CardTitle>회사 정보</CardTitle>
+                <Badge
+                  variant={
+                    currentUser.companyVerifyStatus === 'approved'
+                      ? 'default'
+                      : currentUser.companyVerifyStatus === 'rejected'
+                      ? 'destructive'
+                      : 'outline'
+                  }
+                >
+                  {currentUser.companyVerifyStatus === 'approved'
+                    ? '인증 완료'
+                    : currentUser.companyVerifyStatus === 'rejected'
+                    ? '인증 거절'
+                    : '인증 처리중'}
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      <Building2 className="size-4" />
+                      회사명
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        value={currentUser.companyName}
+                        placeholder="회사명 입력"
+                        onChange={(e) =>
+                          handleInputChange('companyName', e.target.value)
+                        }
+                      />
+                    ) : (
+                      <p className="font-semibold">
+                        {currentUser.companyName || '-'}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      <CreditCard className="size-4" />
+                      사업자등록번호
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        value={currentUser.businessNumber}
+                        placeholder="'-' 없이 숫자만 입력"
+                        onChange={(e) =>
+                          handleInputChange('businessNumber', e.target.value)
+                        }
+                      />
+                    ) : (
+                      <p className="font-semibold">
+                        {currentUser.businessNumber || '-'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      <FileCheck className="size-4" />
+                      기업인증 파일
+                    </Label>
+                    {isEditing ? (
+                      <div className="flex items-center gap-3">
                         <Input
-                          value={currentUser.mbti}
-                          onChange={(e) =>
-                            handleInputChange('mbti', e.target.value)
-                          }
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleCompanyCertUpload}
                         />
-                      ) : (
-                        <p className="font-semibold">
-                          {currentUser.mbti || '-'}
-                        </p>
-                      )}
-                    </div>
-                    {isManager && (
-                      <div className="md:col-span-2">
-                        <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                          <Building2 className="size-4" />
-                          회사명 (선택)
-                        </Label>
-                        {isEditing ? (
-                          <Input
-                            value={currentUser.companyName}
-                            placeholder="회사명 입력"
-                            onChange={(e) =>
-                              handleInputChange('companyName', e.target.value)
-                            }
-                          />
-                        ) : (
-                          <p className="font-semibold">
-                            {currentUser.companyName || '-'}
+                        {currentUser.companyCertificate && (
+                          <p className="text-sm text-gray-600">
+                            {currentUser.companyCertificate}
                           </p>
                         )}
                       </div>
+                    ) : (
+                      <p className="font-semibold">
+                        {currentUser.companyCertificate || '-'}
+                      </p>
                     )}
-                  </>
+                  </div>
+                </div>
+                {isEditing && isAdmin && (
+                  <div>
+                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      인증 상태
+                    </Label>
+                    <select
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                      value={currentUser.companyVerifyStatus}
+                      onChange={(e) =>
+                        handleInputChange(
+                          'companyVerifyStatus',
+                          e.target.value as User['companyVerifyStatus']
+                        )
+                      }
+                    >
+                      <option value="pending">인증 처리중</option>
+                      <option value="approved">인증 완료</option>
+                      <option value="rejected">인증 거절</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      관리자만 상태를 변경할 수 있습니다.
+                    </p>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 일반 회원 전용 정보 */}
           {isMember && (
@@ -728,12 +1063,17 @@ export default function ProfilePage() {
                     <div>
                       <Label className="text-gray-500 mb-2">성별</Label>
                       {isEditing ? (
-                        <Input
-                          value={currentUser.gender}
+                        <select
+                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                          value={currentUser.gender || ''}
                           onChange={(e) =>
-                            handleInputChange('gender', e.target.value)
+                            handleInputChange('gender', e.target.value || '')
                           }
-                        />
+                        >
+                          <option value="">선택</option>
+                          <option value="남성">남자</option>
+                          <option value="여성">여자</option>
+                        </select>
                       ) : (
                         <p className="font-semibold">{currentUser.gender}</p>
                       )}
@@ -824,12 +1164,32 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
+              {/* 저장 버튼: 성격/특징 아래, 경력 위에 배치 */}
+              {isEditing && (
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    취소
+                  </Button>
+                  <Button onClick={handleSaveProfile} disabled={isSaving}>
+                    {isSaving ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              )}
+
               {/* 경력 및 소개 */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>경력</CardTitle>
-                    {isEditing && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowExperienceInput((v) => !v)}
+                      >
+                        항목 추가
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -840,17 +1200,63 @@ export default function ProfilePage() {
                         <Briefcase className="size-4 mr-2" />
                         {isLoadingExperiences
                           ? '불러오는 중...'
-                          : '내 경력 불러오기'}
+                          : '경력 불러오기'}
                       </Button>
-                    )}
+                    </div>
                   </div>
+                  {showExperienceInput && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <Input
+                        placeholder="경력 제목"
+                        value={newExperience.title}
+                        onChange={(e) =>
+                          setNewExperience((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        type="date"
+                        placeholder="날짜"
+                        value={newExperience.date}
+                        onChange={(e) =>
+                          setNewExperience((prev) => ({
+                            ...prev,
+                            date: e.target.value,
+                          }))
+                        }
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="장소"
+                          value={newExperience.location}
+                          onChange={(e) =>
+                            setNewExperience((prev) => ({
+                              ...prev,
+                              location: e.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={addExperienceManual}
+                          disabled={
+                            !newExperience.title.trim() ||
+                            !newExperience.date.trim() ||
+                            !newExperience.location.trim() ||
+                            isSaving
+                          }
+                        >
+                          추가
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
-                      <Briefcase className="size-4" />
-                      경력
-                    </Label>
                     <div className="space-y-3">
                       {currentUser.experiences &&
                       currentUser.experiences.length > 0 ? (
@@ -907,323 +1313,156 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* 서류 및 자격 */}
+              {/* 서류 */}
               <Card>
-                <CardHeader>
-                  <CardTitle>서류 및 자격증</CardTitle>
+                <CardHeader className="flex items-center justify-between">
+                  <CardTitle>서류</CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowDocumentInput((v) => !v)}
+                  >
+                    항목 추가
+                  </Button>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* 신분증 사본 */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {currentUser.documents?.idCard ? (
-                          <CheckCircle2 className="size-5 text-green-500" />
-                        ) : (
-                          <XCircle className="size-5 text-red-500" />
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <IdCard className="size-4 text-gray-500" />
-                            <span className="text-sm font-medium">
-                              신분증 사본
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {currentUser.documents?.idCard
-                              ? '제출 완료'
-                              : '미제출'}
-                          </p>
-                        </div>
-                      </div>
-                      {isEditing && (
-                        <div className="flex gap-2">
-                          {currentUser.documents?.idCard ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => removeDocument('idCard')}
-                            >
-                              <X className="size-4 mr-1" />
-                              삭제
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                document
-                                  .getElementById('upload-idCard')
-                                  ?.click()
-                              }
-                            >
-                              <Plus className="size-4 mr-1" />
-                              업로드
-                            </Button>
+                <CardContent className="space-y-4">
+                  {showDocumentInput && (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="예: 신분증 사본"
+                        value={newDocumentLabel}
+                        onChange={(e) => setNewDocumentLabel(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={addDocumentItem}
+                        disabled={!newDocumentLabel.trim() || isSaving}
+                      >
+                        추가
+                      </Button>
+                    </div>
+                  )}
+
+                  {currentUser.documents?.extraDocuments?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {currentUser.documents.extraDocuments.map((item, idx) => (
+                        <Badge
+                          key={`extra-doc-${idx}`}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {item}
+                          <button
+                            type="button"
+                            onClick={() => removeDocumentItem(idx)}
+                            className="ml-1 hover:text-red-600"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      추가된 서류 항목이 없습니다.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 자격증 */}
+              <Card>
+                <CardHeader className="flex items-center justify-between">
+                  <CardTitle>자격증</CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowCertificateInput((v) => !v)}
+                  >
+                    항목 추가
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 border rounded-lg">
+                    <Label className="flex items-center gap-2 text-gray-500 mb-3">
+                      <Award className="size-4" />
+                      자격증
+                    </Label>
+                    <div className="space-y-3">
+                      {currentUser.documents?.certificates &&
+                      currentUser.documents.certificates.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {currentUser.documents.certificates.map(
+                            (cert, index) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
+                                {cert}
+                                {isEditing && (
+                                  <button
+                                    onClick={() => removeCertificate(index)}
+                                    className="ml-1 hover:text-red-600"
+                                  >
+                                    <X className="size-3" />
+                                  </button>
+                                )}
+                              </Badge>
+                            )
                           )}
-                          <input
-                            id="upload-idCard"
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => handleFileUpload('idCard', e)}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          등록된 자격증이 없습니다.
+                        </p>
+                      )}
+                      {showCertificateInput && (
+                        <div className="flex gap-2">
+                          <Input
+                            value={newCertificate}
+                            onChange={(e) => setNewCertificate(e.target.value)}
+                            placeholder="예: 바리스타 2급, 컴퓨터활용능력 1급"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (!isSaving) addCertificate();
+                              }
+                            }}
                           />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={addCertificate}
+                            disabled={!newCertificate.trim() || isSaving}
+                          >
+                            <Plus className="size-4" />
+                          </Button>
                         </div>
                       )}
-                    </div>
-
-                    {/* 통장 사본 */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {currentUser.documents?.bankbook ? (
-                          <CheckCircle2 className="size-5 text-green-500" />
-                        ) : (
-                          <XCircle className="size-5 text-red-500" />
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="size-4 text-gray-500" />
-                            <span className="text-sm font-medium">
-                              통장 사본
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {currentUser.documents?.bankbook
-                              ? '제출 완료'
-                              : '미제출'}
-                          </p>
-                        </div>
-                      </div>
-                      {isEditing && (
-                        <div className="flex gap-2">
-                          {currentUser.documents?.bankbook ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => removeDocument('bankbook')}
-                            >
-                              <X className="size-4 mr-1" />
-                              삭제
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                document
-                                  .getElementById('upload-bankbook')
-                                  ?.click()
-                              }
-                            >
-                              <Plus className="size-4 mr-1" />
-                              업로드
-                            </Button>
-                          )}
-                          <input
-                            id="upload-bankbook"
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => handleFileUpload('bankbook', e)}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 보건증 */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {currentUser.documents?.healthCertificate ? (
-                          <CheckCircle2 className="size-5 text-green-500" />
-                        ) : (
-                          <XCircle className="size-5 text-red-500" />
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <FileCheck className="size-4 text-gray-500" />
-                            <span className="text-sm font-medium">보건증</span>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {currentUser.documents?.healthCertificate
-                              ? '제출 완료'
-                              : '미제출'}
-                          </p>
-                        </div>
-                      </div>
-                      {isEditing && (
-                        <div className="flex gap-2">
-                          {currentUser.documents?.healthCertificate ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                removeDocument('healthCertificate')
-                              }
-                            >
-                              <X className="size-4 mr-1" />
-                              삭제
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                document
-                                  .getElementById('upload-healthCertificate')
-                                  ?.click()
-                              }
-                            >
-                              <Plus className="size-4 mr-1" />
-                              업로드
-                            </Button>
-                          )}
-                          <input
-                            id="upload-healthCertificate"
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) =>
-                              handleFileUpload('healthCertificate', e)
-                            }
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 운전면허증 */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {currentUser.documents?.driverLicense ? (
-                          <CheckCircle2 className="size-5 text-green-500" />
-                        ) : (
-                          <XCircle className="size-5 text-red-500" />
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Car className="size-4 text-gray-500" />
-                            <span className="text-sm font-medium">
-                              운전면허증
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {currentUser.documents?.driverLicense
-                              ? '보유'
-                              : '미보유'}
-                          </p>
-                        </div>
-                      </div>
-                      {isEditing && (
-                        <div className="flex gap-2">
-                          {currentUser.documents?.driverLicense ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => removeDocument('driverLicense')}
-                            >
-                              <X className="size-4 mr-1" />
-                              삭제
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                document
-                                  .getElementById('upload-driverLicense')
-                                  ?.click()
-                              }
-                            >
-                              <Plus className="size-4 mr-1" />
-                              업로드
-                            </Button>
-                          )}
-                          <input
-                            id="upload-driverLicense"
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) =>
-                              handleFileUpload('driverLicense', e)
-                            }
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 자격증 */}
-                    <div className="p-3 border rounded-lg">
-                      <Label className="flex items-center gap-2 text-gray-500 mb-3">
-                        <Award className="size-4" />
-                        자격증
-                      </Label>
-                      <div className="space-y-3">
-                        {currentUser.documents?.certificates &&
-                        currentUser.documents.certificates.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {currentUser.documents.certificates.map(
-                              (cert, index) => (
-                                <Badge
-                                  key={index}
-                                  variant="secondary"
-                                  className="flex items-center gap-1"
-                                >
-                                  {cert}
-                                  {isEditing && (
-                                    <button
-                                      onClick={() => removeCertificate(index)}
-                                      className="ml-1 hover:text-red-600"
-                                    >
-                                      <X className="size-3" />
-                                    </button>
-                                  )}
-                                </Badge>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500">
-                            등록된 자격증이 없습니다.
-                          </p>
-                        )}
-                        {isEditing && (
-                          <div className="flex gap-2">
-                            <Input
-                              value={newCertificate}
-                              onChange={(e) =>
-                                setNewCertificate(e.target.value)
-                              }
-                              placeholder="예: 바리스타 2급, 컴퓨터활용능력 1급"
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  addCertificate();
-                                }
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={addCertificate}
-                              disabled={!newCertificate.trim()}
-                            >
-                              <Plus className="size-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  {/* 어학 능력 */}
-                  <div className="mt-6">
+              {/* 어학 능력 */}
+              <Card>
+                <CardHeader className="flex items-center justify-between">
+                  <CardTitle>어학 능력</CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowLanguageInput((v) => !v)}
+                  >
+                    항목 추가
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 border rounded-lg">
                     <Label className="flex items-center gap-2 text-gray-500 mb-3">
                       <Languages className="size-4" />
                       어학 능력
@@ -1255,7 +1494,7 @@ export default function ProfilePage() {
                           등록된 어학 능력이 없습니다.
                         </p>
                       )}
-                      {isEditing && (
+                      {showLanguageInput && (
                         <div className="flex gap-2">
                           <Input
                             value={newLanguage}
@@ -1264,7 +1503,7 @@ export default function ProfilePage() {
                             onKeyPress={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                addLanguage();
+                                if (!isSaving) addLanguage();
                               }
                             }}
                           />
@@ -1272,7 +1511,7 @@ export default function ProfilePage() {
                             type="button"
                             size="sm"
                             onClick={addLanguage}
-                            disabled={!newLanguage.trim()}
+                            disabled={!newLanguage.trim() || isSaving}
                           >
                             <Plus className="size-4" />
                           </Button>
@@ -1283,18 +1522,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </>
-          )}
-
-          {/* 저장 버튼: 편집 모드에서만 노출 (역할 무관) */}
-          {isEditing && (
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                취소
-              </Button>
-              <Button onClick={handleSaveProfile} disabled={isSaving}>
-                {isSaving ? '저장 중...' : '저장'}
-              </Button>
-            </div>
           )}
         </div>
       </div>
