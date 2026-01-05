@@ -102,7 +102,7 @@ export const mockUsers: User[] = [
     documents: {
       idCard: '/uploads/member2-idcard.jpg',
       bankbook: '/uploads/member2-bankbook.jpg',
-      driverLicense: '/uploads/member2-license.jpg',
+      extraDocuments: ['driverLicense'],
       language: ['영어(초급)'],
     },
   },
