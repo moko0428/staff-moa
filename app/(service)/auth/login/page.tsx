@@ -102,7 +102,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 space-y-3">
+          {/* <div className="mt-6 space-y-3">
             <div className="flex items-center gap-3 text-xs text-gray-500">
               <div className="flex-1 h-px bg-gray-200" />
               <span>간편 로그인</span>
@@ -122,7 +122,7 @@ export default function LoginPage() {
             >
               구글로 계속하기
             </Button>
-          </div>
+          </div> */}
 
           <div className="text-sm text-gray-500 mt-3 text-center">
             <span>계정이 없으신가요?</span>{' '}

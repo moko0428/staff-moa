@@ -30,7 +30,10 @@ export default function JoinPage() {
   const router = useRouter();
   const [state, formAction] = useActionState(signUpAction, initialState);
   const [role, setRole] = useState<RoleOption>('member');
-  const [activeTab, setActiveTab] = useState<'integrated' | 'social'>('social');
+  // const [activeTab, setActiveTab] = useState<'integrated' | 'social'>('social');
+  const [activeTab, setActiveTab] = useState<'integrated' | 'social'>(
+    'integrated'
+  );
   const [formValues, setFormValues] = useState({
     name: '',
     email: '',
@@ -244,21 +247,24 @@ export default function JoinPage() {
             )}
 
             {activeTab === 'social' && (
-              <div className="space-y-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-[#FEE500] text-black"
-                >
-                  카카오로 계속하기
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-[#4285F4] text-white"
-                >
-                  구글로 계속하기
-                </Button>
+              // <div className="space-y-3">
+              //   <Button
+              //     type="button"
+              //     variant="outline"
+              //     className="w-full bg-[#FEE500] text-black"
+              //   >
+              //     카카오로 계속하기
+              //   </Button>
+              //   <Button
+              //     type="button"
+              //     variant="outline"
+              //     className="w-full bg-[#4285F4] text-white"
+              //   >
+              //     구글로 계속하기
+              //   </Button>
+              // </div>
+              <div className="text-center text-sm text-gray-500">
+                소셜 로그인 기능은 준비 중입니다.
               </div>
             )}
           </div>
