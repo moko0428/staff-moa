@@ -4,8 +4,6 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Briefcase, Calendar as CalendarIcon, MapPin, X } from 'lucide-react';
 import { User } from '@/types/mockData';
 

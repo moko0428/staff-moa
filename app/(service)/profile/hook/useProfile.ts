@@ -96,7 +96,7 @@ export const useProfile = () => {
     };
 
     fetchUser();
-  }, [supabase]);
+  }, [supabase, setRole]);
 
   const savePartialData = async (
     data: Record<string, unknown>,

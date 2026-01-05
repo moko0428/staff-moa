@@ -433,9 +433,6 @@ export function JobCard({ item }: JobCardProps) {
                           {currentUser.documents.healthCertificate && (
                             <li>보건증</li>
                           )}
-                          {currentUser.documents.driverLicense && (
-                            <li>운전면허</li>
-                          )}
                         </ul>
                       </div>
                       <Switch

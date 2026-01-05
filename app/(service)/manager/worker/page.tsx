@@ -555,7 +555,9 @@ function ApplicationDetailModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {application.applicantInfo.documents.driverLicense ? (
+                    {application.applicantInfo.documents.extraDocuments?.includes(
+                      'driverLicense'
+                    ) ? (
                       <CheckCircle2 className="size-4 text-green-500" />
                     ) : (
                       <XCircle className="size-4 text-red-500" />
