@@ -40,7 +40,8 @@ export const useUpload = () => {
       throw new Error('이미지 파일만 업로드 가능합니다.');
     }
 
-    const folder = role === 'manager' ? 'manager' : 'member';
+    const folder =
+      role === 'manager' ? 'manager' : role === 'admin' ? 'admin' : 'member';
     const safeName = sanitizeFileName(file.name);
     const filePath = `${folder}/${userId}/${Date.now()}-${safeName}`;
 

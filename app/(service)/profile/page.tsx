@@ -32,6 +32,17 @@ import CertificatesSection from './components/CertificatesSection';
 import LanguageSection from './components/LanguageSection';
 import { useUserStore } from '@/store/useUserStore';
 
+const formatBusinessNumber = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (digits.length > 5) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  }
+  if (digits.length > 3) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+  return digits;
+};
+
 export default function ProfilePage() {
   const {
     currentUser,
@@ -78,6 +89,17 @@ export default function ProfilePage() {
   const isMember = effectiveRole === 'member';
   const isManager = effectiveRole === 'manager';
   const isAdmin = effectiveRole === 'admin';
+
+  const companyInfoFilled =
+    !!currentUser?.companyName?.trim() &&
+    (currentUser?.businessNumber?.replace(/\D/g, '').length ?? 0) === 10 &&
+    !!currentUser?.companyCertificate?.trim();
+  const companyStatusRaw = currentUser?.companyVerifyStatus ?? 'pending';
+  const companyBadge = !companyInfoFilled
+    ? { label: '미입력', variant: 'secondary' as const }
+    : companyStatusRaw === 'approved'
+    ? { label: '인증 완료', variant: 'default' as const }
+    : { label: '인증 처리중', variant: 'outline' as const };
 
   if (isLoadingUser) {
     return (
@@ -150,19 +172,18 @@ export default function ProfilePage() {
         }
       />
 
-      {!isAdmin && isMember && missingFields.length > 0 && (
+      {!isAdmin && missingFields.length > 0 && (
         <Card className="mb-6 border-amber-200 bg-amber-50">
           <CardContent className="py-4">
             <div className="flex flex-col gap-2 text-sm text-amber-900">
               <p className="font-semibold">
-                프로필을 모두 채우면 지원 성공 확률이 올라가요.
+                {isMember
+                  ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.'
+                  : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
               </p>
               <p>
                 아직 입력되지 않은 항목: {missingFields.join(', ')}
                 {missingFields.length >= 3 && ' 등'}
-              </p>
-              <p className="text-xs text-amber-800">
-                기본 정보·증빙 서류를 채워 두면 매칭과 승인 속도가 빨라집니다.
               </p>
             </div>
           </CardContent>
@@ -264,36 +285,6 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* 매니저 회사 정보 (요약) */}
-          {isManager && currentUser.companyName && (
-            <Card className="mt-6">
-              <CardHeader className="flex items-center justify-between flex-row">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="size-5" />
-                  회사 정보
-                </CardTitle>
-                <Badge
-                  variant={
-                    currentUser.companyVerifyStatus === 'approved'
-                      ? 'default'
-                      : currentUser.companyVerifyStatus === 'rejected'
-                      ? 'destructive'
-                      : 'outline'
-                  }
-                >
-                  {currentUser.companyVerifyStatus === 'approved'
-                    ? '인증 완료'
-                    : currentUser.companyVerifyStatus === 'rejected'
-                    ? '인증 거절'
-                    : '인증 처리중'}
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <p className="font-semibold">{currentUser.companyName}</p>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* 상세 정보 */}
@@ -398,25 +389,24 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
+          {isAdmin && isEditing && (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          )}
+
           {/* 매니저 회사 정보 */}
           {isManager && (
             <Card>
               <CardHeader className="flex items-center justify-between flex-row">
                 <CardTitle>회사 정보</CardTitle>
-                <Badge
-                  variant={
-                    currentUser.companyVerifyStatus === 'approved'
-                      ? 'default'
-                      : currentUser.companyVerifyStatus === 'rejected'
-                      ? 'destructive'
-                      : 'outline'
-                  }
-                >
-                  {currentUser.companyVerifyStatus === 'approved'
-                    ? '인증 완료'
-                    : currentUser.companyVerifyStatus === 'rejected'
-                    ? '인증 거절'
-                    : '인증 처리중'}
+                <Badge variant={companyBadge.variant}>
+                  {companyBadge.label}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -447,15 +437,22 @@ export default function ProfilePage() {
                     </Label>
                     {isEditing ? (
                       <Input
-                        value={currentUser.businessNumber}
-                        placeholder="'-' 없이 숫자만 입력"
+                        value={formatBusinessNumber(
+                          currentUser.businessNumber ?? ''
+                        )}
+                        placeholder="숫자 10자리 (예: 123-45-67890)"
                         onChange={(e) =>
-                          handleInputChange('businessNumber', e.target.value)
+                          handleInputChange(
+                            'businessNumber',
+                            formatBusinessNumber(e.target.value)
+                          )
                         }
                       />
                     ) : (
                       <p className="font-semibold">
-                        {currentUser.businessNumber || '-'}
+                        {currentUser.businessNumber
+                          ? formatBusinessNumber(currentUser.businessNumber)
+                          : '-'}
                       </p>
                     )}
                   </div>
@@ -491,22 +488,36 @@ export default function ProfilePage() {
                     </Label>
                     <select
                       className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
-                      value={currentUser.companyVerifyStatus}
+                      value={companyStatusRaw}
+                      disabled={!companyInfoFilled}
                       onChange={(e) =>
                         handleInputChange('companyVerifyStatus', e.target.value)
                       }
                     >
                       <option value="pending">인증 처리중</option>
                       <option value="approved">인증 완료</option>
-                      <option value="rejected">인증 거절</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      관리자만 상태를 변경할 수 있습니다.
-                    </p>
+                    {!companyInfoFilled && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        회사명·사업자등록번호·인증 파일을 모두 입력해야 승인할
+                        수 있습니다.
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {isManager && isEditing && (
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
           )}
 
           {/* 일반 회원 전용 정보 */}
