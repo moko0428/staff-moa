@@ -3,6 +3,7 @@
 import JobCard, { type JobItem } from '@/components/JobCard';
 import PostingFilter, { type Filters } from '@/components/PostingFilter';
 import { useMemo, useState, useEffect } from 'react';
+import { useUserStore } from '@/store/useUserStore';
 import {
   mockPosts,
   mockUsers,
@@ -58,7 +59,9 @@ export default function PostPage() {
     categories: [],
   });
 
-  const [isManager, setIsManager] = useState(false);
+  const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
+  const isManager = role === 'manager';
 
   useEffect(() => {
     const updateHash = () => {
@@ -70,28 +73,6 @@ export default function PostPage() {
     return () => {
       window.removeEventListener('hashchange', updateHash);
       clearInterval(intervalId);
-    };
-  }, []);
-
-  // userRole에 따른 매니저 권한 체크
-  useEffect(() => {
-    const syncRole = () => {
-      try {
-        if (typeof window === 'undefined') return;
-        const userId = localStorage.getItem('userId');
-        const userRole = localStorage.getItem('userRole');
-        setIsManager(!!userId && userRole === 'manager');
-      } catch {
-        setIsManager(false);
-      }
-    };
-
-    syncRole();
-    window.addEventListener('storage', syncRole);
-    window.addEventListener('auth-changed', syncRole);
-    return () => {
-      window.removeEventListener('storage', syncRole);
-      window.removeEventListener('auth-changed', syncRole);
     };
   }, []);
 
@@ -345,14 +326,20 @@ export default function PostPage() {
         allLocations={allLocations}
         allSalaries={allSalaries}
       />
-      {isManager && (
+      {!roleHydrated ? (
+        <Card className="mb-3">
+          <CardContent className="py-3 text-sm text-gray-600">
+            역할 정보를 불러오는 중입니다...
+          </CardContent>
+        </Card>
+      ) : isManager ? (
         <Button variant="default" size="sm" asChild>
           <Link href="/my-post/create">
             <Plus className="size-4" />
             <span className="text-sm font-medium">새 구인 공고 작성</span>
           </Link>
         </Button>
-      )}
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {filtered.map((item) => (
           <JobCard key={item.id} item={item} />

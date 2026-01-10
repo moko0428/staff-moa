@@ -181,7 +181,9 @@ export async function signUpAction(
       options: {
         data: {
           name: payload.name,
-          role: payload.role,
+          role: payload.role === 'manager' ? 'pending_manager' : payload.role,
+          company_verify_status:
+            payload.role === 'manager' ? 'pending' : undefined,
         },
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },

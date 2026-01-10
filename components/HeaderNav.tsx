@@ -47,6 +47,8 @@ export default function HeaderNav() {
     pathname.startsWith('/auth/login') || pathname.startsWith('/auth/join');
   const isAdmin = role === 'admin';
   const isManager = role === 'manager';
+  const isPendingManager = role === 'pending_manager';
+  const isManagerLike = isManager || isPendingManager;
   const isWorker = role === 'member';
   const isAuthed = !!role;
   const linkClass = isHome
@@ -61,6 +63,7 @@ export default function HeaderNav() {
       )?.role;
       return nextRole === 'admin' ||
         nextRole === 'manager' ||
+        nextRole === 'pending_manager' ||
         nextRole === 'member'
         ? nextRole
         : null;
@@ -134,7 +137,7 @@ export default function HeaderNav() {
               )}
 
               {/* 매니저 페이지 */}
-              {isManager && (
+              {isManagerLike && (
                 <>
                   <NavigationMenuItem>
                     <NavigationMenuLink href="/my-post" className={linkClass}>
@@ -249,7 +252,7 @@ export default function HeaderNav() {
                     className="w-56 z-[60]"
                   >
                     {/* 프로필은 로그인 시에만 */}
-                    {(isAdmin || isManager || isWorker) && (
+                    {(isAdmin || isManagerLike || isWorker) && (
                       <>
                         <DropdownMenuLabel className="flex items-center gap-2">
                           <Link
@@ -277,7 +280,7 @@ export default function HeaderNav() {
                     )}
 
                     {/* 매니저 페이지 */}
-                    {isManager && (
+                    {isManagerLike && (
                       <>
                         <DropdownMenuItem asChild>
                           <Link

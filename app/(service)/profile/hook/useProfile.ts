@@ -13,6 +13,7 @@ export const useProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReRequesting, setIsReRequesting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [newLanguage, setNewLanguage] = useState('');
   const [newCertificate, setNewCertificate] = useState('');
@@ -58,31 +59,53 @@ export const useProfile = () => {
 
         const meta = (data.user.user_metadata ?? {}) as Partial<User>;
 
+        // 프로필 테이블 우선 읽기 (role/company_verify_status 등 신뢰)
+        const { data: profileRow } = await supabase
+          .from('user_profiles')
+          .select(
+            'name, photo, phone, kakao_id, mbti, gender, birth_date, age, personality, features, experiences, height, weight, company_name, business_number, company_certificate, company_verify_status, documents, attendance_score, introduction, updated_at, role'
+          )
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
         const profile: User = {
           id: data.user.id,
           email: data.user.email ?? '',
-          name: meta.name || data.user.email || '사용자',
-          role: (meta.role as User['role']) ?? 'member',
-          photo: meta.photo,
-          attendanceScore: meta.attendanceScore ?? 50,
+          name: profileRow?.name || meta.name || data.user.email || '사용자',
+          role:
+            (profileRow?.role as User['role'] | undefined) ??
+            (meta.role as User['role'] | undefined) ??
+            'member',
+          photo: profileRow?.photo ?? meta.photo,
+          attendanceScore:
+            profileRow?.attendance_score ?? meta.attendanceScore ?? 50,
           createdAt: data.user.created_at ?? new Date().toISOString(),
-          introduction: meta.introduction,
-          phone: meta.phone,
-          kakaoId: meta.kakaoId,
-          mbti: meta.mbti,
-          gender: meta.gender as User['gender'],
-          birthDate: meta.birthDate,
-          age: meta.age,
-          personality: meta.personality,
-          features: meta.features,
-          experiences: meta.experiences ?? [],
-          height: meta.height,
-          weight: meta.weight,
-          companyName: meta.companyName,
-          businessNumber: meta.businessNumber,
-          companyCertificate: meta.companyCertificate,
-          companyVerifyStatus: meta.companyVerifyStatus ?? 'pending',
-          documents: meta.documents ?? {},
+          introduction: profileRow?.introduction ?? meta.introduction,
+          phone: profileRow?.phone ?? meta.phone,
+          kakaoId: profileRow?.kakao_id ?? meta.kakaoId,
+          mbti: profileRow?.mbti ?? meta.mbti,
+          gender:
+            (profileRow?.gender as User['gender']) ??
+            (meta.gender as User['gender']),
+          birthDate: profileRow?.birth_date ?? meta.birthDate,
+          age: profileRow?.age ?? meta.age,
+          personality: profileRow?.personality ?? meta.personality,
+          features: profileRow?.features ?? meta.features,
+          experiences: profileRow?.experiences ?? meta.experiences ?? [],
+          height: profileRow?.height ?? meta.height,
+          weight: profileRow?.weight ?? meta.weight,
+          companyName: profileRow?.company_name ?? meta.companyName,
+          businessNumber: profileRow?.business_number ?? meta.businessNumber,
+          companyCertificate:
+            profileRow?.company_certificate ?? meta.companyCertificate,
+          companyVerifyStatus:
+            (profileRow?.company_verify_status as User['companyVerifyStatus']) ??
+            meta.companyVerifyStatus ??
+            'pending',
+          documents:
+            (profileRow?.documents as User['documents']) ??
+            meta.documents ??
+            {},
         };
 
         setCurrentUser(profile);
@@ -470,6 +493,34 @@ export const useProfile = () => {
     }
   };
 
+  const handleReRequestManagerApproval = async () => {
+    if (!currentUser) return;
+    setIsReRequesting(true);
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          company_verify_status: 'pending',
+          role: 'pending_manager',
+        })
+        .eq('user_id', currentUser.id);
+      if (error) throw error;
+
+      setCurrentUser({
+        ...currentUser,
+        companyVerifyStatus: 'pending',
+        role: 'pending_manager',
+      });
+      setRole('pending_manager');
+      alert('재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.');
+    } catch (err) {
+      console.error('재요청 실패', err);
+      alert('재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsReRequesting(false);
+    }
+  };
+
   return {
     supabase,
     currentUser,
@@ -479,6 +530,7 @@ export const useProfile = () => {
     isLoadingUser,
     isSaving,
     isUploadingPhoto,
+    isReRequesting,
     newLanguage,
     setNewLanguage,
     newCertificate,
@@ -511,5 +563,6 @@ export const useProfile = () => {
     handleCompanyCertUpload,
     handleProfileImageUpload,
     handleRemoveProfileImage,
+    handleReRequestManagerApproval,
   };
 };

@@ -1,4 +1,9 @@
-export type UserRole = 'guest' | 'member' | 'manager' | 'admin';
+export type UserRole =
+  | 'guest'
+  | 'member'
+  | 'pending_manager'
+  | 'manager'
+  | 'admin';
 
 export type PostStatus = 'recruiting' | 'completed' | 'urgent';
 

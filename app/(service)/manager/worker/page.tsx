@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/components/Hero';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,11 @@ interface ApplicationWithPost extends Application {
 }
 
 export default function WorkerManagementPage() {
+  const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
+  const effectiveRole = role ?? null;
+  const isManager = effectiveRole === 'manager';
+  const isPendingManager = effectiveRole === 'pending_manager';
   const [currentUserId, setCurrentUserId] = useState<string>('manager-1');
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -176,6 +182,34 @@ export default function WorkerManagementPage() {
         .length,
     };
   }, [managerApplications]);
+
+  if (!roleHydrated) {
+    return (
+      <div className="space-y-4">
+        <Hero title="지원자 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            역할 정보를 불러오는 중입니다...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isManager) {
+    return (
+      <div className="space-y-4">
+        <Hero title="지원자 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            {isPendingManager
+              ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
+              : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleStatusChange = (
     applicationId: string,

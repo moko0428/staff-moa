@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mockUsers, mockPosts } from '@/lib/mockData';
 import { User, Post } from '@/types/mockData';
+import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,6 +22,9 @@ import {
   ShieldCheck,
   XCircle,
   CheckCircle2,
+  Loader2,
+  Check,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import Hero from '@/components/Hero';
@@ -32,6 +36,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  fetchPendingManagersAction,
+  updateManagerStatusAction,
+} from './manager-actions';
 
 type AdminTab = 'members' | 'posts' | 'reports' | 'manager-approval';
 
@@ -58,26 +66,37 @@ const mockPostReports: PostReportInfo[] = mockPosts
     reasons: [REPORT_REASONS[index % REPORT_REASONS.length]],
   }));
 
-// 간단한 매니저 승급 요청 Mock 데이터
-interface ManagerRequest {
+interface PendingManager {
   id: string;
-  user: User;
+  name: string;
+  email: string;
+  photo?: string | null;
+  companyName?: string | null;
+  phone?: string | null;
+  kakaoId?: string | null;
+  businessNumber?: string | null;
+  companyCertificate?: string | null;
+  profileCompleted: boolean;
+  verifyStatus: 'pending' | 'approved' | 'rejected' | null;
   requestedAt: string;
 }
 
-const managerRequests: ManagerRequest[] = mockUsers
-  .filter((u) => u.role === 'member')
-  .slice(0, 3)
-  .map((user, index) => ({
-    id: `manager-req-${index + 1}`,
-    user,
-    requestedAt: '2025-11-28',
-  }));
+type AdminMemberItem = {
+  id: string;
+  email: string;
+  name: string;
+  role: User['role'];
+  photo?: string | null;
+  attendanceScore?: number | null;
+};
 
+// 간단한 매니저 승급 요청 Mock 데이터
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('members');
-  const [managerRequestsState, setManagerRequestsState] =
-    useState<ManagerRequest[]>(managerRequests);
+  const [members, setMembers] = useState<AdminMemberItem[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [pendingManagers, setPendingManagers] = useState<PendingManager[]>([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
 
   // 실제 구현에서는 서버에서 관리자를 판별하지만, 여기서는 role === 'admin' 유저를 관리자라고 가정
   const adminUser = useMemo(
@@ -85,10 +104,38 @@ export default function AdminPage() {
     []
   );
 
-  const members = useMemo(
-    () => mockUsers.filter((u) => !adminUser || u.id !== adminUser.id),
-    [adminUser]
-  );
+  const supabase = useMemo(() => createClient(), []);
+
+  const fetchMembers = useCallback(async () => {
+    setLoadingMembers(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, email, name, photo, role, attendance_score')
+        .neq('role', 'admin');
+      if (error) throw error;
+
+      const mapped: AdminMemberItem[] =
+        data?.map((row) => ({
+          id: row.user_id,
+          email: row.email,
+          name: row.name,
+          photo: row.photo,
+          role: row.role as User['role'],
+          attendanceScore: row.role === 'member' ? row.attendance_score : null,
+        })) ?? [];
+      setMembers(mapped);
+    } catch (err) {
+      console.error('Failed to load members', err);
+      setMembers([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   const [bannedUserIds, setBannedUserIds] = useState<string[]>([]);
   const [deletedPostIds, setDeletedPostIds] = useState<string[]>([]);
@@ -97,9 +144,6 @@ export default function AdminPage() {
   );
   const [approvedManagerIds, setApprovedManagerIds] = useState<string[]>([]);
   const [rejectedManagerIds, setRejectedManagerIds] = useState<string[]>([]);
-  const [extraManagerRequests, setExtraManagerRequests] = useState<
-    ManagerRequest[]
-  >([]);
 
   // 검색 & 필터 상태
   const [memberSearch, setMemberSearch] = useState('');
@@ -120,23 +164,25 @@ export default function AdminPage() {
 
   const filteredMembers = useMemo(
     () =>
-      members.filter((user) => {
-        const matchSearch =
-          !memberSearch ||
-          user.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-          user.email.toLowerCase().includes(memberSearch.toLowerCase());
+      members
+        .filter((user) => {
+          const matchSearch =
+            !memberSearch ||
+            user.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+            user.email.toLowerCase().includes(memberSearch.toLowerCase());
 
-        const isBanned = bannedUserIds.includes(user.id);
+          const isBanned = bannedUserIds.includes(user.id);
 
-        const matchRole =
-          memberRoleFilter === 'all'
-            ? true
-            : memberRoleFilter === 'banned'
-            ? isBanned
-            : user.role === memberRoleFilter;
+          const matchRole =
+            memberRoleFilter === 'all'
+              ? true
+              : memberRoleFilter === 'banned'
+              ? isBanned
+              : user.role === memberRoleFilter;
 
-        return matchSearch && matchRole;
-      }),
+          return matchSearch && matchRole;
+        })
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [members, memberSearch, memberRoleFilter, bannedUserIds]
   );
 
@@ -172,64 +218,61 @@ export default function AdminPage() {
     [handledReportPostIds, reportSearch]
   );
 
-  const pendingManagerRequests = useMemo(
-    () =>
-      managerRequestsState.filter(
-        (req) =>
-          !approvedManagerIds.includes(req.user.id) &&
-          !rejectedManagerIds.includes(req.user.id) &&
-          (!managerSearch ||
-            req.user.name.toLowerCase().includes(managerSearch.toLowerCase()) ||
-            req.user.email.toLowerCase().includes(managerSearch.toLowerCase()))
-      ),
-    [
-      approvedManagerIds,
-      rejectedManagerIds,
-      managerSearch,
-      managerRequestsState,
-    ]
-  );
-
-  // 로컬 스토리지에 저장된 매니저 승인 요청 병합
-  useEffect(() => {
+  const fetchPendingManagers = useCallback(async () => {
+    setLoadingManagers(true);
     try {
-      const stored = localStorage.getItem('managerRequestsExtra');
-      if (stored) {
-        const parsed = JSON.parse(stored) as ManagerRequest[];
-        setExtraManagerRequests(parsed);
-        setManagerRequestsState([...managerRequests, ...parsed]);
-      } else {
-        setManagerRequestsState(managerRequests);
-      }
-    } catch {
-      setManagerRequestsState(managerRequests);
+      const mapped = await fetchPendingManagersAction();
+      setPendingManagers(mapped);
+    } catch (err) {
+      console.error('Failed to load manager requests', err);
+      setPendingManagers([]);
+    } finally {
+      setLoadingManagers(false);
     }
   }, []);
 
-  const persistExtraRequests = (requests: ManagerRequest[]) => {
-    setExtraManagerRequests(requests);
-    localStorage.setItem('managerRequestsExtra', JSON.stringify(requests));
-  };
+  useEffect(() => {
+    fetchPendingManagers();
+  }, [fetchPendingManagers]);
 
-  const handleManagerDecision = (
-    req: ManagerRequest,
+  const filteredPendingManagers = useMemo(
+    () =>
+      pendingManagers
+        .filter(
+          (req) =>
+            !approvedManagerIds.includes(req.id) &&
+            !rejectedManagerIds.includes(req.id)
+        )
+        .filter((req) => {
+          if (!managerSearch) return true;
+          const keyword = managerSearch.toLowerCase();
+          return (
+            req.name.toLowerCase().includes(keyword) ||
+            req.email.toLowerCase().includes(keyword)
+          );
+        }),
+    [pendingManagers, approvedManagerIds, rejectedManagerIds, managerSearch]
+  );
+
+  const handleManagerDecision = async (
+    req: PendingManager,
     decision: 'approve' | 'reject'
   ) => {
-    if (decision === 'approve') {
-      setApprovedManagerIds((prev) =>
-        prev.includes(req.user.id) ? prev : [...prev, req.user.id]
-      );
-    } else {
-      setRejectedManagerIds((prev) =>
-        prev.includes(req.user.id) ? prev : [...prev, req.user.id]
-      );
-    }
-
-    setManagerRequestsState((prev) => prev.filter((r) => r.id !== req.id));
-
-    if (req.id.startsWith('local-req')) {
-      const filtered = extraManagerRequests.filter((r) => r.id !== req.id);
-      persistExtraRequests(filtered);
+    try {
+      await updateManagerStatusAction(req.id, decision);
+      if (decision === 'approve') {
+        setApprovedManagerIds((prev) =>
+          prev.includes(req.id) ? prev : [...prev, req.id]
+        );
+      } else {
+        setRejectedManagerIds((prev) =>
+          prev.includes(req.id) ? prev : [...prev, req.id]
+        );
+      }
+      setPendingManagers((prev) => prev.filter((r) => r.id !== req.id));
+    } catch (err) {
+      console.error('Failed to update manager status', err);
+      alert('승인/거절 처리에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -315,62 +358,83 @@ export default function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {filteredMembers.map((user) => {
-              const isBanned = bannedUserIds.includes(user.id);
-              return (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.photo} alt={user.name} />
-                      <AvatarFallback>{user.name.at(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">{user.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {user.email}
-                      </span>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0.5"
-                        >
-                          {user.role === 'manager' ? '매니저' : '회원'}
-                        </Badge>
-                        {isBanned && (
+            {loadingMembers ? (
+              <div className="text-sm text-gray-500 py-6 text-center">
+                불러오는 중...
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6">
+                조건에 맞는 회원이 없습니다.
+              </p>
+            ) : (
+              filteredMembers.map((user) => {
+                const isBanned = bannedUserIds.includes(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={user.photo ?? undefined}
+                          alt={user.name}
+                        />
+                        <AvatarFallback>{user.name.at(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">{user.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {user.email}
+                        </span>
+                        <div className="flex items-center gap-1 mt-1">
                           <Badge
-                            variant="destructive"
+                            variant="outline"
                             className="text-[10px] px-1.5 py-0.5"
                           >
-                            정지됨
+                            {user.role === 'manager' ? '매니저' : '회원'}
                           </Badge>
-                        )}
+                          {user.role === 'member' && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0.5"
+                            >
+                              근태 {user.attendanceScore ?? 0}점
+                            </Badge>
+                          )}
+                          {isBanned && (
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px] px-1.5 py-0.5"
+                            >
+                              정지됨
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={isBanned ? 'outline' : 'destructive'}
+                        size="sm"
+                        onClick={() =>
+                          setBannedUserIds((prev) =>
+                            isBanned
+                              ? prev.filter((id) => id !== user.id)
+                              : [...prev, user.id]
+                          )
+                        }
+                      >
+                        <ShieldBan className="size-4" />
+                        <span className="text-xs">
+                          {isBanned ? '정지 해제' : '정지(벤)'}
+                        </span>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={isBanned ? 'outline' : 'destructive'}
-                      size="sm"
-                      onClick={() =>
-                        setBannedUserIds((prev) =>
-                          isBanned
-                            ? prev.filter((id) => id !== user.id)
-                            : [...prev, user.id]
-                        )
-                      }
-                    >
-                      <ShieldBan className="size-4" />
-                      <span className="text-xs">
-                        {isBanned ? '정지 해제' : '정지(벤)'}
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       )}
@@ -559,7 +623,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between gap-2">
                 <span>매니저 승인 관리</span>
                 <span className="text-sm text-gray-500">
-                  대기 {pendingManagerRequests.length}명
+                  대기 {filteredPendingManagers.length}명
                 </span>
               </div>
               <Input
@@ -571,31 +635,55 @@ export default function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {pendingManagerRequests.length === 0 ? (
+            {loadingManagers ? (
+              <div className="flex items-center justify-center py-10 text-sm text-gray-500 gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                불러오는 중...
+              </div>
+            ) : filteredPendingManagers.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6">
                 대기 중인 매니저 승급 요청이 없습니다.
               </p>
             ) : (
-              pendingManagerRequests.map((req) => (
+              filteredPendingManagers.map((req) => (
                 <div
                   key={req.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={req.user.photo} alt={req.user.name} />
-                      <AvatarFallback>{req.user.name.at(0)}</AvatarFallback>
+                      {req.photo ? (
+                        <AvatarImage src={req.photo} alt={req.name} />
+                      ) : null}
+                      <AvatarFallback>{req.name.at(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <span className="font-medium text-sm">
-                        {req.user.name}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {req.user.email}
-                      </span>
+                      <span className="font-medium text-sm">{req.name}</span>
+                      <span className="text-xs text-gray-500">{req.email}</span>
                       <span className="text-xs text-gray-400 mt-1">
-                        요청일: {req.requestedAt}
+                        요청일: {req.requestedAt?.slice(0, 10) || '-'}
                       </span>
+                      <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-600">
+                        {[
+                          { label: '전화번호', ok: !!req.phone },
+                          { label: '카카오 ID', ok: !!req.kakaoId },
+                          { label: '회사명', ok: !!req.companyName },
+                          { label: '사업자번호', ok: !!req.businessNumber },
+                          { label: '인증 파일', ok: !!req.companyCertificate },
+                        ].map((item) => (
+                          <span
+                            key={item.label}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200"
+                          >
+                            {item.ok ? (
+                              <Check className="size-3 text-emerald-600" />
+                            ) : (
+                              <X className="size-3 text-red-500" />
+                            )}
+                            {item.label}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

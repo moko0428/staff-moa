@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/client';
 
 type UploadArgs = {
   file: File;
-  role: 'member' | 'manager' | 'admin' | 'guest';
+  role: 'member' | 'pending_manager' | 'manager' | 'admin' | 'guest';
   userId: string;
   prevUrl?: string | null;
 };
@@ -41,7 +41,11 @@ export const useUpload = () => {
     }
 
     const folder =
-      role === 'manager' ? 'manager' : role === 'admin' ? 'admin' : 'member';
+      role === 'manager' || role === 'pending_manager'
+        ? 'manager'
+        : role === 'admin'
+        ? 'admin'
+        : 'member';
     const safeName = sanitizeFileName(file.name);
     const filePath = `${folder}/${userId}/${Date.now()}-${safeName}`;
 

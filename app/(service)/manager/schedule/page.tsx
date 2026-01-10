@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useUserStore } from '@/store/useUserStore';
 import * as React from 'react';
 import Hero from '@/components/Hero';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -125,6 +126,11 @@ export interface ScheduleWithPost extends Omit<Post, 'status'> {
 }
 
 export default function SchedulePage() {
+  const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
+  const effectiveRole = role ?? null;
+  const isManager = effectiveRole === 'manager';
+  const isPendingManager = effectiveRole === 'pending_manager';
   const [viewType, setViewType] = useState<ViewType>('card');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSchedule, setSelectedSchedule] =
@@ -417,6 +423,34 @@ export default function SchedulePage() {
       });
     }
   };
+
+  if (!roleHydrated) {
+    return (
+      <div className="space-y-4">
+        <Hero title="스케줄 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            역할 정보를 불러오는 중입니다...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isManager) {
+    return (
+      <div className="space-y-4">
+        <Hero title="스케줄 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            {isPendingManager
+              ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
+              : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // 로딩 상태 표시 (옵션)
   if (!isMounted) {

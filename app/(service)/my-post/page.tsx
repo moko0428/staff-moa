@@ -4,14 +4,22 @@ import Hero from '@/components/Hero';
 import MyPostCard from '@/components/MyPostCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { mockPosts } from '@/lib/mockData';
 import { Post } from '@/types/mockData';
 import { Plus, FilterIcon, Search } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
+import { useUserStore } from '@/store/useUserStore';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function MyPostPage() {
+  const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
+  const effectiveRole = role ?? null;
+  const isManager = effectiveRole === 'manager';
+  const isPendingManager = effectiveRole === 'pending_manager';
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [posts, setPosts] = useState(mockPosts);
   const [showFilters, setShowFilters] = useState(false);
@@ -69,6 +77,34 @@ export default function MyPostPage() {
       prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
     );
   };
+
+  if (!roleHydrated) {
+    return (
+      <div className="space-y-4">
+        <Hero title="내 공고 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            역할 정보를 불러오는 중입니다...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isManager) {
+    return (
+      <div className="space-y-4">
+        <Hero title="내 공고 관리" description="매니저 전용 페이지" />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            {isPendingManager
+              ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
+              : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -66,6 +66,7 @@ export default function ProfilePage() {
     setShowExperienceInput,
     isLoadingExperiences,
     isUploadingPhoto,
+    isReRequesting,
     isLoadingUser,
     isSaving,
     handleBirthDateChange,
@@ -83,10 +84,12 @@ export default function ProfilePage() {
     handleCompanyCertUpload,
     handleProfileImageUpload,
     handleRemoveProfileImage,
+    handleReRequestManagerApproval,
   } = useProfile();
   const roleFromStore = useUserStore((state) => state.role);
   const effectiveRole = roleFromStore ?? currentUser?.role ?? null;
   const isMember = effectiveRole === 'member';
+  const isPendingManager = effectiveRole === 'pending_manager';
   const isManager = effectiveRole === 'manager';
   const isAdmin = effectiveRole === 'admin';
 
@@ -146,7 +149,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (isManager) {
+  if (isManager || isPendingManager) {
     requiredFields.push(
       ['전화번호', currentUser.phone],
       ['회사명', currentUser.companyName],
@@ -172,23 +175,47 @@ export default function ProfilePage() {
         }
       />
 
-      {!isAdmin && missingFields.length > 0 && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
-          <CardContent className="py-4">
-            <div className="flex flex-col gap-2 text-sm text-amber-900">
-              <p className="font-semibold">
-                {isMember
-                  ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.'
-                  : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
+      {isPendingManager && companyStatusRaw === 'rejected' && (
+        <Card className="mb-4 border-red-200 bg-red-50">
+          <CardContent className="py-3">
+            <div className="flex flex-col gap-1 text-sm text-red-700">
+              <p className="font-semibold">승인 요청이 거절되었습니다.</p>
+              <p className="text-xs">
+                프로필 정보를 보완한 뒤 재요청을 진행해주세요.
               </p>
-              <p>
-                아직 입력되지 않은 항목: {missingFields.join(', ')}
-                {missingFields.length >= 3 && ' 등'}
-              </p>
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  onClick={handleReRequestManagerApproval}
+                  disabled={isReRequesting}
+                >
+                  {isReRequesting ? '재요청 중...' : '재요청'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {!isAdmin &&
+        ((isMember && missingFields.length > 0) ||
+          (isPendingManager && missingFields.length > 0)) && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="py-4">
+              <div className="flex flex-col gap-2 text-sm text-amber-900">
+                <p className="font-semibold">
+                  {isMember
+                    ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.'
+                    : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
+                </p>
+                <p>
+                  아직 입력되지 않은 항목: {missingFields.join(', ')}
+                  {missingFields.length >= 3 && ' 등'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 프로필 카드 */}
@@ -381,7 +408,7 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-              {isManager && (
+              {(isManager || isPendingManager) && (
                 <p className="text-sm text-gray-500 text-right">
                   프로필을 모두 채우면 기업 신뢰도가 상승해요.
                 </p>
@@ -401,7 +428,7 @@ export default function ProfilePage() {
           )}
 
           {/* 매니저 회사 정보 */}
-          {isManager && (
+          {(isManager || isPendingManager) && (
             <Card>
               <CardHeader className="flex items-center justify-between flex-row">
                 <CardTitle>회사 정보</CardTitle>
@@ -509,7 +536,7 @@ export default function ProfilePage() {
             </Card>
           )}
 
-          {isManager && isEditing && (
+          {(isManager || isPendingManager) && isEditing && (
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 취소
