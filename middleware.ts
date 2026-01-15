@@ -1,48 +1,73 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { createClient } from './utils/supabase/middleware';
+import { NextResponse, type NextRequest } from 'next/server';
+
+import { updateSession } from '@/utils/middleware/updateSession'; 
 
 export async function middleware(req: NextRequest) {
+  const [response, user] = await updateSession(req);
+
   const { pathname } = req.nextUrl;
-
-  // Supabase 세션 기반으로 사용자/역할 확인
-  const { supabase, response } = createClient(req);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const authed = Boolean(user);
-  const role = (user?.user_metadata as { role?: string } | undefined)?.role;
+  const user_role = user?.role || user?.app_metadata?.role || user?.user_metadata?.role; 
 
-  // 인증된 사용자는 랜딩 관련 경로 접근 시 /post로 이동
   if (authed && (pathname === '/' || pathname.startsWith('/landing'))) {
     const url = req.nextUrl.clone();
-    url.pathname = '/post';
-    return NextResponse.redirect(url);
+    url.pathname = '/post'; 
+    
+    const redirectResponse = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie); 
+    }
+    return redirectResponse;
   }
 
-  // 역할 기반 접근 제어
-  const requireManager =
-    pathname.startsWith('/manager') || pathname.startsWith('/my-post');
-  const requireAdmin = pathname.startsWith('/admin');
-  const requireWorker = pathname.startsWith('/worker');
+  const requireAuthPaths = [
+     '/manager', '/my-post', '/admin', '/worker'
+  ];
+  const isProtectedPath = requireAuthPaths.some(path => pathname.startsWith(path));
 
-  if (requireAdmin && role !== 'admin') {
+  if (!authed && isProtectedPath) {
     const url = req.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    url.pathname = '/auth/login'; 
+    const redirectResponse = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+    return redirectResponse;
   }
 
-  if (requireManager && role !== 'manager') {
+  const requireManagerRole = pathname.startsWith('/manager') || pathname.startsWith('/my-post');
+  const requireAdminRole = pathname.startsWith('/admin');
+  const requireWorkerRole = pathname.startsWith('/worker'); 
+
+  if (requireAdminRole && user_role !== 'admin') {
     const url = req.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    url.pathname = '/'; 
+    const redirectResponse = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+    return redirectResponse;
   }
 
-  if (requireWorker && role !== 'member') {
+  if (requireManagerRole && user_role !== 'manager') {
     const url = req.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    url.pathname = '/'; 
+    const redirectResponse = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+    return redirectResponse;
+  }
+
+  // 워커(멤버) 전용 경로 체크
+  if (requireWorkerRole && (user_role !== 'member' && user_role !== 'pending_manager')) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/'; 
+    const redirectResponse = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+    return redirectResponse;
   }
 
   return response;
@@ -52,10 +77,10 @@ export const config = {
   matcher: [
     '/',
     '/landing/:path*',
-    '/post/:path*',
     '/admin/:path*',
     '/manager/:path*',
     '/my-post/:path*',
     '/worker/:path*',
+    '/auth/login', 
   ],
 };
