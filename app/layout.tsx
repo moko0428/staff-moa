@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import HeaderNav from '@/components/HeaderNav';
 import { Analytics } from '@vercel/analytics/next';
 export const metadata: Metadata = {
   title: 'Staff MOA',
@@ -15,7 +14,6 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen bg-accent text-foreground">
-        <HeaderNav />
         <main>{children}</main>
         <Analytics />
       </body>
