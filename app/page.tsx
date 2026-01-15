@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import LandingPage from './landing/page';
+import LandingPage from './(features)/landing/page';
 
 export default async function Home() {
   const store = await cookies();
