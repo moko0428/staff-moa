@@ -8,6 +8,8 @@ import { createClient } from '@/utils/supabase/client';
 import { useUpload } from '@/hooks/useUpload';
 import { useUserStore } from '@/store/useUserStore';
 
+type ExperienceItem = User['experiences'] extends Array<infer E> ? E : never;
+
 export const useProfile = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -68,6 +70,32 @@ export const useProfile = () => {
           .eq('user_id', data.user.id)
           .maybeSingle();
 
+        // Supabase jsonb → 타입 안전한 경력 배열로 변환
+        const normalizeExperiences = (
+          value: unknown
+        ): User['experiences'] | undefined => {
+          if (!value) return undefined;
+          if (!Array.isArray(value)) return undefined;
+
+          const typed = value.filter(
+            (item): item is ExperienceItem =>
+              typeof item === 'object' &&
+              item !== null &&
+              typeof (item as { title?: unknown }).title === 'string' &&
+              typeof (item as { date?: unknown }).date === 'string' &&
+              typeof (item as { location?: unknown }).location === 'string'
+          );
+
+          return typed.length ? typed : undefined;
+        };
+
+        const profileExperiences = normalizeExperiences(
+          profileRow?.experiences as unknown
+        );
+        const metaExperiences = normalizeExperiences(
+          (meta as Partial<User>).experiences
+        );
+
         const profile: User = {
           id: data.user.id,
           email: data.user.email ?? '',
@@ -91,7 +119,7 @@ export const useProfile = () => {
           age: profileRow?.age ?? meta.age,
           personality: profileRow?.personality ?? meta.personality,
           features: profileRow?.features ?? meta.features,
-          experiences: profileRow?.experiences ?? meta.experiences ?? [],
+          experiences: profileExperiences ?? metaExperiences ?? [],
           height: profileRow?.height ?? meta.height,
           weight: profileRow?.weight ?? meta.weight,
           companyName: profileRow?.company_name ?? meta.companyName,
@@ -430,7 +458,8 @@ export const useProfile = () => {
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
 
-      const currentExperiences = currentUser.experiences || [];
+      const currentExperiences: User['experiences'] =
+        currentUser.experiences ?? [];
       const existingKeys = new Set(
         currentExperiences.map((e) => `${e.title}-${e.date}`)
       );

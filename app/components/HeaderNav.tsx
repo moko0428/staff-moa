@@ -59,9 +59,23 @@ export default function HeaderNav() {
   const roleGetter = useCallback(async () => {
     try {
       const { data } = await supabase.auth.getUser();
-      const nextRole = (
-        data.user?.user_metadata as { role?: string } | undefined
-      )?.role;
+      if (!data.user) {
+        return null;
+      }
+
+      // profiles 테이블에서 role 조회 (단일 진실 공급원)
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch user role from profiles:', error);
+        return null;
+      }
+
+      const nextRole = profile?.role;
       return nextRole === 'admin' ||
         nextRole === 'manager' ||
         nextRole === 'pending_manager' ||

@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 
 type WorkSlot = {
@@ -66,7 +66,7 @@ export async function createPostAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       return { ok: false, message: '로그인이 필요합니다.' };
@@ -195,7 +195,7 @@ export async function updatePostAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       return { ok: false, message: '로그인이 필요합니다.' };
@@ -321,7 +321,7 @@ export async function updatePostAction(
 
 export async function deletePostAction(postId: string): Promise<ActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       return { ok: false, message: '로그인이 필요합니다.' };
@@ -352,7 +352,7 @@ export async function getMyPostsAction(): Promise<
   ActionResult<Array<Record<string, unknown>>>
 > {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       return { ok: false, message: '로그인이 필요합니다.', data: [] };
@@ -388,7 +388,7 @@ export async function getPostByIdAction(
   postId: string
 ): Promise<ActionResult<Record<string, unknown> | null>> {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('posts')
       .select('*')
@@ -419,7 +419,7 @@ export async function getAllPostsAction(): Promise<
   ActionResult<Array<Record<string, unknown>>>
 > {
   try {
-    const supabase = await createServerSupabaseClient();
+      const supabase = await createClient();
     const { data, error } = await supabase
       .from('posts')
       .select('*')

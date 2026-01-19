@@ -1,3 +1,4 @@
+import HeaderNav from '@/app/components/HeaderNav';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -11,6 +12,6 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="bg-accent max-w-7xl mx-auto px-4 py-4">{children}</div>
+    <div className="bg-accent "><HeaderNav /><main className='max-w-7xl mx-auto px-4 py-4'>{children}</main></div>
   );
 }
