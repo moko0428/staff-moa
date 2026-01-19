@@ -11,18 +11,23 @@ import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { getMyPostsAction, deletePostAction } from './actions';
+import {
+  getMyPostsAction,
+  deletePostAction,
+  updatePostStatusAction,
+} from './actions';
 
 type PostRow = {
   id: string;
   author_id: string;
   title: string;
   description: string;
+  location?: string;
   work_slots: Array<{
     date: string;
     start: string;
     end: string;
-    location: string;
+    location?: string;
     pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
     pay_amount: number;
     tax_withholding: boolean;
@@ -78,6 +83,17 @@ export default function MyPostPage() {
     }
   }, [isManager, fetchPosts]);
 
+  // 페이지 포커스 시 공고 목록 새로고침 (수정 후 돌아왔을 때 최신 데이터 표시)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isManager) {
+        fetchPosts();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isManager, fetchPosts]);
+
   const myPosts = useMemo(() => {
     let filtered = [...posts];
 
@@ -112,10 +128,27 @@ export default function MyPostPage() {
     postId: string,
     newStatus: PostRow['status']
   ) => {
-    // TODO: 상태 변경 서버 액션 추가 필요
+    // 낙관적 업데이트를 위해 이전 상태 저장
+    const prevPosts = posts;
+    const prevStatus = posts.find((p) => p.id === postId)?.status;
+
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
     );
+
+    const result = await updatePostStatusAction(postId, newStatus);
+
+    if (!result.ok) {
+      alert(result.message || '공고 상태 변경에 실패했습니다.');
+      // 실패 시 이전 상태로 롤백
+      if (prevStatus) {
+        setPosts(prevPosts);
+      }
+      return;
+    }
+
+    // 서버와 상태를 한 번 더 동기화
+    fetchPosts();
   };
 
   if (!roleHydrated) {
@@ -261,43 +294,31 @@ export default function MyPostPage() {
               key={post.id}
               post={{
                 id: post.id,
-                author_id: post.author_id,
-                authorId: post.author_id, // 호환성
-                authorName: post.manager_name, // 호환성
+                authorId: post.author_id as string,
+                authorName: post.manager_name as string,
                 status: post.status,
                 title: post.title,
                 description: post.description,
-                work_slots: post.work_slots || [],
-                recruit_count: post.recruit_count,
-                recruitCount: post.recruit_count, // 호환성
-                manager_name: post.manager_name,
-                manager_phone: post.manager_phone,
-                managerInfo: {
-                  // 호환성
-                  name: post.manager_name,
-                  phone: post.manager_phone,
-                },
-                equipments: post.equipments,
-                qualifications: post.qualifications,
-                preferences: post.preferences,
-                notes: post.notes,
-                external_link: post.external_link,
                 keywords: post.keywords || [],
-                form_type: post.form_type || 'basic',
-                created_at: post.created_at,
-                createdAt: post.created_at, // 호환성
-                updatedAt: post.created_at, // 호환성
-                // 레거시 필드 (호환성)
                 date: post.work_slots?.[0]?.date || '',
-                location: post.work_slots?.[0]?.location || '',
+                location: (post.work_slots?.[0]?.location as string) || (post.location as string) || '',
                 time: post.work_slots?.[0]
                   ? `${post.work_slots[0].start} - ${post.work_slots[0].end}`
                   : '',
                 salary: post.work_slots?.[0]?.pay_amount || 0,
                 paymentDate: '',
-                preparation: post.equipments || '',
-                requirements: post.qualifications || '',
+                preparation: (post.equipments as string) || '',
+                managerInfo: {
+                  name: post.manager_name as string,
+                  phone: post.manager_phone as string,
+                },
+                recruitCount: post.recruit_count,
                 currentApplicants: 0,
+                notes: (post.notes as string) || undefined,
+                requirements: (post.qualifications as string) || undefined,
+                preferences: (post.preferences as string) || undefined,
+                createdAt: post.created_at as string,
+                updatedAt: post.created_at as string,
               }}
               onEdit={(editedPost) => {
                 router.push(`/my-post/edit/${editedPost.id}`);

@@ -18,6 +18,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Switch } from '@/app/components/ui/switch';
 import { Edit, Trash2, Calendar, Users, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { format, parseISO } from 'date-fns';
 
 interface MyPostCardProps {
   post: Post;
@@ -73,7 +74,8 @@ export default function MyPostCard({
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsEditing(true);
+    setIsOpen(false);
+    onEdit?.(post);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -178,7 +180,15 @@ export default function MyPostCard({
               </h3>
               <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
                 <Calendar className="size-4" />
-                <span>작성일: {post.createdAt}</span>
+                <span>
+                  작성일:{' '}
+                  {post.createdAt
+                    ? format(
+                        parseISO(post.createdAt),
+                        'yyyy-MM-dd HH:mm'
+                      )
+                    : '-'}
+                </span>
               </div>
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <Users className="size-4 text-gray-500" />
@@ -419,7 +429,10 @@ export default function MyPostCard({
                     {statusBadge.label}
                   </Badge>
                   <span className="text-sm text-gray-500">
-                    작성일: {post.createdAt}
+                    작성일:{' '}
+                    {post.createdAt
+                      ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
+                      : '-'}
                   </span>
                 </div>
 

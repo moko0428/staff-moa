@@ -51,7 +51,7 @@ const createPostSchema = z.object({
 });
 
 const updatePostSchema = createPostSchema.extend({
-  id: z.string().uuid('올바른 공고 ID가 아닙니다.'),
+  id: z.string().min(1, '공고 ID가 필요합니다.'), // post_id는 bigint이므로 UUID가 아님
 });
 
 type ActionResult<T = void> = {
@@ -60,6 +60,110 @@ type ActionResult<T = void> = {
   data?: T;
   fieldErrors?: Record<string, string>;
 };
+
+// 포스트의 날짜/시간을 확인하여 과거인지 판단하는 헬퍼 함수
+function isPostPast(post: Record<string, unknown>): boolean {
+  const now = new Date();
+
+  // work_slots에서 가장 마지막 날짜와 시간 확인
+  if (post.work_slots && Array.isArray(post.work_slots) && post.work_slots.length > 0) {
+    const slots = post.work_slots as Array<Record<string, unknown>>;
+    const lastSlot = slots[slots.length - 1];
+    const lastDate = lastSlot?.date as string;
+    const lastEndTime = (lastSlot?.end_time || lastSlot?.end) as string;
+
+    if (lastDate && lastEndTime) {
+      try {
+        const [hours, minutes] = lastEndTime.split(':').map(Number);
+        const workDateTime = new Date(lastDate);
+        workDateTime.setHours(hours, minutes, 0, 0);
+        return workDateTime < now;
+      } catch {
+        // 파싱 실패 시 기본값 사용
+      }
+    }
+  }
+
+  // work_slots가 없으면 테이블 레벨 데이터 사용
+  const workDate = post.work_date as string;
+  const workTimeEnd = post.work_time_end as string;
+
+  if (workDate && workTimeEnd) {
+    try {
+      const [hours, minutes] = workTimeEnd.split(':').map(Number);
+      const workDateTime = new Date(workDate);
+      workDateTime.setHours(hours, minutes, 0, 0);
+      return workDateTime < now;
+    } catch {
+      // 파싱 실패 시 false 반환
+    }
+  }
+
+  return false;
+}
+
+// 포스트 상태를 자동으로 업데이트하는 함수
+async function updatePostStatusIfPast(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  postId: number | string
+): Promise<void> {
+  try {
+    const { data: post } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('post_id', postId)
+      .single();
+
+    if (!post) return;
+
+    if (post.status === 'completed') return;
+
+    if (isPostPast(post)) {
+      await supabase
+        .from('posts')
+        .update({ status: 'completed' })
+        .eq('post_id', postId);
+    }
+  } catch (error) {
+    console.error('[updatePostStatusIfPast] Error updating post status:', error);
+  }
+}
+
+// 상태만 변경하는 서버 액션 (급구/모집중/모집완료 토글용)
+export async function updatePostStatusAction(
+  postId: string,
+  status: 'recruiting' | 'completed' | 'urgent'
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    const { error } = await supabase
+      .from('posts')
+      .update({ status })
+      .eq('post_id', postId)
+      .eq('author_id', userData.user.id);
+
+    if (error) {
+      console.error('[updatePostStatusAction] Supabase update error', error);
+      return {
+        ok: false,
+        message: '공고 상태 변경에 실패했습니다. 다시 시도해주세요.',
+      };
+    }
+
+    return { ok: true, message: '공고 상태가 변경되었습니다.' };
+  } catch (err) {
+    console.error('[updatePostStatusAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '공고 상태 변경 중 오류가 발생했습니다.',
+    };
+  }
+}
 
 export async function createPostAction(
   _prevState: ActionResult | undefined,
@@ -145,16 +249,33 @@ export async function createPostAction(
     const workDate = firstSlot?.date || null;
     const workTimeStart = firstSlot?.start || null;
     const workTimeEnd = firstSlot?.end || null;
+    const location = firstSlot?.location || '';
+    const payAmount = firstSlot?.pay_amount || 0;
+    const payType = firstSlot?.pay_type || 'hourly';
+    const taxWithholding = firstSlot?.tax_withholding || false;
+
+    // work_slots를 스키마 형식으로 변환 (start_time, end_time 사용)
+    const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
+      date: slot.date,
+      start_time: slot.start,
+      end_time: slot.end,
+      pay_amount: slot.pay_amount,
+      // location, pay_type, tax_withholding은 work_slots에 포함하지 않고 테이블 레벨에서 관리
+    }));
 
     const { data, error } = await supabase
       .from('posts')
       .insert({
-        title: parsed.data.title || undefined,
+        title: parsed.data.title,
         description: parsed.data.description,
         work_date: workDate,
         work_time_start: workTimeStart,
         work_time_end: workTimeEnd,
-        work_slots: parsed.data.work_slots,
+        location: location,
+        pay_amount: payAmount.toString(),
+        pay_type: payType,
+        tax_withholding: taxWithholding,
+        work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
         manager_name: parsed.data.manager_name,
         manager_phone: parsed.data.manager_phone,
@@ -168,7 +289,7 @@ export async function createPostAction(
         status: parsed.data.status,
         form_type: parsed.data.form_type,
       })
-      .select('id')
+      .select('post_id')
       .single();
 
     if (error) {
@@ -182,7 +303,7 @@ export async function createPostAction(
     return {
       ok: true,
       message: '공고가 작성되었습니다.',
-      data: { id: data.id },
+      data: { id: data.post_id.toString() },
     };
   } catch (err) {
     console.error('[createPostAction] Unexpected error', err);
@@ -210,7 +331,7 @@ export async function updatePostAction(
     const { data: existingPost } = await supabase
       .from('posts')
       .select('author_id')
-      .eq('id', postId)
+      .eq('post_id', postId)
       .single();
 
     if (!existingPost || existingPost.author_id !== userData.user.id) {
@@ -279,29 +400,54 @@ export async function updatePostAction(
     const workDate = firstSlot?.date || null;
     const workTimeStart = firstSlot?.start || null;
     const workTimeEnd = firstSlot?.end || null;
+    const location = firstSlot?.location || '';
+    const payAmount = firstSlot?.pay_amount || 0;
+    const payType = firstSlot?.pay_type || 'hourly';
+    const taxWithholding = firstSlot?.tax_withholding || false;
+
+    // work_slots를 스키마 형식으로 변환
+    const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
+      date: slot.date,
+      start_time: slot.start,
+      end_time: slot.end,
+      pay_amount: slot.pay_amount,
+    }));
+
+    // 필수 필드 검증
+    if (!workDate || !workTimeStart || !workTimeEnd || !location) {
+      return {
+        ok: false,
+        message: '날짜, 시간, 장소 정보가 필요합니다.',
+      };
+    }
 
     const { error } = await supabase
       .from('posts')
       .update({
         title: parsed.data.title,
         description: parsed.data.description,
-        work_date: workDate || undefined,
-        work_time_start: workTimeStart || undefined,
-        work_time_end: workTimeEnd || undefined,
-        work_slots: parsed.data.work_slots,
+        work_date: workDate,
+        work_time_start: workTimeStart,
+        work_time_end: workTimeEnd,
+        location: location,
+        pay_amount: payAmount.toString(),
+        pay_type: payType,
+        tax_withholding: taxWithholding,
+        work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
-        manager_name: parsed.data.manager_name || undefined,
-        manager_phone: parsed.data.manager_phone || undefined ,
+        manager_name: parsed.data.manager_name,
+        manager_phone: parsed.data.manager_phone,
         equipments: parsed.data.equipments || null,
-        qualifications: parsed.data.qualifications || undefined,
+        qualifications: parsed.data.qualifications || null,
         preferences: parsed.data.preferences || null,
-        notes: parsed.data.notes || undefined,
-        external_link: parsed.data.external_link || undefined,
+        notes: parsed.data.notes || null,
+        external_link: parsed.data.external_link || null,
         keywords: parsed.data.keywords,
         status: parsed.data.status,
         form_type: parsed.data.form_type,
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', postId)
+      .eq('post_id', postId)
       .eq('author_id', userData.user.id);
 
     if (error) {
@@ -330,7 +476,7 @@ export async function deletePostAction(postId: string): Promise<ActionResult> {
     const { error } = await supabase
       .from('posts')
       .delete()
-      .eq('id', postId)
+      .eq('post_id', postId)
       .eq('author_id', userData.user.id);
 
     if (error) {
@@ -373,7 +519,56 @@ export async function getMyPostsAction(): Promise<
       };
     }
 
-    return { ok: true, message: '', data: data || [] };
+    // 데이터 변환: post_id → id, work_slots 형식 변환, 상태 자동 업데이트
+    const transformedData = await Promise.all(
+      (data || []).map(async (post: Record<string, unknown>) => {
+        // 과거 포스트인지 확인하고 상태 업데이트
+        if (isPostPast(post) && post.status !== 'completed') {
+          const postId = post.post_id as number | string;
+          if (postId !== undefined && postId !== null) {
+            await updatePostStatusIfPast(supabase, postId);
+            post.status = 'completed';
+          }
+        }
+
+        const transformed = { ...post };
+
+        // post_id를 id로 변환
+        if (post.post_id !== undefined && post.post_id !== null) {
+          transformed.id = post.post_id.toString();
+        }
+
+        // work_slots 형식 변환: start_time/end_time → start/end
+        if (post.work_slots && Array.isArray(post.work_slots)) {
+          transformed.work_slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
+            date: slot.date,
+            start: slot.start_time || slot.start,
+            end: slot.end_time || slot.end,
+            location: slot.location || post.location,
+            pay_type: slot.pay_type || post.pay_type || 'hourly',
+            pay_amount: slot.pay_amount || post.pay_amount || 0,
+            tax_withholding: slot.tax_withholding !== undefined
+              ? slot.tax_withholding
+              : (post.tax_withholding || false),
+          }));
+        } else {
+          // work_slots가 없으면 테이블 레벨 데이터로 생성
+          transformed.work_slots = [{
+            date: post.work_date || '',
+            start: post.work_time_start || '',
+            end: post.work_time_end || '',
+            location: post.location || '',
+            pay_type: post.pay_type || 'hourly',
+            pay_amount: post.pay_amount || 0,
+            tax_withholding: post.tax_withholding || false,
+          }];
+        }
+
+        return transformed;
+      })
+    );
+
+    return { ok: true, message: '', data: transformedData };
   } catch (err) {
     console.error('[getMyPostsAction] Unexpected error', err);
     return {
@@ -392,7 +587,7 @@ export async function getPostByIdAction(
     const { data, error } = await supabase
       .from('posts')
       .select('*')
-      .eq('id', postId)
+      .eq('post_id', postId)
       .single();
 
     if (error) {
@@ -404,7 +599,21 @@ export async function getPostByIdAction(
       };
     }
 
-    return { ok: true, message: '', data: data || null };
+    if (!data) {
+      return {
+        ok: false,
+        message: '공고를 찾을 수 없습니다.',
+        data: null,
+      };
+    }
+
+    // 과거 포스트인지 확인하고 상태 업데이트
+    if (isPostPast(data) && data.status !== 'completed') {
+      await updatePostStatusIfPast(supabase, postId);
+      data.status = 'completed';
+    }
+
+    return { ok: true, message: '', data };
   } catch (err) {
     console.error('[getPostByIdAction] Unexpected error', err);
     return {

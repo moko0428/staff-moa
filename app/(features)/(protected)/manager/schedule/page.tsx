@@ -22,13 +22,9 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog';
 import ScheduleCalendar from '@/app/components/ScheduleCalendar';
-import {
-  mockPosts,
-  mockApplications,
-  mockAttendanceReviews,
-  mockUsers,
-} from '@/lib/mockData';
-import { Post, AttendanceReview, User as UserType } from '@/types/mockData';
+import { Post, AttendanceReview } from '@/types/mockData';
+import { getMyPostsAction } from '@/app/(features)/(protected)/my-post/actions';
+import { createClient } from '@/utils/supabase/client';
 import {
   CheckCircle2,
   Clock,
@@ -130,6 +126,104 @@ export interface ScheduleWithPost extends Omit<Post, 'status'> {
   }>;
 }
 
+// Supabase Post를 Post 타입으로 변환
+type SupabasePost = {
+  post_id: number | string;
+  author_id: string;
+  title: string;
+  description: string;
+  work_date: string;
+  work_time_start: string;
+  work_time_end: string;
+  location: string;
+  pay_amount: number | string;
+  pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  recruit_count: number;
+  manager_name: string;
+  manager_phone: string;
+  equipments?: string | null;
+  qualifications?: string | null;
+  preferences?: string | null;
+  notes?: string | null;
+  external_link?: string | null;
+  keywords?: string[] | null;
+  status: 'recruiting' | 'completed' | 'urgent';
+  form_type?: string | null;
+  created_at: string;
+  updated_at: string;
+  work_slots?: Array<{
+    date: string;
+    start_time?: string;
+    end_time?: string;
+    start?: string;
+    end?: string;
+    location?: string;
+    pay_type?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+    pay_amount?: number;
+    tax_withholding?: boolean;
+  }> | null;
+};
+
+function supabasePostToPost(supabasePost: SupabasePost): Post {
+  const firstSlot = Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
+    ? supabasePost.work_slots[0]
+    : null;
+
+  // work_slots에서 날짜들을 추출하여 date 문자열 생성
+  let dateStr = '';
+  if (Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0) {
+    const dates = supabasePost.work_slots.map(slot => slot.date).filter(Boolean);
+    if (dates.length === 1) {
+      dateStr = dates[0];
+    } else if (dates.length > 1) {
+      dateStr = `${dates[0]} ~ ${dates[dates.length - 1]}`;
+    }
+  }
+  if (!dateStr) {
+    dateStr = supabasePost.work_date || '';
+  }
+
+  // time 문자열 생성
+  let timeStr = '';
+  if (firstSlot) {
+    const start = firstSlot.start_time || firstSlot.start || '';
+    const end = firstSlot.end_time || firstSlot.end || '';
+    if (start && end) {
+      timeStr = `${start} - ${end}`;
+    }
+  }
+  if (!timeStr) {
+    timeStr = `${supabasePost.work_time_start} - ${supabasePost.work_time_end}`;
+  }
+
+  return {
+    id: supabasePost.post_id.toString(),
+    authorId: supabasePost.author_id,
+    authorName: supabasePost.manager_name,
+    status: supabasePost.status,
+    title: supabasePost.title,
+    keywords: supabasePost.keywords || [],
+    date: dateStr,
+    location: firstSlot?.location || supabasePost.location || '',
+    time: timeStr,
+    salary: firstSlot?.pay_amount || Number(supabasePost.pay_amount) || 0,
+    paymentDate: '',
+    preparation: supabasePost.equipments || '',
+    description: supabasePost.description,
+    managerInfo: {
+      name: supabasePost.manager_name,
+      phone: supabasePost.manager_phone,
+    },
+    recruitCount: supabasePost.recruit_count,
+    currentApplicants: 0, // TODO: applications 테이블이 생성되면 실제 데이터로 교체
+    notes: supabasePost.notes || undefined,
+    requirements: supabasePost.qualifications || undefined,
+    preferences: supabasePost.preferences || undefined,
+    createdAt: supabasePost.created_at,
+    updatedAt: supabasePost.updated_at,
+  };
+}
+
 export default function SchedulePage() {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
@@ -142,34 +236,54 @@ export default function SchedulePage() {
     useState<ScheduleWithPost | null>(null);
   const [selectedDetailSchedule, setSelectedDetailSchedule] =
     useState<ScheduleWithPost | null>(null); // 추가
-  const [reviews, setReviews] = useState<AttendanceReview[]>(
-    mockAttendanceReviews
-  );
+  const [reviews, setReviews] = useState<AttendanceReview[]>([]); // TODO: attendance_reviews 테이블이 생성되면 실제 데이터로 교체
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false); // 추가
+  const [isMounted, setIsMounted] = useState(false);
+  const [managerPosts, setManagerPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // 현재 사용자 ID 가져오기
   useEffect(() => {
-    try {
-      const userId =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('userId') || 'manager-1'
-          : 'manager-1';
-      setCurrentUserId(userId);
-    } catch {
-      setCurrentUserId('manager-1');
+    const fetchCurrentUser = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          setCurrentUserId(data.user.id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch current user:', error);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // 매니저의 공고 가져오기
+  useEffect(() => {
+    const fetchPosts = async () => {
+      if (!currentUserId) return;
+      
+      setIsLoading(true);
+      try {
+        const result = await getMyPostsAction();
+        if (result.ok && result.data) {
+          const convertedPosts = result.data.map((post) =>
+            supabasePostToPost(post as SupabasePost)
+          );
+          setManagerPosts(convertedPosts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch posts:', error);
+        setManagerPosts([]);
+      } finally {
+        setIsLoading(false);
+        setIsMounted(true);
+      }
+    };
+
+    if (currentUserId) {
+      fetchPosts();
     }
-  }, []);
-
-  // 클라이언트 마운트 확인
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // 현재 매니저의 공고만 필터링
-  const managerPosts = useMemo(() => {
-    return mockPosts.filter(
-      (post) => currentUserId && post.authorId === currentUserId
-    );
   }, [currentUserId]);
 
   // 스케줄 상태 분류
@@ -192,25 +306,27 @@ export default function SchedulePage() {
       const dates = parseDateString(post.date);
       if (dates.length === 0) return; // 유효한 날짜가 없으면 스킵
 
-      // 해당 공고에 accepted된 지원자들 찾기
-      const acceptedApplications = mockApplications.filter(
-        (app) => app.postId === post.id && app.status === 'accepted'
-      );
+      // TODO: applications 테이블이 생성되면 실제 데이터로 교체
+      // 현재는 빈 배열로 처리
+      const acceptedApplications: Array<{
+        id: string;
+        postId: string;
+        applicantId: string;
+        applicantName: string;
+        status: string;
+      }> = [];
 
       const participants = acceptedApplications.map((app) => {
         const review = reviews.find(
           (r) => r.postId === post.id && r.userId === app.applicantId
         );
-        const user: UserType | undefined = mockUsers.find(
-          (u) => u.id === app.applicantId
-        );
         return {
           userId: app.applicantId,
           userName: app.applicantName,
           applicationId: app.id,
-          phone: user?.phone,
-          kakaoId: user?.kakaoId,
-          gender: user?.gender,
+          phone: undefined,
+          kakaoId: undefined,
+          gender: undefined,
           review,
         };
       });
@@ -457,8 +573,8 @@ export default function SchedulePage() {
     );
   }
 
-  // 로딩 상태 표시 (옵션)
-  if (!isMounted) {
+  // 로딩 상태 표시
+  if (!isMounted || isLoading) {
     return (
       <div>
         <Hero

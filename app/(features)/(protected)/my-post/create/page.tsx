@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useActionState, useTransition } from 'react';
+import { useState, useEffect, useActionState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
@@ -21,7 +21,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { Plus, X, Loader2, Clipboard, Check } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Loader2,
+  Clipboard,
+  Check,
+  Eye,
+  Edit,
+  Heading1,
+  Heading2,
+  Heading3,
+  Bold,
+  Italic,
+  Link as LinkIcon,
+  List,
+} from 'lucide-react';
 import { createPostAction } from '../actions';
 import { useUserStore } from '@/store/useUserStore';
 import {
@@ -104,9 +119,79 @@ export default function CreatePostPage() {
   const [status, setStatus] = useState<'recruiting' | 'completed' | 'urgent'>(
     'recruiting'
   );
-  const [formType, setFormType] = useState<'basic' | 'free'>('basic');
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 마크다운 텍스트 삽입 함수
+  const insertMarkdownText = (
+    before: string,
+    after: string = '',
+    placeholder: string = ''
+  ) => {
+    const textarea = descriptionTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = description.substring(start, end);
+    const textToInsert = selectedText || placeholder;
+
+    const newContent =
+      description.substring(0, start) +
+      before +
+      textToInsert +
+      after +
+      description.substring(end);
+
+    setDescription(newContent);
+
+    // 커서 위치 조정
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos =
+        start +
+        before.length +
+        (selectedText ? selectedText.length : placeholder.length);
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  // 마크다운 렌더링 함수
+  const renderMarkdown = (text: string) => {
+    let html = text;
+
+    // 헤더
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // 볼드
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+    // 이탤릭
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+
+    // 링크
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>'
+    );
+
+    // 리스트
+    html = html.replace(/^\* (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/^\+ (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+
+    // 줄바꿈
+    html = html.replace(/\n/g, '<br />');
+
+    return html;
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -606,7 +691,7 @@ export default function CreatePostPage() {
     if (externalLink) formData.append('external_link', externalLink);
     formData.append('keywords', JSON.stringify(keywords));
     formData.append('status', status);
-    formData.append('form_type', formType);
+    formData.append('form_type', 'basic');
 
     // formAction을 transition 내에서 호출
     startTransition(() => {
@@ -618,25 +703,7 @@ export default function CreatePostPage() {
     <div>
       <Hero title="새 공고 작성" description="새로운 공고를 작성하세요" />
 
-      <div className="mb-4 flex gap-2 justify-between items-center">
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={formType === 'basic' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFormType('basic')}
-          >
-            기본 양식
-          </Button>
-          <Button
-            type="button"
-            variant={formType === 'free' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFormType('free')}
-          >
-            자유 양식
-          </Button>
-        </div>
+      <div className="mb-4 flex gap-2 justify-end items-center">
         <Button
           type="button"
           variant="outline"
@@ -728,16 +795,122 @@ export default function CreatePostPage() {
             </div>
 
             <div>
-              <Label htmlFor="description">
-                업무 내용 <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={5}
-                required
-              />
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="description">
+                  업무 내용 <span className="text-red-500">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
+                >
+                  {showMarkdownPreview ? (
+                    <>
+                      <Edit className="size-4 mr-1" />
+                      편집 모드
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="size-4 mr-1" />
+                      미리보기
+                    </>
+                  )}
+                </Button>
+              </div>
+              {!showMarkdownPreview && (
+                <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-gray-50 mb-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('# ', '', '큰 제목')}
+                    title="큰 제목 (H1)"
+                  >
+                    <Heading1 className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('## ', '', '중간 제목')}
+                    title="중간 제목 (H2)"
+                  >
+                    <Heading2 className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('### ', '', '작은 제목')}
+                    title="작은 제목 (H3)"
+                  >
+                    <Heading3 className="size-4" />
+                  </Button>
+                  <div className="w-px h-6 bg-gray-300 mx-1" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('**', '**', '굵은 글씨')}
+                    title="굵게"
+                  >
+                    <Bold className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('*', '*', '기울임')}
+                    title="기울임"
+                  >
+                    <Italic className="size-4" />
+                  </Button>
+                  <div className="w-px h-6 bg-gray-300 mx-1" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      insertMarkdownText('[', '](https://)', '링크 텍스트')
+                    }
+                    title="링크"
+                  >
+                    <LinkIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertMarkdownText('- ', '', '리스트 항목')}
+                    title="리스트"
+                  >
+                    <List className="size-4" />
+                  </Button>
+                </div>
+              )}
+              {!showMarkdownPreview ? (
+                <Textarea
+                  ref={descriptionTextareaRef}
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={10}
+                  className="font-mono text-sm"
+                  placeholder={`예시:
+# 업무 내용
+행사 스탭 모집합니다.
+`}
+                  required
+                />
+              ) : (
+                <div
+                  className="w-full min-h-[300px] px-4 py-3 border rounded-md bg-gray-50 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(description),
+                  }}
+                />
+              )}
               {state.fieldErrors?.description && (
                 <p className="text-sm text-red-500 mt-1">
                   {state.fieldErrors.description}

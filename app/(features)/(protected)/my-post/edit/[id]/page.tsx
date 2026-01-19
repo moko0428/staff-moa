@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useActionState } from 'react';
 import Hero from '@/app/components/Hero';
@@ -25,7 +25,6 @@ import {
 import { Plus, X, Loader2 } from 'lucide-react';
 import { updatePostAction, getPostByIdAction } from '../../actions';
 import { useUserStore } from '@/store/useUserStore';
-import { Post } from '@/types/mockData';
 
 type WorkSlot = {
   date: string;
@@ -51,6 +50,7 @@ export default function EditPostPage() {
     updatePostAction,
     initialState
   );
+  const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState('');
@@ -77,21 +77,47 @@ export default function EditPostPage() {
       try {
         const result = await getPostByIdAction(postId);
         if (result.ok && result.data) {
-          const post = result.data as unknown as Post;
-          setTitle(post.title || '');
-          setDescription(post.description || '');
+          const post = result.data as Record<string, unknown>;
+          setTitle((post.title as string) || '');
+          setDescription((post.description as string) || '');
+          setRecruitCount((post.recruit_count as number) || 1);
+          setManagerName((post.manager_name as string) || '');
+          setManagerPhone((post.manager_phone as string) || '');
+          setEquipments((post.equipments as string) || '');
+          setQualifications((post.qualifications as string) || '');
+          setPreferences((post.preferences as string) || '');
+          setNotes((post.notes as string) || '');
+          setExternalLink((post.external_link as string) || '');
+          setKeywords((post.keywords as string[]) || []);
+          setStatus((post.status as 'recruiting' | 'completed' | 'urgent') || 'recruiting');
+          setFormType((post.form_type as 'basic' | 'free') || 'basic');
 
-          setRecruitCount(post.recruit_count || 1);
-          setManagerName(post.manager_name || '');
-          setManagerPhone(post.manager_phone || '');
-          setEquipments(post.equipments || '');
-          setQualifications(post.qualifications || '');
-          setPreferences(post.preferences || '');
-          setNotes(post.notes || '');
-          setExternalLink(post.external_link || '');
-          setKeywords(post.keywords || []);
-          setStatus(post.status || 'recruiting');
-          setFormType(post.form_type || 'basic');
+          // work_slots 변환: Supabase 형식(start_time, end_time) → 클라이언트 형식(start, end)
+          if (post.work_slots && Array.isArray(post.work_slots) && post.work_slots.length > 0) {
+            const convertedWorkSlots: WorkSlot[] = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
+              date: (slot.date as string) || (post.work_date as string) || '',
+              start: (slot.start_time as string) || (slot.start as string) || (post.work_time_start as string) || '',
+              end: (slot.end_time as string) || (slot.end as string) || (post.work_time_end as string) || '',
+              location: (slot.location as string) || (post.location as string) || '',
+              pay_type: ((slot.pay_type || post.pay_type || 'hourly') as 'hourly' | 'daily' | 'weekly' | 'monthly'),
+              pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+              tax_withholding: (slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false)) as boolean,
+            }));
+            setWorkSlots(convertedWorkSlots);
+          } else {
+            // work_slots가 없으면 테이블 레벨 데이터로 기본값 생성
+            setWorkSlots([
+              {
+                date: (post.work_date as string) || '',
+                start: (post.work_time_start as string) || '',
+                end: (post.work_time_end as string) || '',
+                location: (post.location as string) || '',
+                pay_type: ((post.pay_type || 'hourly') as 'hourly' | 'daily' | 'weekly' | 'monthly'),
+                pay_amount: Number(post.pay_amount) || 0,
+                tax_withholding: (post.tax_withholding as boolean) || false,
+              },
+            ]);
+          }
         } else {
           alert('공고를 불러오는데 실패했습니다.');
           router.push('/my-post');
@@ -112,7 +138,12 @@ export default function EditPostPage() {
 
   useEffect(() => {
     if (state.ok) {
-      router.push('/my-post');
+      // 수정 성공 후 약간의 딜레이를 두고 리다이렉트 (사용자가 성공 메시지를 볼 수 있도록)
+      const timer = setTimeout(() => {
+        router.push('/my-post');
+        router.refresh(); // 페이지 새로고침하여 최신 데이터 로드
+      }, 1000);
+      return () => clearTimeout(timer);
     }
   }, [state, router]);
 
@@ -218,7 +249,10 @@ export default function EditPostPage() {
     formData.append('status', status);
     formData.append('form_type', formType);
 
-    await formAction(formData);
+    // formAction을 transition 내에서 호출
+    startTransition(() => {
+      formAction(formData);
+    });
   };
 
   return (
