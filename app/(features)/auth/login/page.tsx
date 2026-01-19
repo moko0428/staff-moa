@@ -2,18 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { signInAction } from '../action';
+import { ChevronLeft } from 'lucide-react';
 
 type ActionState = {
   ok: boolean;
@@ -43,14 +38,16 @@ export default function LoginPage() {
 
   return (
     <div className="w-full h-full flex items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-xl font-semibold">로그인</CardTitle>
-          <p className="text-sm text-gray-500">
-            이메일과 비밀번호로 로그인하세요.
-          </p>
-        </CardHeader>
-        <CardContent>
+      <div className="flex flex-col w-full max-w-md">
+        <div className="flex items-center gap-2">
+          <Link href="/auth">
+            <ChevronLeft className="size-6" />
+          </Link>
+          <header className="space-y-2">
+            <h2 className="text-xl font-semibold">이메일로 로그인</h2>
+          </header>
+        </div>
+        <main className="space-y-4 mt-12">
           <form className="space-y-4" action={formAction}>
             <div className="space-y-2">
               <Label htmlFor="email">이메일</Label>
@@ -135,8 +132,8 @@ export default function LoginPage() {
               회원가입
             </Link>
           </div>
-        </CardContent>
-      </Card>
+        </main>
+      </div>
     </div>
   );
 }

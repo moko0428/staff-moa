@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 import Link from 'next/link';
 import { useActionState } from 'react';
-import { signUpAction } from '../action';
+import { signUpAction } from '../../action';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { ChevronLeft } from 'lucide-react';
-import { RoleOption } from './types';
+import { RoleOption } from '../types';
 
 type ActionState = {
   ok: boolean;
@@ -25,11 +24,11 @@ const initialState: ActionState = {
   message: '',
 };
 
-export default function JoinPage() {
+export default function ManagerJoinPage() {
   const router = useRouter();
   const [state, formAction] = useActionState(signUpAction, initialState);
-  // 일반 회원가입 페이지이므로 항상 'member'로 고정
-  const role: RoleOption = 'member';
+  // 매니저 회원가입 페이지이므로 항상 'manager'로 고정
+  const role: RoleOption = 'pending_manager';
 
   const [formValues, setFormValues] = useState({
     name: '',
@@ -49,14 +48,17 @@ export default function JoinPage() {
     <div className="w-full h-full flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-2">
-          <Link href="/auth/login">
+          <Link href="/auth">
             <ChevronLeft className="size-6" />
           </Link>
           <header className="space-y-2">
-            <h2 className="text-xl font-semibold">회원가입</h2>
+            <h2 className="text-xl font-semibold">매니저 회원가입</h2>
           </header>
         </div>
-
+        <p className="text-sm text-gray-500 mt-1">
+          가입 후 프로필 관리 페이지에서 회사 정보를 추가하여 관리자에게 승인을
+          받아야 합니다.
+        </p>
         <main className="space-y-4 mt-12">
           <div className="space-y-6">
             <form className="space-y-4" action={formAction}>

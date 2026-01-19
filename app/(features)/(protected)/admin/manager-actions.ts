@@ -32,7 +32,7 @@ export async function fetchPendingManagersAction(): Promise<PendingManager[]> {
   const { data, error } = await adminClient
     .from('profiles')
     .select(
-      'user_id, name, email, photo, phone, kakao_id, company_name, business_number, company_certificate, company_verify_status, created_at, updated_at, role'
+      'user_id, name, email, avatar, phone, kakao_id, company_name, business_number, company_certificate, company_verify_status, created_at, updated_at, role'
     )
     // 승인 대기만 노출: pending_manager이며 status가 null 또는 pending
     .eq('role', 'pending_manager')
@@ -58,7 +58,7 @@ export async function fetchPendingManagersAction(): Promise<PendingManager[]> {
         id: row.user_id,
         name: row.name,
         email: row.email,
-        photo: row.photo,
+        photo: row.avatar,
         phone: row.phone,
         kakaoId: row.kakao_id,
         companyName: row.company_name,

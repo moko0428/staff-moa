@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
 };
 
-export default function ServiceLayout({
+export default function ProtectedLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

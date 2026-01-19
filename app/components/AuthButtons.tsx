@@ -71,7 +71,7 @@ export default function AuthButtons({ isHome }: { isHome: boolean }) {
       ) : (
         <Button variant="outline" size="sm" type="button" asChild>
           <Link
-            href="/auth/login"
+            href="/auth"
             className={cn(
               'text-sm font-medium',
               isHome ? 'text-white' : 'text-primary'

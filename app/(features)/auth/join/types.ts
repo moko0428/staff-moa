@@ -1,0 +1,1 @@
+export type RoleOption = 'member' | 'pending_manager';

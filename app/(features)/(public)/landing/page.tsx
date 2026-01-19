@@ -112,7 +112,7 @@ export default function LandingPage() {
                 </Link>
               </Button>
               <Button variant="outline" asChild size="lg">
-                <Link href="/auth/join">
+                <Link href="/auth">
                   <span className="text-primary">무료로 시작하기</span>
                   <ArrowRight className="size-4 text-primary" />
                 </Link>

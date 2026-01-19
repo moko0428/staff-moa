@@ -33,14 +33,14 @@ export const profiles = pgTable('profiles', {
 
   avatar:text('avatar'),
   cover_image:text('cover_image'),
-  recent_photos:jsonb('recent_photos').notNull().default(sql`'[]'::jsonb`).$type<Array<{
+  recent_photos:jsonb('recent_photos').default(sql`'[]'::jsonb`).$type<Array<{
     url: string;
     uploaded_at: string;
     caption?: string;
   }>>(),
 
-  name:text('name').notNull(),
-  email:text('email').notNull().unique(), 
+  name:text('name'),
+  email:text('email'), // auth.users.email에서 가져오므로 optional 
 
   role:user_role_enum('role').notNull().default('member'),
   kakao_id:text('kakao_id'),

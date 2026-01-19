@@ -120,7 +120,7 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, email, name, photo, role, attendance_score')
+        .select('user_id, email, name, avatar, role, attendance_score')
         .neq('role', 'admin');
       if (error) throw error;
 
@@ -129,7 +129,7 @@ export default function AdminPage() {
           id: row.user_id,
           email: row.email,
           name: row.name,
-          photo: row.photo,
+          photo: row.avatar,
           role: row.role as User['role'],
           attendanceScore: row.role === 'member' ? row.attendance_score : null,
         })) ?? [];

@@ -33,6 +33,10 @@ const envStatus = () => {
   };
 };
 
+/* =========================
+   Schema
+========================= */
+
 const signInSchema = z.object({
   email: z
     .string()
@@ -48,19 +52,15 @@ const signUpSchema = z
       .min(1, '이메일을 입력해주세요.')
       .email('유효한 이메일을 입력해주세요.'),
     password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
-    passwordConfirm: z
-      .string()
-      .min(8, '비밀번호 확인을 8자 이상 입력해주세요.'),
+    passwordConfirm: z.string().min(8),
     name: z.string().min(2, '이름은 2자 이상 입력해주세요.'),
     role: z
-      .string({ message: '가입 유형을 선택해주세요.' })
-      .min(1, '가입 유형을 선택해주세요.')
-      .refine((value) => value === 'member' || value === 'manager', {
-        message: '가입 유형을 선택해주세요.',
-      }) as z.ZodType<'member' | 'manager'>,
-    termsAgree: z.literal(true, {
-      message: '약관에 동의해주세요.',
-    }),
+      .string()
+      .refine(
+        (v) => v === 'member' || v === 'pending_manager',
+        '가입 유형을 선택해주세요.'
+      ) as z.ZodType<'member' | 'pending_manager'>,
+    termsAgree: z.literal(true),
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.passwordConfirm) {
@@ -70,9 +70,11 @@ const signUpSchema = z
         path: ['passwordConfirm'],
       });
     }
-
-    // 매니저 회사 정보는 프로필 관리 플로우에서 처리
   });
+
+/* =========================
+   Sign In
+========================= */
 
 export async function signInAction(
   _prevState: ActionResult | undefined,
@@ -84,50 +86,55 @@ export async function signInAction(
   });
 
   if (!parsed.success) {
-    const firstError = parsed.error.issues[0]?.message ?? errorMessages.unknown;
     const fieldErrors: Record<string, string> = {};
-    parsed.error.issues.forEach((issue) => {
-      const key = issue.path[0];
-      if (typeof key === 'string' && !fieldErrors[key]) {
-        fieldErrors[key] = issue.message;
+    parsed.error.issues.forEach((i) => {
+      if (typeof i.path[0] === 'string') {
+        fieldErrors[i.path[0]] = i.message;
       }
     });
-    return { ok: false, message: firstError, fieldErrors };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? errorMessages.unknown,
+      fieldErrors,
+    };
   }
 
   const env = envStatus();
   if (!env.ok) {
     return {
       ok: false,
-      message:
-        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY / SITE_URL을 확인해주세요.',
-      debug: {
-        supabaseUrl: env.supabaseUrl,
-        supabaseKeyPreview: env.supabaseKeyPreview,
-        siteUrl: env.siteUrl,
-      },
+      message: '환경변수가 올바르지 않습니다.',
+      debug: env,
     };
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = (await createClient()) as any;
+    const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
     if (error) {
-      const code = (error as { code?: string }).code ?? '';
-      const message = (error.message ?? '').toLowerCase();
-      if (code === 'email_not_confirmed' || message.includes('not confirmed')) {
+      if (
+        error.code === 'email_not_confirmed' ||
+        error.message.toLowerCase().includes('not confirmed')
+      ) {
         return { ok: false, message: errorMessages.emailNotConfirmed };
       }
       return { ok: false, message: errorMessages.invalidCredentials };
     }
 
-    return { ok: true, message: successMessages.signIn, redirectTo: '/post' };
+    return {
+      ok: true,
+      message: successMessages.signIn,
+      redirectTo: '/post',
+    };
   } catch {
     return { ok: false, message: errorMessages.unknown };
   }
 }
+
+/* =========================
+   Sign Up
+========================= */
 
 export async function signUpAction(
   _prevState: ActionResult | undefined,
@@ -143,100 +150,86 @@ export async function signUpAction(
   });
 
   if (!parsed.success) {
-    const firstError = parsed.error.issues[0]?.message ?? errorMessages.unknown;
     const fieldErrors: Record<string, string> = {};
-    parsed.error.issues.forEach((issue) => {
-      const key = issue.path[0];
-      if (typeof key === 'string' && !fieldErrors[key]) {
-        fieldErrors[key] = issue.message;
+    parsed.error.issues.forEach((i) => {
+      if (typeof i.path[0] === 'string') {
+        fieldErrors[i.path[0]] = i.message;
       }
     });
-    return { ok: false, message: firstError, fieldErrors };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? errorMessages.unknown,
+      fieldErrors,
+    };
   }
 
-  const { passwordConfirm: _passwordConfirm, ...payload } = parsed.data;
-  void _passwordConfirm;
+  const { passwordConfirm: _, ...payload } = parsed.data;
+  void _;
 
   const env = envStatus();
   if (!env.ok) {
     return {
       ok: false,
-      message:
-        '환경변수가 올바르게 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL / KEY / SITE_URL을 확인해주세요.',
-      debug: {
-        supabaseUrl: env.supabaseUrl,
-        supabaseKeyPreview: env.supabaseKeyPreview,
-        siteUrl: env.siteUrl,
-      },
+      message: '환경변수가 올바르지 않습니다.',
+      debug: env,
     };
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = (await createClient()) as any;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001';
-    const { error } = await supabase.auth.signUp({
+    const supabase = await createClient();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+
+    /* 1️⃣ Auth 회원가입 (role 전달 ✅) */
+    const { data, error } = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
       options: {
         data: {
           name: payload.name,
-          role: payload.role === 'manager' ? 'pending_manager' : payload.role,
-          company_verify_status:
-            payload.role === 'manager' ? 'pending' : undefined,
+          role: payload.role, // 트리거가 raw_user_meta_data에서 읽음
         },
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
     if (error) {
-      const code = (error as { code?: string }).code ?? '';
-      const message = (error.message ?? '').toLowerCase();
-      // 디버깅 로그
-      console.error(
-        '[signUpAction] Supabase signUp error',
-        code,
-        error.message
-      );
-      if (
-        code === 'redirect_to_not_allowed' ||
-        message.includes('redirect_to') ||
-        message.includes('email redirect')
-      ) {
-        return {
-          ok: false,
-          message:
-            '이메일 인증 리디렉션 URL이 허용되지 않았습니다. Supabase 콘솔의 Auth Redirect URLs에 NEXT_PUBLIC_SITE_URL/auth/callback을 등록한 후 다시 시도해주세요.',
-          debug: {
-            supabaseErrorCode: code,
-            supabaseErrorMessage: error.message,
-            siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-          },
-        };
-      }
-      if (
-        code === 'user_already_exists' ||
-        code === 'email_exists' ||
-        message.includes('already registered') ||
-        message.includes('already exists')
-      ) {
-        return {
-          ok: false,
-          message: errorMessages.emailExists,
-          debug: {
-            supabaseErrorCode: code,
-            supabaseErrorMessage: error.message,
-          },
-        };
-      }
       return {
         ok: false,
         message: errorMessages.signUpFailed,
         debug: {
-          supabaseErrorCode: code,
+          supabaseErrorCode: error.code,
           supabaseErrorMessage: error.message,
         },
       };
+    }
+
+    /* 2️⃣ profiles 레코드 생성 또는 업데이트 (트리거 없이도 작동) */
+    const userId = data.user?.id;
+
+    if (userId) {
+      // UPSERT: 트리거가 이미 생성했다면 UPDATE, 없다면 INSERT
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: userId,
+          email: payload.email,
+          name: payload.name,
+          role: payload.role,
+          company_verify_status:
+            payload.role === 'pending_manager' ? 'pending' : null,
+          is_banned: false,
+          attendance_score: 50,
+        }, {
+          onConflict: 'user_id',
+        });
+
+      if (profileError) {
+        console.error(
+          '[signUpAction] profile upsert failed',
+          profileError
+        );
+        // 회원가입 자체는 성공 → throw 하지 않음
+      }
     }
 
     return {
@@ -249,12 +242,17 @@ export async function signUpAction(
   }
 }
 
+/* =========================
+   Sign Out
+========================= */
+
 export async function signOutAction() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = (await createClient()) as any;
+  const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
+
   if (error) {
     return { ok: false, message: errorMessages.signOutFailed };
   }
+
   return { ok: true, message: successMessages.signOut };
 }

@@ -23,8 +23,9 @@ export const post_status_enum = pgEnum('post_status', ['recruiting', 'completed'
 
 
 
-const users = pgSchema('public').table('profiles', { 
-  profile_id: uuid('profile_id').primaryKey(),
+// profiles 테이블 참조 (외래키용)
+const profiles = pgTable('profiles', {
+  user_id: uuid('user_id').primaryKey(),
 });
 
 
@@ -56,9 +57,9 @@ export const posts = pgTable('posts', {
 
   keywords: text('keywords').array().default([]), 
 
-  author_id: uuid('author_id') 
+  author_id: uuid('author_id')
     .notNull()
-    .references(() => users.profile_id,{onDelete:'cascade'}), 
+    .references(() => profiles.user_id,{onDelete:'cascade'}), 
 
   status: post_status_enum('status').notNull().default('recruiting'), 
 
@@ -77,13 +78,13 @@ export const posts = pgTable('posts', {
   }>>(), 
 });
 
-export const user_relations = relations(users, ({ many }) => ({
+export const profile_relations = relations(profiles, ({ many }) => ({
   posts: many(posts),
 }));
 
 export const post_relations = relations(posts, ({ one }) => ({
-  author: one(users, {
+  author: one(profiles, {
     fields: [posts.author_id],
-    references: [users.profile_id],
+    references: [profiles.user_id],
   }),
 }));
