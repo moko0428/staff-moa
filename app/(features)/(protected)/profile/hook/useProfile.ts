@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { mockApplications, mockPosts } from '@/lib/mockData';
 import { User } from '@/types/mockData';
-import { parseDateString } from '@/lib/dateUtils';
 import { createClient } from '@/utils/supabase/client';
 import { useUpload } from '@/hooks/useUpload';
 import { useUserStore } from '@/store/useUserStore';
+import { importExperiencesAction } from '@/app/(features)/(protected)/worker/schedule/actions';
 
 type ExperienceItem = User['experiences'] extends Array<infer E> ? E : never;
 
@@ -414,70 +413,34 @@ export const useProfile = () => {
     setIsLoadingExperiences(true);
 
     try {
-      const acceptedApplications = mockApplications.filter(
-        (app) => app.applicantId === currentUser.id && app.status === 'accepted'
-      );
+      // 서버 액션 호출
+      const result = await importExperiencesAction();
 
-      const now = new Date();
-      const newExperiences: Array<{
-        title: string;
-        date: string;
-        location: string;
-      }> = [];
+      if (result.ok) {
+        // 프로필 데이터 다시 불러오기
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .single();
 
-      acceptedApplications.forEach((app) => {
-        const post = mockPosts.find((p) => p.id === app.postId);
-        if (!post) return;
-
-        const dates = parseDateString(post.date);
-
-        dates.forEach((dateStr) => {
-          const scheduleDate = new Date(dateStr);
-          const [startTime] = post.time.split('~');
-          const scheduleDateTime = new Date(scheduleDate);
-          const [hours, minutes] = startTime.trim().split(':');
-          scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-          if (scheduleDateTime < now) {
-            newExperiences.push({
-              title: post.title,
-              date: dateStr,
-              location: post.location,
+          if (profile) {
+            setCurrentUser({
+              ...currentUser,
+              experiences: (profile.experiences as User['experiences']) || [],
             });
           }
-        });
-      });
-
-      const uniqueExperiences = newExperiences
-        .filter(
-          (exp, index, self) =>
-            index ===
-            self.findIndex((e) => e.title === exp.title && e.date === exp.date)
-        )
-        .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-
-      const currentExperiences: User['experiences'] =
-        currentUser.experiences ?? [];
-      const existingKeys = new Set(
-        currentExperiences.map((e) => `${e.title}-${e.date}`)
-      );
-      const filtered = uniqueExperiences.filter(
-        (e) => !existingKeys.has(`${e.title}-${e.date}`)
-      );
-      const combined = [...currentExperiences, ...filtered];
-
-      setCurrentUser({
-        ...currentUser,
-        experiences: combined,
-      });
-
-      await savePartialData({ experiences: combined });
-      alert(`${filtered.length}개의 경력이 추가되었습니다.`);
+        }
+        alert(result.message);
+      } else {
+        alert(result.message || '경력 불러오기에 실패했습니다.');
+      }
     } catch (error) {
       console.error('Failed to load experiences:', error);
-      alert('경력 불러오기에 실패했습니다.');
+      alert('경력 불러오기 중 오류가 발생했습니다.');
     } finally {
       setIsLoadingExperiences(false);
     }

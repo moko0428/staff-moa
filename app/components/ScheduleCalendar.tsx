@@ -6,23 +6,28 @@ import type { DayButton } from 'react-day-picker';
 import { format, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import type { ScheduleWithPost } from '@/app/(features)/(protected)/manager/schedule/page';
+// ScheduleWithPost 타입을 제네릭으로 받을 수 있도록 수정
+type BaseScheduleWithPost = {
+  id: string;
+  status: 'upcoming' | 'ongoing' | 'completed';
+  date: string;
+};
 
-interface ScheduleCalendarProps {
-  schedulesByDate: Record<string, ScheduleWithPost[]>;
+interface ScheduleCalendarProps<T extends BaseScheduleWithPost = BaseScheduleWithPost> {
+  schedulesByDate: Record<string, T[]>;
   selectedDate: Date | undefined;
   onDateSelect: (date: Date | undefined) => void;
   currentMonth: Date;
   onMonthChange: (date: Date) => void;
 }
 
-export default function ScheduleCalendar({
+export default function ScheduleCalendar<T extends BaseScheduleWithPost = BaseScheduleWithPost>({
   schedulesByDate,
   selectedDate,
   onDateSelect,
   currentMonth,
   onMonthChange,
-}: ScheduleCalendarProps) {
+}: ScheduleCalendarProps<T>) {
   const today = React.useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);

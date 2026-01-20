@@ -29,6 +29,27 @@
       "when": 1768745206263,
       "tag": "0003_curvy_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1768823564835,
+      "tag": "0004_ambiguous_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768907330882,
+      "tag": "0005_serious_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768908894632,
+      "tag": "0006_secret_talos",
+      "breakpoints": true
     }
   ]
 }

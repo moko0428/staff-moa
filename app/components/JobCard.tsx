@@ -25,7 +25,6 @@ import {
   User2,
 } from 'lucide-react';
 import { Separator } from './Separator';
-import { mockFavorites, mockUsers } from '@/lib/mockData';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +33,13 @@ import {
 } from '@/app/components/ui/dialog';
 import { Switch } from '@/app/components/ui/switch';
 import { User } from '@/types/mockData';
+import { useUserStore } from '@/store/useUserStore';
+import {
+  addFavoriteAction,
+  removeFavoriteAction,
+  checkFavoriteAction,
+} from '@/app/(features)/(protected)/worker/favorit/actions';
+import { applyToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
 
 export interface JobItem {
   id: number | string;
@@ -59,10 +65,14 @@ interface JobCardProps {
 }
 
 export function JobCard({ item }: JobCardProps) {
-  const [isWorker, setIsWorker] = useState(true);
+  const role = useUserStore((state) => state.role);
+  const roleHydrated = useUserStore((state) => state.roleHydrated);
+  const isMember = role === 'member';
+  
   const [isFavorite, setIsFavorite] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
     {
       personal: true, // 이름/전화/카톡/성별/MBTI
@@ -74,71 +84,100 @@ export function JobCard({ item }: JobCardProps) {
   );
 
   useEffect(() => {
-    // 사용자 역할 확인
-    try {
-      if (typeof window !== 'undefined') {
-        const userRole = localStorage.getItem('userRole');
-        const userId = localStorage.getItem('userId');
-        setIsWorker(userRole === 'member');
-
-        if (userId) {
-          const user = mockUsers.find((u) => u.id === userId) || null;
-          setCurrentUser(user);
-        }
-
-        // 관심 목록 확인
-        if (userId) {
-          // localStorage에서 확인
-          let saved = localStorage.getItem(`favorites_${userId}`);
-
-          // localStorage에 없으면 mockFavorites에서 초기화
-          if (!saved) {
-            const userFavorite = mockFavorites.find(
-              (fav) => fav.userId === userId
-            );
-            if (userFavorite) {
-              localStorage.setItem(
-                `favorites_${userId}`,
-                JSON.stringify(userFavorite.postIds)
-              );
-              saved = JSON.stringify(userFavorite.postIds);
-            }
+    // 현재 사용자 ID 가져오기
+    const fetchCurrentUser = async () => {
+      try {
+        const { createClient } = await import('@/utils/supabase/client');
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          setCurrentUserId(data.user.id);
+          
+          // Supabase에서 프로필 가져오기
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .single();
+          
+          if (profile) {
+            // Supabase 프로필을 User 타입으로 변환
+            const user: User = {
+              id: data.user.id,
+              name: profile.name || '',
+              email: profile.email || '',
+              role: (profile.role as User['role']) || 'member',
+              phone: profile.phone || undefined,
+              kakaoId: profile.kakao_id || undefined,
+              gender: (profile.gender === '남성' || profile.gender === '여성') 
+                ? profile.gender 
+                : undefined,
+              mbti: profile.mbti || undefined,
+              personality: profile.personality || undefined,
+              experiences: profile.experiences as User['experiences'] || [],
+              documents: profile.documents as User['documents'] || undefined,
+              attendanceScore: profile.attendance_score || 50,
+              createdAt: profile.created_at || new Date().toISOString(),
+            };
+            setCurrentUser(user);
           }
-
-          if (saved) {
-            const favorites = JSON.parse(saved);
-            setIsFavorite(favorites.includes(item.id.toString()));
-          }
         }
+      } catch (error) {
+        console.error('Failed to fetch current user:', error);
       }
-    } catch (error) {
-      console.error('Failed to check user role or favorites:', error);
-    }
-  }, [item.id]);
+    };
+    
+    fetchCurrentUser();
+  }, []);
 
-  const toggleFavorite = (e: React.MouseEvent) => {
+  useEffect(() => {
+    // 관심 목록 확인 (Supabase에서)
+    if (currentUserId && roleHydrated && isMember) {
+      const checkFavorite = async () => {
+        try {
+          const result = await checkFavoriteAction(item.id.toString());
+          if (result.ok) {
+            setIsFavorite(result.data || false);
+          }
+        } catch (error) {
+          console.error('Failed to check favorite:', error);
+        }
+      };
+      checkFavorite();
+    }
+  }, [currentUserId, item.id, roleHydrated, isMember]);
+
+  const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
 
+    if (!isMember || !currentUserId || !roleHydrated) return;
+
     try {
-      const userId = localStorage.getItem('userId');
-      if (!userId) return;
-
-      const saved = localStorage.getItem(`favorites_${userId}`);
-      const favorites: string[] = saved ? JSON.parse(saved) : [];
-      const itemId = item.id.toString();
-
-      const newFavorites = favorites.includes(itemId)
-        ? favorites.filter((id) => id !== itemId)
-        : [...favorites, itemId];
-
-      localStorage.setItem(`favorites_${userId}`, JSON.stringify(newFavorites));
-      setIsFavorite(!isFavorite);
-
-      // 관심 목록 업데이트 이벤트 발생
-      window.dispatchEvent(new Event('favorites-updated'));
+      if (isFavorite) {
+        // 관심목록에서 제거
+        const result = await removeFavoriteAction(item.id.toString());
+        if (result.ok) {
+          setIsFavorite(false);
+          // 관심 목록 업데이트 이벤트 발생
+          window.dispatchEvent(new Event('favorites-updated'));
+        } else {
+          alert(result.message || '관심목록 제거에 실패했습니다.');
+        }
+      } else {
+        // 관심목록에 추가
+        const result = await addFavoriteAction(item.id.toString());
+        if (result.ok) {
+          setIsFavorite(true);
+          // 관심 목록 업데이트 이벤트 발생
+          window.dispatchEvent(new Event('favorites-updated'));
+        } else {
+          alert(result.message || '관심목록 추가에 실패했습니다.');
+        }
+      }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
+      alert('관심목록 변경 중 오류가 발생했습니다.');
     }
   };
   const statusClassName =
@@ -178,42 +217,55 @@ export function JobCard({ item }: JobCardProps) {
     setApplyOpen(true);
   };
 
-  const handleSubmitApplication = () => {
+  const handleSubmitApplication = async () => {
     if (!currentUser) {
       alert('로그인이 필요합니다.');
       return;
     }
 
-    const payload: Record<string, unknown> = {};
+    // 선택한 정보를 메시지로 구성
+    const selectedInfo: string[] = [];
     if (selectedFields.personal) {
-      payload.name = currentUser.name;
-      if (currentUser.phone) payload.phone = currentUser.phone;
-      if (currentUser.kakaoId) payload.kakaoId = currentUser.kakaoId;
-      if (currentUser.gender) payload.gender = currentUser.gender;
-      const mbti = currentUser.mbti ?? currentUser.personality;
-      if (mbti) payload.mbti = mbti;
+      selectedInfo.push('개인정보');
     }
-    if (selectedFields.experiences && currentUser.experiences)
-      payload.experiences = currentUser.experiences;
-    if (selectedFields.documents && currentUser.documents)
-      payload.documents = currentUser.documents;
-    if (
-      selectedFields.certificates &&
-      currentUser.documents?.certificates?.length
-    )
-      payload.certificates = currentUser.documents.certificates;
-    if (selectedFields.languages && currentUser.documents?.language?.length)
-      payload.languages = currentUser.documents.language;
+    if (selectedFields.experiences && currentUser.experiences?.length) {
+      selectedInfo.push(`경력(${currentUser.experiences.length}개)`);
+    }
+    if (selectedFields.documents && currentUser.documents) {
+      selectedInfo.push('서류');
+    }
+    if (selectedFields.certificates && currentUser.documents?.certificates?.length) {
+      selectedInfo.push(`자격증(${currentUser.documents.certificates.length}개)`);
+    }
+    if (selectedFields.languages && currentUser.documents?.language?.length) {
+      selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
+    }
 
-    console.log('지원 정보 전송:', {
-      postId: item.id,
-      applicantId: currentUser.id,
-      payload,
-    });
-    alert(
-      '선택한 정보로 지원 요청이 전송되었다고 가정합니다. (콘솔 확인 가능)'
-    );
-    setApplyOpen(false);
+    const message = selectedInfo.length > 0
+      ? `전달 정보: ${selectedInfo.join(', ')}`
+      : undefined;
+
+    try {
+      // post_id가 string일 수 있으므로 number로 변환
+      const postId = typeof item.id === 'string' ? parseInt(item.id) : item.id;
+
+      if (isNaN(postId)) {
+        alert('올바른 공고 ID가 아닙니다.');
+        return;
+      }
+
+      const result = await applyToPostAction(postId, message);
+
+      if (result.ok) {
+        alert(result.message);
+        setApplyOpen(false);
+      } else {
+        alert(result.message || '지원에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to apply:', error);
+      alert('지원 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -236,8 +288,8 @@ export function JobCard({ item }: JobCardProps) {
         </div>
       )}
 
-      {/* 관심 목록 버튼 (일반 회원만) */}
-      {isWorker && (
+      {/* 관심 목록 버튼 (member 역할만) */}
+      {isMember && roleHydrated && (
         <Button
           size="icon"
           variant="ghost"
@@ -368,7 +420,7 @@ export function JobCard({ item }: JobCardProps) {
           <Users className="size-4" />
           <span>0/10명 지원</span>
         </div>
-        {isWorker && (
+        {isMember && roleHydrated && (
           <Button
             type="button"
             variant="default"

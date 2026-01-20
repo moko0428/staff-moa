@@ -25,6 +25,7 @@ type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 interface WorkerCardProps {
   application: {
     id: string;
+    applicantId: string;
     applicantName: string;
     postTitle: string;
     postLocation: string;
@@ -35,6 +36,12 @@ interface WorkerCardProps {
     applicantKakaoId?: string;
     applicantAttendanceScore?: number;
     applicantPhoto?: string;
+  };
+  workerManagement?: {
+    rating?: number | null;
+    notes?: string | null;
+    is_favorite?: boolean;
+    is_blacklisted?: boolean;
   };
   onCardClick: () => void;
   onStatusChange: (applicationId: string, newStatus: ApplicationStatus) => void;
@@ -63,11 +70,32 @@ const getStatusBadge = (status: ApplicationStatus) => {
 
 export default function WorkerCard({
   application,
+  workerManagement,
   onCardClick,
   onStatusChange,
 }: WorkerCardProps) {
   const statusBadge = getStatusBadge(application.status);
   const StatusIcon = statusBadge.icon;
+
+  // 별점 렌더링
+  const renderRating = (rating?: number | null) => {
+    if (!rating) return null;
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={cn(
+              'size-3',
+              star <= rating
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-gray-300'
+            )}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <Card
@@ -103,8 +131,16 @@ export default function WorkerCard({
                   </Badge>
                 </div>
                 <p className="text-sm text-gray-600">{application.postTitle}</p>
+                {workerManagement?.rating && (
+                  <div className="mt-1">{renderRating(workerManagement.rating)}</div>
+                )}
               </div>
             </div>
+            {workerManagement?.notes && (
+              <div className="mb-2 p-2 bg-gray-50 rounded text-xs text-gray-600 line-clamp-2">
+                {workerManagement.notes}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-sm">
               {application.applicantAge && (
                 <div className="flex items-center gap-2 text-gray-600">

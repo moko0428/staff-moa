@@ -1,0 +1,409 @@
+'use server';
+
+import { createClient } from '@/utils/supabase/server';
+
+type ActionResult<T = void> = {
+  ok: boolean;
+  message: string;
+  data?: T;
+};
+
+// 실제 데이터베이스 스키마 타입 (Drizzle 기반)
+type PostData = {
+  post_id: number;
+  author_id: string;
+  title: string;
+  description: string;
+  work_date: string;
+  work_time_start: string;
+  work_time_end: string;
+  location: string;
+  pay_amount: number;
+  pay_type: string;
+  recruit_count: number;
+  manager_name: string;
+  manager_phone: string;
+  equipments: string | null;
+  qualifications: string | null;
+  preferences: string | null;
+  notes: string | null;
+  external_link: string | null;
+  keywords: string[] | null;
+  status: 'recruiting' | 'completed' | 'urgent';
+  work_slots: unknown;
+  form_type: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// member_schedules JOIN 결과 타입
+type MemberScheduleWithPostRaw = {
+  member_schedule_id: string;
+  post_id: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  message: string | null;
+  created_at: string;
+  updated_at?: string;
+  posts: PostData[] | PostData | null;
+};
+
+// 정규화된 타입 (posts를 단일 객체로)
+type MemberScheduleWithPost = {
+  member_schedule_id: string;
+  post_id: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+  posts: PostData | null;
+};
+
+// Experience 아이템 타입 (profiles.experiences JSONB 필드)
+type ExperienceItem = {
+  id?: string;
+  title?: string;
+  company?: string;
+  position?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  description?: string;
+  source?: string;
+  postId?: number;
+};
+
+// work_slots 타입
+type WorkSlot = {
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  start?: string;
+  end?: string;
+  pay_amount?: number;
+};
+
+// Supabase 응답 정규화 헬퍼 함수
+function normalizeScheduleData(
+  raw: MemberScheduleWithPostRaw
+): MemberScheduleWithPost {
+  return {
+    member_schedule_id: raw.member_schedule_id,
+    post_id: raw.post_id,
+    status: raw.status,
+    message: raw.message,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at || raw.created_at,
+    posts: Array.isArray(raw.posts) ? raw.posts[0] || null : raw.posts,
+  };
+}
+
+// Member가 공고에 지원
+export async function applyToPostAction(
+  postId: number,
+  message?: string
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // profiles에서 role 확인
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (profile?.role !== 'member') {
+      return { ok: false, message: '일반 회원만 공고에 지원할 수 있습니다.' };
+    }
+
+    // 이미 지원했는지 확인
+    const { data: existing } = await supabase
+      .from('member_schedules')
+      .select('member_schedule_id')
+      .eq('post_id', postId)
+      .eq('member_id', userData.user.id)
+      .single();
+
+    if (existing) {
+      return { ok: false, message: '이미 지원한 공고입니다.' };
+    }
+
+    // 지원 등록
+    const { error } = await supabase.from('member_schedules').insert({
+      post_id: postId,
+      member_id: userData.user.id,
+      status: 'pending',
+      message: message || null,
+    });
+
+    if (error) {
+      console.error('[applyToPostAction] Insert error', error);
+      return { ok: false, message: '지원 등록에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '지원이 완료되었습니다.' };
+  } catch (err) {
+    console.error('[applyToPostAction] Unexpected error', err);
+    return { ok: false, message: '지원 중 오류가 발생했습니다.' };
+  }
+}
+
+// Member의 모든 스케줄 조회 (지원한 공고들)
+export async function getMySchedulesAction(): Promise<
+  ActionResult<MemberScheduleWithPost[]>
+> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: [] };
+    }
+
+    // member_schedules와 posts JOIN
+    const { data: schedules, error } = await supabase
+      .from('member_schedules')
+      .select(
+        `
+        member_schedule_id,
+        post_id,
+        status,
+        message,
+        created_at,
+        updated_at,
+        posts (
+          post_id,
+          title,
+          description,
+          work_date,
+          work_time_start,
+          work_time_end,
+          location,
+          pay_amount,
+          pay_type,
+          recruit_count,
+          manager_name,
+          manager_phone,
+          equipments,
+          qualifications,
+          preferences,
+          notes,
+          external_link,
+          keywords,
+          status,
+          work_slots,
+          created_at,
+          updated_at
+        )
+      `
+      )
+      .eq('member_id', userData.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[getMySchedulesAction] Select error', error);
+      return {
+        ok: false,
+        message: '스케줄을 불러오는데 실패했습니다.',
+        data: [],
+      };
+    }
+
+    // Supabase 응답을 정규화
+    const normalizedSchedules = (
+      (schedules as unknown as MemberScheduleWithPostRaw[]) || []
+    ).map(normalizeScheduleData);
+
+    return { ok: true, message: '', data: normalizedSchedules };
+  } catch (err) {
+    console.error('[getMySchedulesAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '스케줄을 불러오는 중 오류가 발생했습니다.',
+      data: [],
+    };
+  }
+}
+
+// Member의 승인된(accepted) 스케줄만 조회
+export async function getAcceptedSchedulesAction(): Promise<
+  ActionResult<MemberScheduleWithPost[]>
+> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: [] };
+    }
+
+    // accepted 상태만 조회
+    const { data: schedules, error } = await supabase
+      .from('member_schedules')
+      .select(
+        `
+        member_schedule_id,
+        post_id,
+        status,
+        created_at,
+        posts (
+          post_id,
+          title,
+          description,
+          work_date,
+          work_time_start,
+          work_time_end,
+          location,
+          pay_amount,
+          pay_type,
+          manager_name,
+          work_slots,
+          created_at,
+          updated_at
+        )
+      `
+      )
+      .eq('member_id', userData.user.id)
+      .eq('status', 'accepted')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[getAcceptedSchedulesAction] Select error', error);
+      return {
+        ok: false,
+        message: '승인된 스케줄을 불러오는데 실패했습니다.',
+        data: [],
+      };
+    }
+
+    // Supabase 응답을 정규화
+    const normalizedSchedules = (
+      (schedules as unknown as MemberScheduleWithPostRaw[]) || []
+    ).map(normalizeScheduleData);
+
+    return { ok: true, message: '', data: normalizedSchedules };
+  } catch (err) {
+    console.error('[getAcceptedSchedulesAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '승인된 스케줄을 불러오는 중 오류가 발생했습니다.',
+      data: [],
+    };
+  }
+}
+
+// 경력 불러오기 - accepted 스케줄을 profiles.experiences에 추가
+export async function importExperiencesAction(): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // 1. 승인된 스케줄 가져오기
+    const result = await getAcceptedSchedulesAction();
+    if (!result.ok || !result.data) {
+      return { ok: false, message: '승인된 스케줄을 불러올 수 없습니다.' };
+    }
+
+    if (result.data.length === 0) {
+      return { ok: false, message: '불러올 경력이 없습니다.' };
+    }
+
+    // 2. 현재 experiences 가져오기
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('experiences')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    // 기존 experiences를 ExperienceItem 배열로 타입 캐스팅
+    const rawExperiences = profile?.experiences;
+    const existingExperiences: ExperienceItem[] = Array.isArray(rawExperiences)
+      ? rawExperiences.filter(
+          (item): item is ExperienceItem =>
+            typeof item === 'object' && item !== null
+        )
+      : [];
+
+    const existingPostIds = new Set(
+      existingExperiences
+        .filter((exp) => exp.postId !== undefined)
+        .map((exp) => exp.postId as number)
+    );
+
+    // 3. 새로운 경력 데이터 생성
+    const schedules = result.data;
+    const newExperiences = schedules
+      .filter((schedule) => {
+        const post = schedule.posts;
+        return post && !existingPostIds.has(post.post_id);
+      })
+      .map((schedule) => {
+        const post = schedule.posts!;
+        const rawWorkSlots = post.work_slots;
+        const workSlots: WorkSlot[] = Array.isArray(rawWorkSlots)
+          ? rawWorkSlots.filter(
+              (item): item is WorkSlot =>
+                typeof item === 'object' &&
+                item !== null &&
+                typeof (item as WorkSlot).date === 'string'
+            )
+          : [];
+
+        // work_slots에서 첫 번째와 마지막 날짜 추출
+        const dates =
+          workSlots.length > 0
+            ? workSlots
+                .map((slot) => slot.date)
+                .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+            : [];
+        const startDate = dates[0] || post.work_date;
+        const endDate = dates[dates.length - 1] || post.work_date;
+
+        return {
+          id: `imported-${post.post_id}`,
+          company: post.manager_name,
+          position: post.title,
+          startDate,
+          endDate,
+          description: post.description,
+          source: 'imported',
+          postId: post.post_id,
+        } as ExperienceItem;
+      });
+
+    if (newExperiences.length === 0) {
+      return { ok: false, message: '이미 모든 경력을 불러왔습니다.' };
+    }
+
+    // 4. experiences 업데이트
+    const updatedExperiences = [...existingExperiences, ...newExperiences];
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ experiences: updatedExperiences })
+      .eq('user_id', userData.user.id);
+
+    if (error) {
+      console.error('[importExperiencesAction] Update error', error);
+      return { ok: false, message: '경력 불러오기에 실패했습니다.' };
+    }
+
+    return {
+      ok: true,
+      message: `${newExperiences.length}개의 경력을 불러왔습니다.`,
+    };
+  } catch (err) {
+    console.error('[importExperiencesAction] Unexpected error', err);
+    return { ok: false, message: '경력 불러오기 중 오류가 발생했습니다.' };
+  }
+}

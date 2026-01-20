@@ -28,9 +28,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
-import { mockPosts, mockApplications, mockUsers } from '@/lib/mockData';
-import { Application, User as UserType } from '@/types/mockData';
+import {
+  getApplicantsAction,
+  updateApplicantStatusAction,
+  getWorkerManagementAction,
+  toggleFavoriteAction,
+  toggleBlacklistAction,
+  updateWorkerRatingAction,
+  updateWorkerNotesAction,
+} from './actions';
 import WorkerCard from '@/app/components/WorkerCard';
+
+import { Textarea } from '@/app/components/ui/textarea';
 import {
   Avatar,
   AvatarFallback,
@@ -59,30 +68,166 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 
-interface ApplicationWithPost extends Application {
+// Database 타입 정의
+type ApplicantData = {
+  member_schedule_id: string;
+  post_id: number;
+  member_id: string;
+  status: ApplicationStatus;
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+  posts?: {
+    post_id: number;
+    title: string;
+    description: string;
+    work_date: string;
+    location: string;
+    pay_amount: number;
+    pay_type: string;
+    work_slots: unknown;
+  } | null;
+  profiles?: {
+    user_id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    avatar: string | null;
+    attendance_score: number;
+    age: number | null;
+    gender: string | null;
+    kakao_id: string | null;
+    height: number | null;
+    weight: number | null;
+    personality: string | null;
+    features: string | null;
+    introduction: string | null;
+    experiences: unknown;
+    documents: unknown;
+  } | null;
+};
+
+interface ApplicationWithPost {
+  id: string;
+  postId: number;
+  applicantId: string;
+  applicantName: string;
   postTitle: string;
   postDate: string;
   postLocation: string;
-  applicantInfo?: UserType;
-  applicantPhoto?: string;
-  applicantDocuments?: {
-    idCard?: string;
-    bankbook?: string;
-    healthCertificate?: string;
-    driverLicense?: string;
-    certificates?: string[];
-    language?: string[];
+  appliedAt: string;
+  status: ApplicationStatus;
+  message?: string | null;
+  applicantInfo?: {
+    name: string;
+    email: string;
+    phone?: string | null;
+    photo?: string | null;
+    attendanceScore?: number;
+    age?: number | null;
+    gender?: string | null;
+    kakaoId?: string | null;
+    height?: number | null;
+    weight?: number | null;
+    personality?: string | null;
+    features?: string | null;
+    introduction?: string | null;
+    experiences?: Array<{
+      title?: string;
+      date?: string;
+      location?: string;
+    }>;
+    documents?: {
+      idCard?: string;
+      bankbook?: string;
+      healthCertificate?: string;
+      certificates?: string[];
+      language?: string[];
+      extraDocuments?: string[];
+    };
   };
+  applicantPhoto?: string;
   applicantAttendanceScore?: number;
   applicantKakaoId?: string;
   applicantGender?: string;
   applicantAge?: number;
-  applicantBirthDate?: string;
-  applicantHeight?: number;
-  applicantWeight?: number;
+  workerManagement?: {
+    rating?: number | null;
+    notes?: string | null;
+    is_favorite?: boolean;
+    is_blacklisted?: boolean;
+  };
+}
+
+type TabType = 'all' | 'favorite' | 'blacklist';
+
+// 데이터 변환 헬퍼 함수
+function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost {
+  const profile = data.profiles;
+  const post = data.posts;
+
+  // JSONB 필드 파싱
+  const rawExperiences = profile?.experiences;
+  const experiences = Array.isArray(rawExperiences)
+    ? rawExperiences.filter(
+        (item): item is { title?: string; date?: string; location?: string } =>
+          typeof item === 'object' && item !== null
+      )
+    : undefined;
+
+  const rawDocuments = profile?.documents;
+  const documents =
+    typeof rawDocuments === 'object' && rawDocuments !== null
+      ? (rawDocuments as {
+          idCard?: string;
+          bankbook?: string;
+          healthCertificate?: string;
+          certificates?: string[];
+          language?: string[];
+          extraDocuments?: string[];
+        })
+      : undefined;
+
+  return {
+    id: data.member_schedule_id,
+    postId: data.post_id,
+    applicantId: data.member_id,
+    applicantName: profile?.name || '알 수 없음',
+    postTitle: post?.title || '',
+    postDate: post?.work_date || '',
+    postLocation: post?.location || '',
+    appliedAt: data.created_at,
+    status: data.status,
+    message: data.message,
+    applicantInfo: profile
+      ? {
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          photo: profile.avatar,
+          attendanceScore: profile.attendance_score,
+          age: profile.age,
+          gender: profile.gender,
+          kakaoId: profile.kakao_id,
+          height: profile.height,
+          weight: profile.weight,
+          personality: profile.personality,
+          features: profile.features,
+          introduction: profile.introduction,
+          experiences,
+          documents,
+        }
+      : undefined,
+    applicantPhoto: profile?.avatar || undefined,
+    applicantAttendanceScore: profile?.attendance_score,
+    applicantKakaoId: profile?.kakao_id || undefined,
+    applicantGender: profile?.gender || undefined,
+    applicantAge: profile?.age || undefined,
+  };
 }
 
 export default function WorkerManagementPage() {
@@ -91,65 +236,91 @@ export default function WorkerManagementPage() {
   const effectiveRole = role ?? null;
   const isManager = effectiveRole === 'manager';
   const isPendingManager = effectiveRole === 'pending_manager';
-  const [currentUserId, setCurrentUserId] = useState<string>('manager-1');
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>(
     'all'
   );
   const [selectedApplication, setSelectedApplication] =
     useState<ApplicationWithPost | null>(null);
-  const [applications, setApplications] =
-    useState<Application[]>(mockApplications);
+  const [applications, setApplications] = useState<ApplicationWithPost[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
 
+  // 지원자 데이터 가져오기
   useEffect(() => {
-    setIsMounted(true);
-    try {
-      const userId =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('userId') || 'manager-1'
-          : 'manager-1';
-      setCurrentUserId(userId);
-    } catch {
-      setCurrentUserId('manager-1');
+    const fetchApplicants = async () => {
+      setIsLoading(true);
+      try {
+        const result = await getApplicantsAction();
+        if (result.ok && result.data) {
+          const convertedData = result.data.map((item) =>
+            convertToApplicationWithPost(item as unknown as ApplicantData)
+          );
+          setApplications(convertedData);
+
+          // 각 워커의 관리 데이터 가져오기
+          const managementDataPromises = convertedData.map(async (app) => {
+            const mgmtResult = await getWorkerManagementAction(app.applicantId);
+            return {
+              workerId: app.applicantId,
+              data: mgmtResult.ok ? mgmtResult.data : {},
+            };
+          });
+
+          const managementResults = await Promise.all(managementDataPromises);
+          const managementMap: Record<
+            string,
+            ApplicationWithPost['workerManagement']
+          > = {};
+
+          managementResults.forEach((result) => {
+            const data = result.data as {
+              rating?: number | null;
+              notes?: string | null;
+              is_favorite?: boolean;
+              is_blacklisted?: boolean;
+            };
+            managementMap[result.workerId] = data;
+          });
+
+          // applications에 workerManagement 데이터 결합
+          const applicationsWithManagement = convertedData.map((app) => ({
+            ...app,
+            workerManagement: managementMap[app.applicantId],
+          }));
+          setApplications(applicationsWithManagement);
+        }
+      } catch (error) {
+        console.error('Failed to fetch applicants:', error);
+        setApplications([]);
+      } finally {
+        setIsLoading(false);
+        setIsMounted(true);
+      }
+    };
+
+    if (isManager) {
+      fetchApplicants();
     }
-  }, []);
+  }, [isManager]);
 
   // 현재 매니저의 공고에 지원한 지원자들
   const managerApplications = useMemo(() => {
-    if (!isMounted || !currentUserId) return [];
-
-    const managerPostIds = mockPosts
-      .filter((post) => post.authorId === currentUserId)
-      .map((post) => post.id);
-
-    return applications
-      .filter((app) => managerPostIds.includes(app.postId))
-      .map((app) => {
-        const post = mockPosts.find((p) => p.id === app.postId);
-        const applicantInfo = mockUsers.find((u) => u.id === app.applicantId);
-        return {
-          ...app,
-          postTitle: post?.title || '',
-          postDate: post?.date || '',
-          postLocation: post?.location || '',
-          applicantInfo,
-          applicantPhoto: applicantInfo?.photo,
-          applicantDocuments: applicantInfo?.documents,
-          applicantAttendanceScore: applicantInfo?.attendanceScore,
-          applicantKakaoId: applicantInfo?.kakaoId,
-          applicantGender: applicantInfo?.gender,
-          applicantAge: applicantInfo?.age,
-          applicantBirthDate: applicantInfo?.birthDate,
-          applicantHeight: applicantInfo?.height,
-          applicantWeight: applicantInfo?.weight,
-        } as ApplicationWithPost;
-      });
-  }, [isMounted, currentUserId, applications]);
+    if (!isMounted) return [];
+    return applications;
+  }, [isMounted, applications]);
 
   // 필터링 및 검색
   const filteredApplications = useMemo(() => {
     let filtered = managerApplications;
+
+    // 탭 필터
+    if (activeTab === 'favorite') {
+      filtered = filtered.filter((app) => app.workerManagement?.is_favorite);
+    } else if (activeTab === 'blacklist') {
+      filtered = filtered.filter((app) => app.workerManagement?.is_blacklisted);
+    }
 
     // 상태 필터
     if (statusFilter !== 'all') {
@@ -177,7 +348,7 @@ export default function WorkerManagementPage() {
       if (pDiff !== 0) return pDiff;
       return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
     });
-  }, [managerApplications, statusFilter, searchTerm]);
+  }, [managerApplications, statusFilter, searchTerm, activeTab]);
 
   // 상태별 통계
   const statistics = useMemo(() => {
@@ -220,22 +391,42 @@ export default function WorkerManagementPage() {
     );
   }
 
-  const handleStatusChange = (
+  const handleStatusChange = async (
     applicationId: string,
     newStatus: ApplicationStatus
   ) => {
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === applicationId ? { ...app, status: newStatus } : app
-      )
-    );
+    // pending 상태는 처리하지 않음
+    if (newStatus === 'pending') {
+      return;
+    }
 
-    // 선택된 지원서도 업데이트
-    if (selectedApplication && selectedApplication.id === applicationId) {
-      setSelectedApplication({
-        ...selectedApplication,
-        status: newStatus,
-      });
+    try {
+      // 서버 액션 호출
+      const result = await updateApplicantStatusAction(applicationId, newStatus);
+
+      if (result.ok) {
+        // 로컬 상태 업데이트
+        setApplications((prev) =>
+          prev.map((app) =>
+            app.id === applicationId ? { ...app, status: newStatus } : app
+          )
+        );
+
+        // 선택된 지원서도 업데이트
+        if (selectedApplication && selectedApplication.id === applicationId) {
+          setSelectedApplication({
+            ...selectedApplication,
+            status: newStatus,
+          });
+        }
+
+        alert(result.message);
+      } else {
+        alert(result.message || '상태 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('상태 변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -305,9 +496,23 @@ export default function WorkerManagementPage() {
         </Card>
       </div>
 
-      {/* 필터 및 검색 */}
+      {/* 탭 + 필터 및 검색 */}
       <Card className="mb-4 sm:mb-6">
-        <CardContent className="pt-4 sm:pt-6">
+        <CardContent className="pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+          {/* 탭 */}
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as TabType)}
+            className="w-full"
+          >
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="all">전체</TabsTrigger>
+              <TabsTrigger value="favorite">즐겨찾기</TabsTrigger>
+              <TabsTrigger value="blacklist">블랙리스트</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* 검색 + 상태 필터 */}
           <div className="flex md:flex-row gap-3 sm:gap-4">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
@@ -344,39 +549,49 @@ export default function WorkerManagementPage() {
       </Card>
 
       {/* 지원자 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
-        {filteredApplications.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 sm:py-12 text-center">
-              <User className="size-10 sm:size-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-              <p className="text-sm sm:text-base text-gray-500">
-                지원자가 없습니다.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredApplications.map((application) => (
-            <WorkerCard
-              key={application.id}
-              application={{
-                id: application.id,
-                applicantName: application.applicantName,
-                postTitle: application.postTitle,
-                postLocation: application.postLocation,
-                appliedAt: application.appliedAt,
-                status: application.status,
-                applicantAge: application.applicantAge,
-                applicantGender: application.applicantGender,
-                applicantKakaoId: application.applicantKakaoId,
-                applicantAttendanceScore: application.applicantAttendanceScore,
-                applicantPhoto: application.applicantPhoto,
-              }}
-              onCardClick={() => setSelectedApplication(application)}
-              onStatusChange={handleStatusChange}
-            />
-          ))
-        )}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center min-h-[400px]">
+          <p className="text-gray-500">로딩 중...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
+          {filteredApplications.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 sm:py-12 text-center">
+                <User className="size-10 sm:size-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                <p className="text-sm sm:text-base text-gray-500">
+                  {searchTerm || statusFilter !== 'all'
+                    ? '검색 결과가 없습니다.'
+                    : '지원자가 없습니다.'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredApplications.map((application) => (
+              <WorkerCard
+                key={application.id}
+                application={{
+                  id: application.id,
+                  applicantId: application.applicantId,
+                  applicantName: application.applicantName,
+                  postTitle: application.postTitle,
+                  postLocation: application.postLocation,
+                  appliedAt: application.appliedAt,
+                  status: application.status,
+                  applicantAge: application.applicantAge,
+                  applicantGender: application.applicantGender,
+                  applicantKakaoId: application.applicantKakaoId,
+                  applicantAttendanceScore: application.applicantAttendanceScore,
+                  applicantPhoto: application.applicantPhoto,
+                }}
+                workerManagement={application.workerManagement}
+                onCardClick={() => setSelectedApplication(application)}
+                onStatusChange={handleStatusChange}
+              />
+            ))
+          )}
+        </div>
+      )}
 
       {/* 지원자 상세 모달 */}
       {selectedApplication && (
@@ -384,6 +599,19 @@ export default function WorkerManagementPage() {
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
           onStatusChange={handleStatusChange}
+          onDataChange={(workerId, data) => {
+            // applications 업데이트
+            setApplications((prev) =>
+              prev.map((app) =>
+                app.applicantId === workerId
+                  ? {
+                      ...app,
+                      workerManagement: { ...app.workerManagement, ...data },
+                    }
+                  : app
+              )
+            );
+          }}
         />
       )}
     </div>
@@ -395,13 +623,23 @@ interface ApplicationDetailModalProps {
   application: ApplicationWithPost;
   onClose: () => void;
   onStatusChange: (applicationId: string, newStatus: ApplicationStatus) => void;
+  onDataChange: (
+    workerId: string,
+    data: Partial<ApplicationWithPost['workerManagement']>
+  ) => void;
 }
 
 function ApplicationDetailModal({
   application,
   onClose,
   onStatusChange,
+  onDataChange,
 }: ApplicationDetailModalProps) {
+  const [rating, setRating] = useState(application.workerManagement?.rating || 0);
+  const [notes, setNotes] = useState(application.workerManagement?.notes || '');
+  const [isSavingRating, setIsSavingRating] = useState(false);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
   const statusBadge = {
     pending: {
       label: '대기중',
@@ -417,23 +655,185 @@ function ApplicationDetailModal({
     },
   }[application.status];
 
+  const handleRatingClick = async (newRating: number) => {
+    setIsSavingRating(true);
+    try {
+      const result = await updateWorkerRatingAction(
+        application.applicantId,
+        newRating
+      );
+      if (result.ok) {
+        setRating(newRating);
+        onDataChange(application.applicantId, { rating: newRating });
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to update rating:', error);
+      alert('평가 저장에 실패했습니다.');
+    } finally {
+      setIsSavingRating(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true);
+    try {
+      const result = await updateWorkerNotesAction(
+        application.applicantId,
+        notes
+      );
+      if (result.ok) {
+        onDataChange(application.applicantId, { notes });
+        alert(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+      alert('메모 저장에 실패했습니다.');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    try {
+      const result = await toggleFavoriteAction(application.applicantId);
+      if (result.ok) {
+        onDataChange(application.applicantId, {
+          is_favorite: !application.workerManagement?.is_favorite,
+        });
+        alert(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      alert('즐겨찾기 변경에 실패했습니다.');
+    }
+  };
+
+  const handleToggleBlacklist = async () => {
+    try {
+      const result = await toggleBlacklistAction(application.applicantId);
+      if (result.ok) {
+        onDataChange(application.applicantId, {
+          is_blacklisted: !application.workerManagement?.is_blacklisted,
+        });
+        alert(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to toggle blacklist:', error);
+      alert('블랙리스트 변경에 실패했습니다.');
+    }
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn('text-sm', statusBadge.className)}
-            >
-              {statusBadge.label}
-            </Badge>
-            <DialogTitle>{application.applicantName}</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className={cn('text-sm', statusBadge.className)}
+              >
+                {statusBadge.label}
+              </Badge>
+              <DialogTitle>{application.applicantName}</DialogTitle>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={
+                  application.workerManagement?.is_favorite
+                    ? 'default'
+                    : 'outline'
+                }
+                onClick={handleToggleFavorite}
+              >
+                <Star
+                  className={cn(
+                    'size-4',
+                    application.workerManagement?.is_favorite &&
+                      'fill-yellow-400 text-yellow-400'
+                  )}
+                />
+              </Button>
+              <Button
+                size="sm"
+                variant={
+                  application.workerManagement?.is_blacklisted
+                    ? 'destructive'
+                    : 'outline'
+                }
+                onClick={handleToggleBlacklist}
+              >
+                <XCircle className="size-4" />
+              </Button>
+            </div>
           </div>
           <DialogDescription>{application.postTitle}에 지원</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* 워커 평가 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">워커 평가</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => handleRatingClick(star)}
+                    disabled={isSavingRating}
+                    className="disabled:opacity-50"
+                  >
+                    <Star
+                      className={cn(
+                        'size-6 transition-colors cursor-pointer',
+                        star <= rating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300 hover:text-yellow-200'
+                      )}
+                    />
+                  </button>
+                ))}
+                {rating > 0 && (
+                  <span className="ml-2 text-sm text-gray-600">
+                    {rating}점
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 워커 메모 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">워커 메모</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Textarea
+                placeholder="이 워커에 대한 메모를 작성하세요..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={4}
+              />
+              <Button
+                size="sm"
+                onClick={handleSaveNotes}
+                disabled={isSavingNotes}
+              >
+                {isSavingNotes ? '저장 중...' : '메모 저장'}
+              </Button>
+            </CardContent>
+          </Card>
           {/* 지원자 기본 정보 */}
           <Card>
             <CardHeader>
