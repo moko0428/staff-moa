@@ -119,7 +119,7 @@ export async function applyToPostAction(
       .single();
 
     if (profile?.role !== 'member') {
-      return { ok: false, message: '일반 회원만 공고에 지원할 수 있습니다.' };
+      return { ok: false, message: '스탭만 공고에 지원할 수 있습니다.' };
     }
 
     // 이미 지원했는지 확인
@@ -405,5 +405,258 @@ export async function importExperiencesAction(): Promise<ActionResult> {
   } catch (err) {
     console.error('[importExperiencesAction] Unexpected error', err);
     return { ok: false, message: '경력 불러오기 중 오류가 발생했습니다.' };
+  }
+}
+
+// 개인 스케줄 추가
+export async function createPersonalScheduleAction(scheduleData: {
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  payAmount?: string;
+  description?: string;
+  managerName?: string;
+  managerPhone?: string;
+}): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // profiles에서 role 확인
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (profile?.role !== 'member') {
+      return { ok: false, message: '스탭만 개인 스케줄을 추가할 수 있습니다.' };
+    }
+
+    // personal_schedules 테이블에 저장
+    const { error } = await supabase.from('personal_schedules').insert({
+      user_id: userData.user.id,
+      title: scheduleData.title,
+      date: scheduleData.date,
+      start_time: scheduleData.startTime,
+      end_time: scheduleData.endTime,
+      location: scheduleData.location || null,
+      pay_type: scheduleData.payType,
+      pay_amount: scheduleData.payAmount ? parseInt(scheduleData.payAmount) : null,
+      description: scheduleData.description || null,
+      manager_name: scheduleData.managerName || null,
+      manager_phone: scheduleData.managerPhone || null,
+    });
+
+    if (error) {
+      console.error('[createPersonalScheduleAction] Insert error', error);
+      return { ok: false, message: '개인 스케줄 추가에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '개인 스케줄이 추가되었습니다.' };
+  } catch (err) {
+    console.error('[createPersonalScheduleAction] Unexpected error', err);
+    return { ok: false, message: '개인 스케줄 추가 중 오류가 발생했습니다.' };
+  }
+}
+
+// 개인 스케줄 조회
+export async function getPersonalSchedulesAction(): Promise<
+  ActionResult<Array<Record<string, unknown>>>
+> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: [] };
+    }
+
+    const { data, error } = await supabase
+      .from('personal_schedules')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('[getPersonalSchedulesAction] Select error', error);
+      return {
+        ok: false,
+        message: '개인 스케줄을 불러오는데 실패했습니다.',
+        data: [],
+      };
+    }
+
+    return { ok: true, message: '', data: data || [] };
+  } catch (err) {
+    console.error('[getPersonalSchedulesAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '개인 스케줄을 불러오는 중 오류가 발생했습니다.',
+      data: [],
+    };
+  }
+}
+
+// 개인 스케줄 수정
+export async function updatePersonalScheduleAction(
+  scheduleId: string,
+  scheduleData: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    location?: string;
+    payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
+    payAmount?: string;
+    description?: string;
+    managerName?: string;
+    managerPhone?: string;
+  }
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // 본인의 스케줄인지 확인
+    const { data: existing } = await supabase
+      .from('personal_schedules')
+      .select('user_id')
+      .eq('personal_schedule_id', scheduleId)
+      .single();
+
+    if (!existing) {
+      return { ok: false, message: '스케줄을 찾을 수 없습니다.' };
+    }
+
+    if (existing.user_id !== userData.user.id) {
+      return { ok: false, message: '본인의 스케줄만 수정할 수 있습니다.' };
+    }
+
+    const { error } = await supabase
+      .from('personal_schedules')
+      .update({
+        title: scheduleData.title,
+        date: scheduleData.date,
+        start_time: scheduleData.startTime,
+        end_time: scheduleData.endTime,
+        location: scheduleData.location || null,
+        pay_type: scheduleData.payType,
+        pay_amount: scheduleData.payAmount ? parseInt(scheduleData.payAmount) : null,
+        description: scheduleData.description || null,
+        manager_name: scheduleData.managerName || null,
+        manager_phone: scheduleData.managerPhone || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('personal_schedule_id', scheduleId);
+
+    if (error) {
+      console.error('[updatePersonalScheduleAction] Update error', error);
+      return { ok: false, message: '스케줄 수정에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '스케줄이 수정되었습니다.' };
+  } catch (err) {
+    console.error('[updatePersonalScheduleAction] Unexpected error', err);
+    return { ok: false, message: '스케줄 수정 중 오류가 발생했습니다.' };
+  }
+}
+
+// 개인 스케줄 삭제
+export async function deletePersonalScheduleAction(
+  scheduleId: string
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // 본인의 스케줄인지 확인
+    const { data: existing } = await supabase
+      .from('personal_schedules')
+      .select('user_id')
+      .eq('personal_schedule_id', scheduleId)
+      .single();
+
+    if (!existing) {
+      return { ok: false, message: '스케줄을 찾을 수 없습니다.' };
+    }
+
+    if (existing.user_id !== userData.user.id) {
+      return { ok: false, message: '본인의 스케줄만 삭제할 수 있습니다.' };
+    }
+
+    const { error } = await supabase
+      .from('personal_schedules')
+      .delete()
+      .eq('personal_schedule_id', scheduleId);
+
+    if (error) {
+      console.error('[deletePersonalScheduleAction] Delete error', error);
+      return { ok: false, message: '스케줄 삭제에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '스케줄이 삭제되었습니다.' };
+  } catch (err) {
+    console.error('[deletePersonalScheduleAction] Unexpected error', err);
+    return { ok: false, message: '스케줄 삭제 중 오류가 발생했습니다.' };
+  }
+}
+
+// 지원 취소 (member_schedules에서 삭제)
+export async function cancelApplicationAction(
+  memberScheduleId: string
+): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // 본인의 지원인지 확인
+    const { data: existing } = await supabase
+      .from('member_schedules')
+      .select('member_id')
+      .eq('member_schedule_id', memberScheduleId)
+      .single();
+
+    if (!existing) {
+      return { ok: false, message: '지원 내역을 찾을 수 없습니다.' };
+    }
+
+    if (existing.member_id !== userData.user.id) {
+      return { ok: false, message: '본인의 지원만 취소할 수 있습니다.' };
+    }
+
+    const { error } = await supabase
+      .from('member_schedules')
+      .delete()
+      .eq('member_schedule_id', memberScheduleId);
+
+    if (error) {
+      console.error('[cancelApplicationAction] Delete error', error);
+      return { ok: false, message: '지원 취소에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '지원이 취소되었습니다.' };
+  } catch (err) {
+    console.error('[cancelApplicationAction] Unexpected error', err);
+    return { ok: false, message: '지원 취소 중 오류가 발생했습니다.' };
   }
 }
