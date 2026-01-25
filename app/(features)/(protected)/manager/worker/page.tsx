@@ -46,6 +46,11 @@ import {
   AvatarImage,
 } from '@/app/components/ui/avatar';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/app/components/ui/popover';
+import {
   User,
   CheckCircle2,
   XCircle,
@@ -64,6 +69,9 @@ import {
   Star,
   FileText,
   Briefcase,
+  Info,
+  Mail,
+  MessageSquare,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -90,6 +98,7 @@ type ApplicantData = {
     pay_amount: number;
     pay_type: string;
     work_slots: unknown;
+    status: 'recruiting' | 'completed' | 'urgent';
   } | null;
   profiles?: {
     user_id: string;
@@ -98,14 +107,15 @@ type ApplicantData = {
     phone: string | null;
     avatar: string | null;
     attendance_score: number;
-    age: number | null;
+    birth_date: string | null;
     gender: string | null;
     kakao_id: string | null;
+    mbti: string | null;
     height: number | null;
     weight: number | null;
     personality: string | null;
     features: string | null;
-    introduction: string | null;
+    bio: string | null;
     experiences: unknown;
     documents: unknown;
   } | null;
@@ -119,6 +129,8 @@ interface ApplicationWithPost {
   postTitle: string;
   postDate: string;
   postLocation: string;
+  postStatus?: 'recruiting' | 'completed' | 'urgent';
+  workSlots?: Array<{ date: string; start_time?: string; end_time?: string }>;
   appliedAt: string;
   status: ApplicationStatus;
   message?: string | null;
@@ -131,6 +143,7 @@ interface ApplicationWithPost {
     age?: number | null;
     gender?: string | null;
     kakaoId?: string | null;
+    mbti?: string | null;
     height?: number | null;
     weight?: number | null;
     personality?: string | null;
@@ -192,6 +205,21 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
         })
       : undefined;
 
+  // birth_date에서 age 계산
+  const calculateAge = (birthDate: string | null): number | null => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const age = calculateAge(profile?.birth_date || null);
+
   return {
     id: data.member_schedule_id,
     postId: data.post_id,
@@ -200,6 +228,14 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
     postTitle: post?.title || '',
     postDate: post?.work_date || '',
     postLocation: post?.location || '',
+    postStatus: post?.status,
+    workSlots: Array.isArray(post?.work_slots)
+      ? (post.work_slots as Array<{ date: string; start_time?: string; end_time?: string }>).map((slot) => ({
+          date: slot.date,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        }))
+      : undefined,
     appliedAt: data.created_at,
     status: data.status,
     message: data.message,
@@ -210,14 +246,15 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
           phone: profile.phone,
           photo: profile.avatar,
           attendanceScore: profile.attendance_score,
-          age: profile.age,
+          age: age,
           gender: profile.gender,
           kakaoId: profile.kakao_id,
+          mbti: profile.mbti,
           height: profile.height,
           weight: profile.weight,
           personality: profile.personality,
           features: profile.features,
-          introduction: profile.introduction,
+          introduction: profile.bio,
           experiences,
           documents,
         }
@@ -226,7 +263,7 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
     applicantAttendanceScore: profile?.attendance_score,
     applicantKakaoId: profile?.kakao_id || undefined,
     applicantGender: profile?.gender || undefined,
-    applicantAge: profile?.age || undefined,
+    applicantAge: age || undefined,
   };
 }
 
@@ -587,6 +624,42 @@ export default function WorkerManagementPage() {
                 workerManagement={application.workerManagement}
                 onCardClick={() => setSelectedApplication(application)}
                 onStatusChange={handleStatusChange}
+                onToggleFavorite={async (applicantId) => {
+                  const result = await toggleFavoriteAction(applicantId);
+                  if (result.ok) {
+                    setApplications((prev) =>
+                      prev.map((app) =>
+                        app.applicantId === applicantId
+                          ? {
+                              ...app,
+                              workerManagement: {
+                                ...app.workerManagement,
+                                is_favorite: !app.workerManagement?.is_favorite,
+                              },
+                            }
+                          : app
+                      )
+                    );
+                  }
+                }}
+                onToggleBlacklist={async (applicantId) => {
+                  const result = await toggleBlacklistAction(applicantId);
+                  if (result.ok) {
+                    setApplications((prev) =>
+                      prev.map((app) =>
+                        app.applicantId === applicantId
+                          ? {
+                              ...app,
+                              workerManagement: {
+                                ...app.workerManagement,
+                                is_blacklisted: !app.workerManagement?.is_blacklisted,
+                              },
+                            }
+                          : app
+                      )
+                    );
+                  }
+                }}
               />
             ))
           )}
@@ -655,6 +728,35 @@ function ApplicationDetailModal({
     },
   }[application.status];
 
+  // 근무 완료 여부 확인: 모집 완료 + 근무시간 완료
+  const isWorkCompleted = () => {
+    // 1. 모집 상태가 완료되어야 함
+    if (application.postStatus !== 'completed') {
+      return false;
+    }
+
+    // 2. 근무시간이 완료되었는지 확인
+    const now = new Date();
+
+    // work_slots가 있는 경우
+    if (application.workSlots && application.workSlots.length > 0) {
+      // 모든 슬롯의 마지막 날짜와 시간을 확인
+      const lastSlot = application.workSlots[application.workSlots.length - 1];
+      const lastWorkDateTime = new Date(`${lastSlot.date}T${lastSlot.end_time || '23:59'}:00`);
+      return now > lastWorkDateTime;
+    }
+
+    // work_date가 있는 경우 (레거시)
+    if (application.postDate) {
+      const workDate = new Date(application.postDate);
+      return now > workDate;
+    }
+
+    return false;
+  };
+
+  const canEvaluateWorker = isWorkCompleted();
+
   const handleRatingClick = async (newRating: number) => {
     setIsSavingRating(true);
     try {
@@ -697,143 +799,81 @@ function ApplicationDetailModal({
     }
   };
 
-  const handleToggleFavorite = async () => {
-    try {
-      const result = await toggleFavoriteAction(application.applicantId);
-      if (result.ok) {
-        onDataChange(application.applicantId, {
-          is_favorite: !application.workerManagement?.is_favorite,
-        });
-        alert(result.message);
-      } else {
-        alert(result.message);
-      }
-    } catch (error) {
-      console.error('Failed to toggle favorite:', error);
-      alert('즐겨찾기 변경에 실패했습니다.');
-    }
-  };
-
-  const handleToggleBlacklist = async () => {
-    try {
-      const result = await toggleBlacklistAction(application.applicantId);
-      if (result.ok) {
-        onDataChange(application.applicantId, {
-          is_blacklisted: !application.workerManagement?.is_blacklisted,
-        });
-        alert(result.message);
-      } else {
-        alert(result.message);
-      }
-    } catch (error) {
-      console.error('Failed to toggle blacklist:', error);
-      alert('블랙리스트 변경에 실패했습니다.');
-    }
-  };
-
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className={cn('text-sm', statusBadge.className)}
-              >
-                {statusBadge.label}
-              </Badge>
-              <DialogTitle>{application.applicantName}</DialogTitle>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={
-                  application.workerManagement?.is_favorite
-                    ? 'default'
-                    : 'outline'
-                }
-                onClick={handleToggleFavorite}
-              >
-                <Star
-                  className={cn(
-                    'size-4',
-                    application.workerManagement?.is_favorite &&
-                      'fill-yellow-400 text-yellow-400'
-                  )}
-                />
-              </Button>
-              <Button
-                size="sm"
-                variant={
-                  application.workerManagement?.is_blacklisted
-                    ? 'destructive'
-                    : 'outline'
-                }
-                onClick={handleToggleBlacklist}
-              >
-                <XCircle className="size-4" />
-              </Button>
-            </div>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn('text-sm', statusBadge.className)}
+            >
+              {statusBadge.label}
+            </Badge>
+            <DialogTitle>{application.postTitle}</DialogTitle>
           </div>
-          <DialogDescription>{application.postTitle}에 지원</DialogDescription>
+          <DialogDescription></DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* 워커 평가 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">워커 평가</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleRatingClick(star)}
-                    disabled={isSavingRating}
-                    className="disabled:opacity-50"
-                  >
-                    <Star
-                      className={cn(
-                        'size-6 transition-colors cursor-pointer',
-                        star <= rating
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300 hover:text-yellow-200'
-                      )}
-                    />
-                  </button>
-                ))}
-                {rating > 0 && (
-                  <span className="ml-2 text-sm text-gray-600">
-                    {rating}점
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* 워커 평가 - 근무 완료 시에만 표시 */}
+          {canEvaluateWorker && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">워커 평가</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => handleRatingClick(star)}
+                        disabled={isSavingRating}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={cn(
+                            'size-6 transition-colors cursor-pointer',
+                            star <= rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300 hover:text-yellow-200'
+                          )}
+                        />
+                      </button>
+                    ))}
+                    {rating > 0 && (
+                      <span className="ml-2 text-sm text-gray-600">
+                        {rating}점
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* 워커 메모 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">워커 메모</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea
-                placeholder="이 워커에 대한 메모를 작성하세요..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-              />
-              <Button
-                size="sm"
-                onClick={handleSaveNotes}
-                disabled={isSavingNotes}
-              >
-                {isSavingNotes ? '저장 중...' : '메모 저장'}
-              </Button>
-            </CardContent>
-          </Card>
+              {/* 워커 메모 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">워커 메모</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    placeholder="이 워커에 대한 메모를 작성하세요..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={4}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveNotes}
+                    disabled={isSavingNotes}
+                  >
+                    {isSavingNotes ? '저장 중...' : '메모 저장'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
           {/* 지원자 기본 정보 */}
           <Card>
             <CardHeader>
@@ -852,209 +892,201 @@ function ApplicationDetailModal({
                     {application.applicantName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="space-y-1">
                   <h3 className="font-semibold text-lg">
                     {application.applicantName}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    ID: {application.applicantId}
-                  </p>
+                  {application.applicantInfo?.email && (
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <Mail className="size-3" />
+                      <span>{application.applicantInfo.email}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {application.applicantInfo && (
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t">
-                  {application.applicantInfo.age && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">나이</Label>
-                      <p className="font-semibold">
-                        {application.applicantInfo.age}세
-                      </p>
-                    </div>
-                  )}
-                  {application.applicantInfo.gender && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">성별</Label>
-                      <p className="font-semibold">
-                        {application.applicantInfo.gender}
-                      </p>
-                    </div>
-                  )}
-                  {application.applicantInfo.kakaoId && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">카카오톡</Label>
-                      <p className="font-semibold">
-                        {application.applicantInfo.kakaoId}
-                      </p>
-                    </div>
-                  )}
-                  {application.applicantInfo.attendanceScore && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">근태 점수</Label>
-                      <div className="flex items-center gap-1">
-                        <Star className="size-4 fill-yellow-400 text-yellow-400" />
-                        <p className="font-semibold">
-                          {application.applicantInfo.attendanceScore}점
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {application.applicantInfo.phone && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">전화번호</Label>
-                      <p className="font-semibold">
-                        {application.applicantInfo.phone}
-                      </p>
-                    </div>
-                  )}
-                  {application.applicantInfo.email && (
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">이메일</Label>
-                      <p className="font-semibold text-xs">
-                        {application.applicantInfo.email}
-                      </p>
-                    </div>
-                  )}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                {/* 근태점수는 무조건 표시 */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-gray-500">근태 점수</Label>
+                  <div className="flex items-center gap-1">
+                    <Star className="size-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold">
+                      {application.applicantInfo?.attendanceScore ?? 50}점
+                    </span>
+                  </div>
                 </div>
-              )}
+                {application.applicantInfo?.kakaoId && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500">카카오톡</Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.kakaoId}
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.phone && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500">전화번호</Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.phone}
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.mbti && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500">MBTI</Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.mbti}
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.gender && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500">성별</Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.gender}
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.age && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500">나이</Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.age}세
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.height && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500 flex items-center gap-1">
+                      <Ruler className="size-3" />키
+                    </Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.height}cm
+                    </p>
+                  </div>
+                )}
+                {application.applicantInfo?.weight && (
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-gray-500 flex items-center gap-1">
+                      <Weight className="size-3" />몸무게
+                    </Label>
+                    <p className="font-semibold">
+                      {application.applicantInfo.weight}kg
+                    </p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* 신체 정보 */}
-          {application.applicantInfo &&
-            (application.applicantInfo.height ||
-              application.applicantInfo.weight) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">신체 정보</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-3">
-                    {application.applicantInfo.height && (
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-500 flex items-center gap-2">
-                          <Ruler className="size-4" />키
-                        </Label>
-                        <p className="font-semibold">
-                          {application.applicantInfo.height}cm
-                        </p>
-                      </div>
-                    )}
-                    {application.applicantInfo.weight && (
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-500 flex items-center gap-2">
-                          <Weight className="size-4" />
-                          몸무게
-                        </Label>
-                        <p className="font-semibold">
-                          {application.applicantInfo.weight}kg
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
           {/* 서류 제출 현황 */}
-          {application.applicantInfo?.documents && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">서류 제출 현황</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2">
-                    {application.applicantInfo.documents.idCard ? (
-                      <CheckCircle2 className="size-4 text-green-500" />
-                    ) : (
-                      <XCircle className="size-4 text-red-500" />
-                    )}
-                    <div className="flex items-center gap-1">
-                      <IdCard className="size-4 text-gray-500" />
-                      <span className="text-sm">신분증</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {application.applicantInfo.documents.bankbook ? (
-                      <CheckCircle2 className="size-4 text-green-500" />
-                    ) : (
-                      <XCircle className="size-4 text-red-500" />
-                    )}
-                    <div className="flex items-center gap-1">
-                      <CreditCard className="size-4 text-gray-500" />
-                      <span className="text-sm">통장사본</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {application.applicantInfo.documents.healthCertificate ? (
-                      <CheckCircle2 className="size-4 text-green-500" />
-                    ) : (
-                      <XCircle className="size-4 text-red-500" />
-                    )}
-                    <div className="flex items-center gap-1">
-                      <FileCheck className="size-4 text-gray-500" />
-                      <span className="text-sm">보건증</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {application.applicantInfo.documents.extraDocuments?.includes(
-                      'driverLicense'
-                    ) ? (
-                      <CheckCircle2 className="size-4 text-green-500" />
-                    ) : (
-                      <XCircle className="size-4 text-red-500" />
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Car className="size-4 text-gray-500" />
-                      <span className="text-sm">운전면허증</span>
-                    </div>
-                  </div>
-                </div>
+          {application.applicantInfo?.documents && (() => {
+            const docs = application.applicantInfo.documents;
+            const hasIdCard = !!docs.idCard;
+            const hasBankbook = !!docs.bankbook;
+            const hasHealthCert = !!docs.healthCertificate;
+            const hasDriverLicense = docs.extraDocuments?.includes('driverLicense');
+            const hasCertificates = docs.certificates && docs.certificates.length > 0;
+            const hasLanguage = docs.language && docs.language.length > 0;
 
-                {/* 자격증 */}
-                {application.applicantInfo.documents.certificates &&
-                  application.applicantInfo.documents.certificates.length >
-                    0 && (
-                    <div className="mt-4 pt-4 border-t">
+            // 제출한 서류가 하나라도 있는지 확인
+            const hasAnyDocument = hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense || hasCertificates || hasLanguage;
+
+            if (!hasAnyDocument) return null;
+
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">서류 제출 현황</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* 기본 서류 (제출한 것만 표시) */}
+                  {(hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {hasIdCard && (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-4 text-green-500" />
+                          <div className="flex items-center gap-1">
+                            <IdCard className="size-4 text-gray-500" />
+                            <span className="text-sm">신분증</span>
+                          </div>
+                        </div>
+                      )}
+                      {hasBankbook && (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-4 text-green-500" />
+                          <div className="flex items-center gap-1">
+                            <CreditCard className="size-4 text-gray-500" />
+                            <span className="text-sm">통장사본</span>
+                          </div>
+                        </div>
+                      )}
+                      {hasHealthCert && (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-4 text-green-500" />
+                          <div className="flex items-center gap-1">
+                            <FileCheck className="size-4 text-gray-500" />
+                            <span className="text-sm">보건증</span>
+                          </div>
+                        </div>
+                      )}
+                      {hasDriverLicense && (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-4 text-green-500" />
+                          <div className="flex items-center gap-1">
+                            <Car className="size-4 text-gray-500" />
+                            <span className="text-sm">운전면허증</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 자격증 */}
+                  {hasCertificates && (
+                    <div className={cn(
+                      "mt-4 pt-4",
+                      (hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense) && "border-t"
+                    )}>
                       <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
                         <Award className="size-4" />
                         자격증
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {application.applicantInfo.documents.certificates.map(
-                          (cert, index) => (
-                            <Badge key={index} variant="secondary">
-                              {cert}
-                            </Badge>
-                          )
-                        )}
+                        {docs.certificates!.map((cert, index) => (
+                          <Badge key={index} variant="secondary">
+                            {cert}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   )}
 
-                {/* 어학 능력 */}
-                {application.applicantInfo.documents.language &&
-                  application.applicantInfo.documents.language.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
+                  {/* 어학 능력 */}
+                  {hasLanguage && (
+                    <div className={cn(
+                      "mt-4 pt-4",
+                      (hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense || hasCertificates) && "border-t"
+                    )}>
                       <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
                         <Languages className="size-4" />
                         어학 능력
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {application.applicantInfo.documents.language.map(
-                          (lang, index) => (
-                            <Badge key={index} variant="secondary">
-                              {lang}
-                            </Badge>
-                          )
-                        )}
+                        {docs.language!.map((lang, index) => (
+                          <Badge key={index} variant="secondary">
+                            {lang}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* 성격 및 특징 */}
           {application.applicantInfo &&
@@ -1163,16 +1195,166 @@ function ApplicationDetailModal({
             </CardContent>
           </Card>
 
-          {/* 지원 메시지 */}
+          {/* 전달 내용 */}
           {application.message && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">지원 메시지</CardTitle>
+                <CardTitle className="text-base">전달 내용</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {application.message}
-                </p>
+              <CardContent className="space-y-3">
+                {/* 지원 메시지 */}
+                {(() => {
+                  // 메시지에서 전달 정보 부분을 분리
+                  const messageText = application.message.split('[전달 정보:')[0].trim();
+                  const transferInfoMatch = application.message.match(/\[전달 정보:\s*([^\]]+)\]/);
+                  const transferInfo = transferInfoMatch ? transferInfoMatch[1].trim() : '';
+
+                  return (
+                    <>
+                      {messageText && (
+                        <div>
+                          <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                            <MessageSquare className="size-4" />
+                            지원 메시지
+                          </Label>
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">
+                              {messageText}
+                            </p>
+                            {messageText.length > 100 && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="link" size="sm" className="px-0 h-auto mt-1">
+                                    전체 보기
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-96 max-h-96 overflow-y-auto">
+                                  <div className="space-y-2">
+                                    <h4 className="font-semibold text-sm">전체 메시지</h4>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                      {messageText}
+                                    </p>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 전달 정보 */}
+                      {transferInfo && (
+                        <div>
+                          <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                            <Info className="size-4" />
+                            전달 정보
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <div className="bg-blue-50 px-3 py-2 rounded-lg flex-1">
+                              <p className="text-sm text-blue-900">{transferInfo}</p>
+                            </div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  상세보기
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80">
+                                <div className="space-y-3">
+                                  <h4 className="font-semibold text-sm mb-2">전달 정보 상세</h4>
+
+                                  {/* 경력 정보 */}
+                                  {application.applicantInfo?.experiences &&
+                                   application.applicantInfo.experiences.length > 0 && (
+                                    <div>
+                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Briefcase className="size-3" />
+                                        경력 ({application.applicantInfo.experiences.length}개)
+                                      </Label>
+                                      <div className="space-y-1 bg-gray-50 p-2 rounded">
+                                        {application.applicantInfo.experiences.map((exp, idx) => (
+                                          <div key={idx} className="text-xs">
+                                            <p className="font-medium">{exp.title}</p>
+                                            <p className="text-gray-600">
+                                              {exp.date} · {exp.location}
+                                            </p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 자격증 */}
+                                  {application.applicantInfo?.documents?.certificates &&
+                                   application.applicantInfo.documents.certificates.length > 0 && (
+                                    <div>
+                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Award className="size-3" />
+                                        자격증 ({application.applicantInfo.documents.certificates.length}개)
+                                      </Label>
+                                      <div className="flex flex-wrap gap-1">
+                                        {application.applicantInfo.documents.certificates.map((cert, idx) => (
+                                          <Badge key={idx} variant="secondary" className="text-xs">
+                                            {cert}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 어학 능력 */}
+                                  {application.applicantInfo?.documents?.language &&
+                                   application.applicantInfo.documents.language.length > 0 && (
+                                    <div>
+                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Languages className="size-3" />
+                                        어학 능력 ({application.applicantInfo.documents.language.length}개)
+                                      </Label>
+                                      <div className="flex flex-wrap gap-1">
+                                        {application.applicantInfo.documents.language.map((lang, idx) => (
+                                          <Badge key={idx} variant="secondary" className="text-xs">
+                                            {lang}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 서류 제출 현황 (제출한 것만 표시) */}
+                                  {application.applicantInfo?.documents && (() => {
+                                    const docs = application.applicantInfo.documents;
+                                    const submittedDocs = [];
+
+                                    if (docs.idCard) submittedDocs.push({ icon: CheckCircle2, label: '신분증' });
+                                    if (docs.bankbook) submittedDocs.push({ icon: CheckCircle2, label: '통장사본' });
+                                    if (docs.healthCertificate) submittedDocs.push({ icon: CheckCircle2, label: '보건증' });
+                                    if (docs.extraDocuments?.includes('driverLicense')) submittedDocs.push({ icon: CheckCircle2, label: '운전면허증' });
+
+                                    if (submittedDocs.length === 0) return null;
+
+                                    return (
+                                      <div>
+                                        <Label className="text-xs text-gray-500 mb-1 block">서류 제출</Label>
+                                        <div className="grid grid-cols-2 gap-1 text-xs">
+                                          {submittedDocs.map((doc, idx) => (
+                                            <div key={idx} className="flex items-center gap-1">
+                                              <CheckCircle2 className="size-3 text-green-500" />
+                                              <span>{doc.label}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
@@ -1205,9 +1387,7 @@ function ApplicationDetailModal({
               </>
             )}
           </div>
-          <Button type="button" variant="outline" onClick={onClose}>
-            닫기
-          </Button>
+      
         </DialogFooter>
       </DialogContent>
     </Dialog>

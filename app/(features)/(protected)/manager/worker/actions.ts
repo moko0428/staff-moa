@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createNotificationAction } from '@/app/(features)/(protected)/notification/actions';
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -47,13 +48,27 @@ export async function getApplicantsAction(): Promise<
     }
 
     if (!myPosts || myPosts.length === 0) {
+      console.log('[getApplicantsAction] No posts found for manager');
       return { ok: true, message: '', data: [] };
     }
 
     const postIds = myPosts.map((p) => p.post_id);
+    console.log('[getApplicantsAction] Post IDs:', postIds);
+
+    // 먼저 간단한 쿼리로 데이터가 있는지 확인
+    const { data: simpleCheck, error: simpleError } = await supabase
+      .from('member_schedules')
+      .select('member_schedule_id, post_id, member_id')
+      .in('post_id', postIds);
+
+    console.log('[getApplicantsAction] Simple check:', simpleCheck?.length || 0, 'records');
+    if (simpleError) {
+      console.error('[getApplicantsAction] Simple check error:', simpleError);
+    }
 
     // 2. 해당 공고들에 지원한 member_schedules 조회
-    const { data: applicants, error: applicantsError } = await supabase
+    // profiles는 별도로 조회 (foreign key 이름 문제 회피)
+    const { data: schedules, error: schedulesError } = await supabase
       .from('member_schedules')
       .select(
         `
@@ -64,7 +79,7 @@ export async function getApplicantsAction(): Promise<
         message,
         created_at,
         updated_at,
-        posts (
+        posts!inner (
           post_id,
           title,
           description,
@@ -72,31 +87,76 @@ export async function getApplicantsAction(): Promise<
           location,
           pay_amount,
           pay_type,
-          work_slots
-        ),
-        profiles:member_id (
-          user_id,
-          name,
-          email,
-          phone,
-          avatar,
-          attendance_score
+          work_slots,
+          status
         )
       `
       )
       .in('post_id', postIds)
       .order('created_at', { ascending: false });
 
-    if (applicantsError) {
-      console.error(
-        '[getApplicantsAction] Applicants select error',
-        applicantsError
-      );
+    if (schedulesError) {
+      console.error('[getApplicantsAction] Schedules select error', schedulesError);
       return {
         ok: false,
         message: '지원자 목록을 불러오는데 실패했습니다.',
         data: [],
       };
+    }
+
+    if (!schedules || schedules.length === 0) {
+      console.log('[getApplicantsAction] No schedules found');
+      return { ok: true, message: '', data: [] };
+    }
+
+    // 3. 각 지원자의 프로필 정보 가져오기
+    const memberIds = schedules.map((s) => s.member_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select(
+        `
+        user_id,
+        name,
+        email,
+        phone,
+        avatar,
+        attendance_score,
+        birth_date,
+        gender,
+        kakao_id,
+        mbti,
+        height,
+        weight,
+        personality,
+        features,
+        bio,
+        experiences,
+        documents
+      `
+      )
+      .in('user_id', memberIds);
+
+    if (profilesError) {
+      console.error('[getApplicantsAction] Profiles select error', profilesError);
+      return {
+        ok: false,
+        message: '지원자 정보를 불러오는데 실패했습니다.',
+        data: [],
+      };
+    }
+
+    // 4. 데이터 결합
+    const applicants = schedules.map((schedule) => {
+      const profile = profiles?.find((p) => p.user_id === schedule.member_id);
+      return {
+        ...schedule,
+        profiles: profile || null,
+      };
+    });
+
+    console.log('[getApplicantsAction] Applicants found:', applicants?.length || 0);
+    if (applicants && applicants.length > 0) {
+      console.log('[getApplicantsAction] First applicant:', JSON.stringify(applicants[0], null, 2));
     }
 
     return { ok: true, message: '', data: applicants || [] };
@@ -193,10 +253,10 @@ export async function updateApplicantStatusAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    // 1. member_schedule 정보 조회
+    // 1. member_schedule 정보 조회 (member_id 포함)
     const { data: schedule } = await supabase
       .from('member_schedules')
-      .select('post_id')
+      .select('post_id, member_id')
       .eq('member_schedule_id', memberScheduleId)
       .single();
 
@@ -204,10 +264,10 @@ export async function updateApplicantStatusAction(
       return { ok: false, message: '지원 정보를 찾을 수 없습니다.' };
     }
 
-    // 2. 해당 공고의 작성자인지 확인
+    // 2. 해당 공고의 작성자인지 확인 (공고 제목도 가져오기)
     const { data: post } = await supabase
       .from('posts')
-      .select('author_id')
+      .select('author_id, title')
       .eq('post_id', schedule.post_id)
       .single();
 
@@ -225,6 +285,21 @@ export async function updateApplicantStatusAction(
       console.error('[updateApplicantStatusAction] Update error', error);
       return { ok: false, message: '상태 변경에 실패했습니다.' };
     }
+
+    // 4. 지원자에게 알림 발송
+    const notificationType = status === 'accepted' ? 'application_accepted' : 'application_rejected';
+    const notificationTitle = status === 'accepted' ? '지원이 승인되었습니다' : '지원이 거절되었습니다';
+    const notificationMessage = status === 'accepted'
+      ? `"${post.title}" 공고에 대한 지원이 승인되었습니다. 스케줄을 확인해주세요.`
+      : `"${post.title}" 공고에 대한 지원이 거절되었습니다.`;
+
+    await createNotificationAction({
+      userId: schedule.member_id,
+      type: notificationType,
+      title: notificationTitle,
+      message: notificationMessage,
+      link: '/worker/schedule',
+    });
 
     const statusText = status === 'accepted' ? '승인' : '거절';
     return { ok: true, message: `지원자를 ${statusText}했습니다.` };
