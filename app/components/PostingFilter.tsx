@@ -72,10 +72,10 @@ export default function PostingFilter({
     : undefined;
   const toDate =
     dateMode === 'range'
-      ? toDateRaw ?? fromDate
+      ? (toDateRaw ?? fromDate)
       : dateMode === 'single'
-      ? fromDate
-      : undefined;
+        ? fromDate
+        : undefined;
 
   const handleRangeApply = (range: DateRange | undefined) => {
     if (!range?.from) {
@@ -152,7 +152,7 @@ export default function PostingFilter({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <div className="bg-white shadow-sm p-6 mb-6">
       <div className="flex gap-3 mb-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -170,15 +170,15 @@ export default function PostingFilter({
             'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
             showFilters
               ? 'bg-primary/10 border-primary text-primary'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-50',
           )}
         >
           <FilterIcon className="size-5" />
           필터
         </button>
       </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap gap-2 max-h-[5rem] overflow-hidden">
+      <div className="flex flex-col gap-1 overflow-x-scroll scroll-none max-w-full max-h-[3.5rem]">
+        <div className="flex gap-2 p-2 w-full scroll-none">
           {/* 전체 버튼 - 맨 왼쪽 */}
           <button
             type="button"
@@ -301,7 +301,7 @@ export default function PostingFilter({
                                     from: value,
                                     to: value,
                                   }
-                                : undefined
+                                : undefined,
                             )
                           }
                           numberOfMonths={1}
@@ -343,8 +343,8 @@ export default function PostingFilter({
                                 locale: ko,
                               })} ~ ${format(toDate, 'PPP', { locale: ko })}`
                             : dateMode === 'open-end'
-                            ? `${format(fromDate, 'PPP', { locale: ko })} 이후`
-                            : format(fromDate, 'PPP', { locale: ko })
+                              ? `${format(fromDate, 'PPP', { locale: ko })} 이후`
+                              : format(fromDate, 'PPP', { locale: ko })
                           : '선택된 날짜가 없습니다.'}
                       </div>
                     </div>
@@ -375,7 +375,7 @@ export default function PostingFilter({
                     'rounded-full border px-3 py-1 text-xs',
                     !filters.placeText
                       ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted text-foreground border-border'
+                      : 'bg-muted text-foreground border-border',
                   )}
                 >
                   전체 지역
@@ -391,7 +391,7 @@ export default function PostingFilter({
                         'rounded-full border px-3 py-1 text-xs',
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted text-foreground border-border'
+                          : 'bg-muted text-foreground border-border',
                       )}
                     >
                       {loc}

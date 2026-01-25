@@ -41,7 +41,7 @@ export default function MyPostCard({
   const [isUrgent, setIsUrgent] = useState(post.status === 'urgent');
   const [isCompleted, setIsCompleted] = useState(post.status === 'completed');
   const [previousStatus, setPreviousStatus] = useState<Post['status']>(
-    post.status === 'completed' ? 'recruiting' : post.status
+    post.status === 'completed' ? 'recruiting' : post.status,
   );
   const [newKeyword, setNewKeyword] = useState('');
 
@@ -183,18 +183,17 @@ export default function MyPostCard({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {post.title}
+              <h3 className="text-lg font-semibold text-gray-900">
+                {post.title.length > 24
+                  ? `${post.title.slice(0, 24)}...`
+                  : post.title}
               </h3>
               <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
                 <Calendar className="size-4" />
                 <span>
                   작성일:{' '}
                   {post.createdAt
-                    ? format(
-                        parseISO(post.createdAt),
-                        'yyyy-MM-dd HH:mm'
-                      )
+                    ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
                     : '-'}
                 </span>
               </div>

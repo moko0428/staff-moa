@@ -1,6 +1,13 @@
 'use client';
 
-import { useState, useEffect, useActionState, useTransition, useRef, Suspense } from 'react';
+import {
+  useState,
+  useEffect,
+  useActionState,
+  useTransition,
+  useRef,
+  Suspense,
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
@@ -83,7 +90,7 @@ function CreatePostContent() {
 
   const wrappedAction = async (
     prevState: ActionResult<{ id: string }>,
-    formData: FormData
+    formData: FormData,
   ): Promise<ActionResult<{ id: string }>> => {
     // createPostAction은 ActionResult<void>를 기대하므로 타입 캐스팅 필요
     // @ts-expect-error - createPostAction의 타입 시그니처가 useActionState와 완전히 일치하지 않음
@@ -93,7 +100,7 @@ function CreatePostContent() {
 
   const [state, formAction, isPending] = useActionState(
     wrappedAction,
-    initialState
+    initialState,
   );
   const [, startTransition] = useTransition();
 
@@ -121,7 +128,7 @@ function CreatePostContent() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
   const [status, setStatus] = useState<'recruiting' | 'completed' | 'urgent'>(
-    'recruiting'
+    'recruiting',
   );
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -132,7 +139,7 @@ function CreatePostContent() {
   const insertMarkdownText = (
     before: string,
     after: string = '',
-    placeholder: string = ''
+    placeholder: string = '',
   ) => {
     const textarea = descriptionTextareaRef.current;
     if (!textarea) return;
@@ -182,7 +189,7 @@ function CreatePostContent() {
     // 링크
     html = html.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>'
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>',
     );
 
     // 리스트
@@ -230,44 +237,51 @@ function CreatePostContent() {
         const result = await getPostByIdAction(repostId);
         if (result.ok && result.data) {
           const post = result.data;
-          setTitle(post.title as string || '');
-          setDescription(post.description as string || '');
-          setRecruitCount(post.recruit_count as number || 1);
-          setManagerName(post.manager_name as string || '');
-          setManagerPhone(post.manager_phone as string || '');
-          setEquipments(post.equipments as string || '');
-          setQualifications(post.qualifications as string || '');
-          setPreferences(post.preferences as string || '');
-          setNotes(post.notes as string || '');
-          setExternalLink(post.external_link as string || '');
-          setKeywords(post.keywords as string[] || []);
+          setTitle((post.title as string) || '');
+          setDescription((post.description as string) || '');
+          setRecruitCount((post.recruit_count as number) || 1);
+          setManagerName((post.manager_name as string) || '');
+          setManagerPhone((post.manager_phone as string) || '');
+          setEquipments((post.equipments as string) || '');
+          setQualifications((post.qualifications as string) || '');
+          setPreferences((post.preferences as string) || '');
+          setNotes((post.notes as string) || '');
+          setExternalLink((post.external_link as string) || '');
+          setKeywords((post.keywords as string[]) || []);
           setStatus('recruiting'); // 재공고는 모집중으로 시작
 
           // work_slots 변환
           if (post.work_slots && Array.isArray(post.work_slots)) {
-            const slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
-              date: slot.date as string || '',
-              start: (slot.start_time || slot.start) as string || '',
-              end: (slot.end_time || slot.end) as string || '',
-              location: (slot.location || post.location) as string || '',
-              pay_type: (slot.pay_type || post.pay_type || 'hourly') as WorkSlot['pay_type'],
+            const slots = (
+              post.work_slots as Array<Record<string, unknown>>
+            ).map((slot) => ({
+              date: (slot.date as string) || '',
+              start: ((slot.start_time || slot.start) as string) || '',
+              end: ((slot.end_time || slot.end) as string) || '',
+              location: ((slot.location || post.location) as string) || '',
+              pay_type: (slot.pay_type ||
+                post.pay_type ||
+                'hourly') as WorkSlot['pay_type'],
               pay_amount: (slot.pay_amount || post.pay_amount || 0) as number,
-              tax_withholding: slot.tax_withholding !== undefined
-                ? slot.tax_withholding as boolean
-                : (post.tax_withholding as boolean || false),
+              tax_withholding:
+                slot.tax_withholding !== undefined
+                  ? (slot.tax_withholding as boolean)
+                  : (post.tax_withholding as boolean) || false,
             }));
             setWorkSlots(slots);
           } else if (post.work_date) {
             // 레거시 데이터 지원
-            setWorkSlots([{
-              date: post.work_date as string || '',
-              start: post.work_time_start as string || '',
-              end: post.work_time_end as string || '',
-              location: post.location as string || '',
-              pay_type: (post.pay_type || 'hourly') as WorkSlot['pay_type'],
-              pay_amount: Number(post.pay_amount) || 0,
-              tax_withholding: post.tax_withholding as boolean || false,
-            }]);
+            setWorkSlots([
+              {
+                date: (post.work_date as string) || '',
+                start: (post.work_time_start as string) || '',
+                end: (post.work_time_end as string) || '',
+                location: (post.location as string) || '',
+                pay_type: (post.pay_type || 'hourly') as WorkSlot['pay_type'],
+                pay_amount: Number(post.pay_amount) || 0,
+                tax_withholding: (post.tax_withholding as boolean) || false,
+              },
+            ]);
           }
         }
       } catch (err) {
@@ -334,7 +348,7 @@ function CreatePostContent() {
   const handleWorkSlotChange = (
     index: number,
     field: keyof WorkSlot,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     const updated = [...workSlots];
     updated[index] = { ...updated[index], [field]: value };
@@ -486,11 +500,11 @@ function CreatePostContent() {
 
     for (const keyword of locationKeywords) {
       const locationLine = lines.find(
-        (line) => line.includes(keyword) || fullText.includes(keyword)
+        (line) => line.includes(keyword) || fullText.includes(keyword),
       );
       if (locationLine) {
         const match = locationLine.match(
-          new RegExp(`${keyword.replace('🏢', '')}\\s*:?\\s*(.+)`, 'i')
+          new RegExp(`${keyword.replace('🏢', '')}\\s*:?\\s*(.+)`, 'i'),
         );
         if (match) {
           parsedLocation = match[1].trim();
@@ -515,7 +529,7 @@ function CreatePostContent() {
       const equipLine = lines.find((line) => line.includes(keyword));
       if (equipLine) {
         const match = equipLine.match(
-          new RegExp(`${keyword.replace('👔', '')}\\s*:?\\s*(.+)`, 'i')
+          new RegExp(`${keyword.replace('👔', '')}\\s*:?\\s*(.+)`, 'i'),
         );
         if (match) {
           parsedEquipments = match[1].trim();
@@ -531,7 +545,7 @@ function CreatePostContent() {
       const workLine = lines.find((line) => line.includes(keyword));
       if (workLine) {
         const match = workLine.match(
-          new RegExp(`${keyword.replace('⌨', '')}\\s*:?\\s*(.+)`, 'i')
+          new RegExp(`${keyword.replace('⌨', '')}\\s*:?\\s*(.+)`, 'i'),
         );
         if (match) {
           parsedWorkDescription = match[1].trim();
@@ -763,13 +777,18 @@ function CreatePostContent() {
   return (
     <div>
       <Hero
-        title={isRepostMode ? "재공고 작성" : "새 공고 작성"}
-        description={isRepostMode ? "기존 공고를 기반으로 새 공고를 작성합니다" : "새로운 공고를 작성하세요"}
+        title={isRepostMode ? '재공고 작성' : '새 공고 작성'}
+        description={
+          isRepostMode
+            ? '기존 공고를 기반으로 새 공고를 작성합니다'
+            : '새로운 공고를 작성하세요'
+        }
       />
 
       {isRepostMode && (
         <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
-          <span className="font-medium">재공고 수정 중</span> - 기존 공고 내용을 수정하여 새로운 공고로 등록합니다.
+          <span className="font-medium">재공고 수정 중</span> - 기존 공고 내용을
+          수정하여 새로운 공고로 등록합니다.
         </div>
       )}
 
@@ -851,6 +870,7 @@ function CreatePostContent() {
               <Label htmlFor="title">
                 제목 <span className="text-red-500">*</span>
               </Label>
+              <small className="text-gray-500">최대 24자</small>
               <Input
                 id="title"
                 value={title}
@@ -1095,7 +1115,7 @@ function CreatePostContent() {
                         handleWorkSlotChange(
                           index,
                           'pay_type',
-                          v as WorkSlot['pay_type']
+                          v as WorkSlot['pay_type'],
                         )
                       }
                     >
@@ -1122,7 +1142,7 @@ function CreatePostContent() {
                         handleWorkSlotChange(
                           index,
                           'pay_amount',
-                          Number(e.target.value)
+                          Number(e.target.value),
                         )
                       }
                       required
@@ -1137,7 +1157,7 @@ function CreatePostContent() {
                         handleWorkSlotChange(
                           index,
                           'tax_withholding',
-                          e.target.checked
+                          e.target.checked,
                         )
                       }
                       className="size-4"
@@ -1315,8 +1335,10 @@ function CreatePostContent() {
                 <Loader2 className="size-4 mr-2 animate-spin" />
                 {isRepostMode ? '재공고 작성 중...' : '작성 중...'}
               </>
+            ) : isRepostMode ? (
+              '재공고 작성하기'
             ) : (
-              isRepostMode ? '재공고 작성하기' : '작성하기'
+              '작성하기'
             )}
           </Button>
         </div>
@@ -1327,16 +1349,18 @@ function CreatePostContent() {
 
 export default function CreatePostPage() {
   return (
-    <Suspense fallback={
-      <div className="space-y-4">
-        <Hero title="공고 작성" description="공고를 불러오는 중..." />
-        <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
-            페이지를 불러오는 중입니다...
-          </CardContent>
-        </Card>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Hero title="공고 작성" description="공고를 불러오는 중..." />
+          <Card>
+            <CardContent className="py-6 text-sm text-gray-600">
+              페이지를 불러오는 중입니다...
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
       <CreatePostContent />
     </Suspense>
   );
