@@ -107,10 +107,11 @@ export async function getAllPostsAction(): Promise<
       };
     }
 
-    // 과거 포스트 상태 자동 업데이트
+    // 각 포스트별 지원자 수 조회 및 과거 포스트 상태 자동 업데이트
     if (data && data.length > 0) {
       await Promise.all(
         data.map(async (post: Record<string, unknown>) => {
+          // 과거 포스트 상태 업데이트
           if (isPostPast(post) && post.status !== 'completed') {
             const postId = post.post_id as number | string;
             if (postId !== undefined && postId !== null) {
@@ -118,6 +119,15 @@ export async function getAllPostsAction(): Promise<
               post.status = 'completed';
             }
           }
+
+          // 지원자 수 조회
+          const postId = post.post_id as number;
+          const { data: applicants } = await supabase
+            .from('member_schedules')
+            .select('member_schedule_id')
+            .eq('post_id', postId);
+
+          post.currentApplicants = applicants?.length || 0;
         })
       );
     }

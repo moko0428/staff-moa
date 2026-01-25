@@ -47,6 +47,7 @@ type SupabasePost = {
   form_type?: string | null;
   created_at: string;
   updated_at: string;
+  currentApplicants?: number;
   work_slots?: Array<{
     date: string;
     start_time: string;
@@ -99,7 +100,7 @@ function supabasePostToPost(supabasePost: SupabasePost): Post & {
       phone: supabasePost.manager_phone,
     },
     recruitCount: supabasePost.recruit_count,
-    currentApplicants: 0,
+    currentApplicants: supabasePost.currentApplicants || 0,
     notes: supabasePost.notes || undefined,
     requirements: supabasePost.qualifications || undefined,
     preferences: supabasePost.preferences || undefined,

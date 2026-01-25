@@ -281,7 +281,7 @@ export default function ProfilePage() {
                 </div>
                 <h2 className="text-2xl font-bold mb-2">{currentUser.name}</h2>
                 <Badge variant="outline" className="mb-4">
-                  {effectiveRole === 'member' && '일반 회원'}
+                  {effectiveRole === 'member' && '스탭'}
                   {effectiveRole === 'manager' && '매니저'}
                   {effectiveRole === 'admin' && '관리자'}
                 </Badge>
@@ -556,7 +556,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* 일반 회원 전용 정보 */}
+          {/* 스탭 전용 정보 */}
           {isMember && (
             <>
               {/* 신체 정보 */}

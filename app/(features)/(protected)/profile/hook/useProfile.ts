@@ -103,11 +103,11 @@ export const useProfile = () => {
             (profileRow?.role as User['role'] | undefined) ??
             (meta.role as User['role'] | undefined) ??
             'member',
-          photo: profileRow?.photo ?? meta.photo,
+          photo: profileRow?.avatar ?? meta.photo,
           attendanceScore:
             profileRow?.attendance_score ?? meta.attendanceScore ?? 50,
           createdAt: data.user.created_at ?? new Date().toISOString(),
-          introduction: profileRow?.introduction ?? meta.introduction,
+          introduction: profileRow?.bio ?? meta.introduction,
           phone: profileRow?.phone ?? meta.phone,
           kakaoId: profileRow?.kakao_id ?? meta.kakaoId,
           mbti: profileRow?.mbti ?? meta.mbti,
@@ -115,7 +115,7 @@ export const useProfile = () => {
             (profileRow?.gender as User['gender']) ??
             (meta.gender as User['gender']),
           birthDate: profileRow?.birth_date ?? meta.birthDate,
-          age: profileRow?.age ?? meta.age,
+          age: meta.age,
           personality: profileRow?.personality ?? meta.personality,
           features: profileRow?.features ?? meta.features,
           experiences: profileExperiences ?? metaExperiences ?? [],
@@ -152,16 +152,57 @@ export const useProfile = () => {
     data: Record<string, unknown>,
     successMessage?: string
   ) => {
+    if (!currentUser) return false;
     setIsSaving(true);
     try {
-      const { error } = await supabase.auth.updateUser({ data });
-      if (error) {
-        console.error('자동 저장 실패:', error);
-        alert('자동 저장에 실패했습니다.');
-        return false;
+      // profiles 테이블 업데이트를 위한 컬럼 매핑
+      const profileData: Record<string, unknown> = {};
+
+      // 필드 매핑 (camelCase -> snake_case)
+      if (data.photo !== undefined) profileData.avatar = data.photo;
+      if (data.introduction !== undefined) profileData.bio = data.introduction;
+      if (data.kakaoId !== undefined) profileData.kakao_id = data.kakaoId;
+      if (data.birthDate !== undefined) profileData.birth_date = data.birthDate;
+      if (data.companyName !== undefined) profileData.company_name = data.companyName;
+      if (data.businessNumber !== undefined) profileData.business_number = data.businessNumber;
+      if (data.companyCertificate !== undefined) profileData.company_certificate = data.companyCertificate;
+      if (data.companyVerifyStatus !== undefined) profileData.company_verify_status = data.companyVerifyStatus;
+
+      // 직접 매핑되는 필드들
+      const directFields = ['name', 'email', 'phone', 'mbti', 'gender', 'height', 'weight', 'personality', 'features', 'documents', 'experiences'];
+      directFields.forEach(field => {
+        if (data[field] !== undefined) {
+          profileData[field] = data[field];
+        }
+      });
+
+      // profiles 테이블 업데이트
+      if (Object.keys(profileData).length > 0) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(profileData)
+          .eq('user_id', currentUser.id);
+
+        if (profileError) {
+          console.error('프로필 저장 실패:', profileError);
+          alert('저장에 실패했습니다.');
+          return false;
+        }
       }
+
+      // user_metadata도 동기화 (best-effort)
+      const { error: metadataError } = await supabase.auth.updateUser({ data });
+      if (metadataError) {
+        console.error('메타데이터 동기화 경고:', metadataError);
+        // metadata 실패는 무시 (profiles가 single source of truth)
+      }
+
       if (successMessage) alert(successMessage);
       return true;
+    } catch (err) {
+      console.error('저장 중 오류:', err);
+      alert('저장에 실패했습니다.');
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -192,7 +233,39 @@ export const useProfile = () => {
     if (!currentUser) return;
     setIsSaving(true);
     try {
-      const payload = {
+      // profiles 테이블에 저장 (single source of truth)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: currentUser.name,
+          email: currentUser.email,
+          phone: currentUser.phone ?? null,
+          kakao_id: currentUser.kakaoId ?? null,
+          mbti: currentUser.mbti ?? null,
+          birth_date: currentUser.birthDate ?? null,
+          gender: currentUser.gender ?? null,
+          height: currentUser.height ?? null,
+          weight: currentUser.weight ?? null,
+          bio: currentUser.introduction ?? null,
+          company_name: currentUser.companyName ?? null,
+          business_number: currentUser.businessNumber ?? null,
+          company_certificate: currentUser.companyCertificate ?? null,
+          company_verify_status: currentUser.companyVerifyStatus ?? 'pending',
+          personality: currentUser.personality ?? null,
+          features: currentUser.features ?? null,
+          documents: currentUser.documents ?? {},
+          experiences: currentUser.experiences ?? [],
+        })
+        .eq('user_id', currentUser.id);
+
+      if (profileError) {
+        console.error('프로필 저장 실패:', profileError);
+        alert('프로필 저장에 실패했습니다.');
+        return;
+      }
+
+      // user_metadata도 동기화 (best-effort)
+      const metadataPayload = {
         name: currentUser.name,
         phone: currentUser.phone ?? '',
         kakaoId: currentUser.kakaoId ?? '',
@@ -216,18 +289,14 @@ export const useProfile = () => {
         experiences: currentUser.experiences ?? [],
       };
 
-      const { error } = await supabase.auth.updateUser({
-        data: payload,
+      await supabase.auth.updateUser({
+        data: metadataPayload,
       });
-
-      if (error) {
-        alert('프로필 저장에 실패했습니다.');
-        return;
-      }
 
       alert('프로필이 저장되었습니다.');
       setIsEditing(false);
-    } catch {
+    } catch (err) {
+      console.error('프로필 저장 중 오류:', err);
       alert('프로필 저장에 실패했습니다.');
     } finally {
       setIsSaving(false);

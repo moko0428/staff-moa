@@ -17,18 +17,18 @@ import {
 } from 'lucide-react';
 
 const stats = [
-  { label: '활동 스탭', value: '12,400+', icon: <User className="size-6" /> },
+  { label: '활동 스탭', value: '999+', icon: <User className="size-6" /> },
   {
     label: '등록 공고',
-    value: '2,100+',
+    value: '999+',
     icon: <Briefcase className="size-6" />,
   },
   {
     label: '파트너 업체',
-    value: '850+',
+    value: '99+',
     icon: <Building2 className="size-6" />,
   },
-  { label: '평균 평점', value: '4.9', icon: <Star className="size-6" /> },
+  { label: '평균 평점', value: '5', icon: <Star className="size-6" /> },
 ];
 
 const steps = [
@@ -36,7 +36,7 @@ const steps = [
   { title: '프로필 작성', desc: '경력, 서류, 어학/자격증 정보를 입력하세요.' },
   {
     title: '공고 탐색/등록',
-    desc: '일반 회원은 공고를 지원, 매니저는 공고를 등록합니다.',
+    desc: '스탭은 공고를 지원, 매니저는 공고를 등록합니다.',
   },
   {
     title: '매칭 및 관리',
@@ -46,7 +46,7 @@ const steps = [
 
 const featuresByRole = [
   {
-    role: '일반 회원',
+    role: '스탭',
     items: [
       '공고 검색/필터',
       '관심 목록 관리',

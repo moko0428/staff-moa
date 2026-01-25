@@ -12,8 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/app/components/ui/tabs';
 import JobCard, { type JobItem } from '@/app/components/JobCard';
-import { Heart, Search, ArrowUpDown, Loader2 } from 'lucide-react';
+import { Heart, Search, ArrowUpDown, Loader2, FileText, Users } from 'lucide-react';
 import { getFavoritePostsAction } from './actions';
 import { useUserStore } from '@/store/useUserStore';
 import { Post } from '@/types/mockData'; // 타입 정의만 사용 (실제 데이터는 Supabase에서 가져옴)
@@ -258,7 +264,7 @@ export default function WorkerFavoritePage() {
     <div>
       <Hero
         title="관심 목록"
-        description="관심있는 공고를 저장하고 빠르게 확인하세요"
+        description="관심있는 공고와 매니저를 저장하고 빠르게 확인하세요"
       />
 
       {!roleHydrated ? (
@@ -271,84 +277,117 @@ export default function WorkerFavoritePage() {
       ) : !isMember ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-gray-500">일반 회원만 관심 목록을 사용할 수 있습니다.</p>
-          </CardContent>
-        </Card>
-      ) : isLoading ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Loader2 className="size-12 text-gray-300 mx-auto mb-4 animate-spin" />
-            <p className="text-gray-500">관심 목록을 불러오는 중...</p>
-          </CardContent>
-        </Card>
-      ) : favoritePosts.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Heart className="size-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-2">관심 목록이 비어있습니다</p>
-            <p className="text-sm text-gray-400 mb-4">
-              공고 카드의 하트 아이콘을 클릭하여 관심 목록에 추가하세요
-            </p>
-            <Button onClick={() => (window.location.href = '/post')}>
-              공고 둘러보기
-            </Button>
+            <p className="text-gray-500">스탭만 관심 목록을 사용할 수 있습니다.</p>
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* 검색 및 필터 */}
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-                    <Input
-                      placeholder="제목, 장소, 키워드로 검색..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="w-full md:w-48">
-                  <Select
-                    value={sortOrder}
-                    onValueChange={(value) => setSortOrder(value as SortOrder)}
-                  >
-                    <SelectTrigger>
-                      <ArrowUpDown className="size-4 mr-2" />
-                      <SelectValue placeholder="정렬 기준" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">최신순</SelectItem>
-                      <SelectItem value="oldest">오래된순</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="posts" className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto mb-6 grid-cols-2">
+            <TabsTrigger value="posts" className="flex items-center gap-2">
+              <FileText className="size-4" />
+              포스트
+            </TabsTrigger>
+            <TabsTrigger value="managers" className="flex items-center gap-2">
+              <Users className="size-4" />
+              매니저
+            </TabsTrigger>
+          </TabsList>
 
-          {/* 공고 목록 */}
-          {filteredAndSortedPosts.length === 0 ? (
+          <TabsContent value="posts">
+            {isLoading ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Loader2 className="size-12 text-gray-300 mx-auto mb-4 animate-spin" />
+                  <p className="text-gray-500">관심 목록을 불러오는 중...</p>
+                </CardContent>
+              </Card>
+            ) : favoritePosts.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Heart className="size-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">관심 목록이 비어있습니다</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    공고 카드의 하트 아이콘을 클릭하여 관심 목록에 추가하세요
+                  </p>
+                  <Button onClick={() => (window.location.href = '/post')}>
+                    공고 둘러보기
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* 검색 및 필터 */}
+                <Card className="mb-6">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                          <Input
+                            placeholder="제목, 장소, 키워드로 검색..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div className="w-full md:w-48">
+                        <Select
+                          value={sortOrder}
+                          onValueChange={(value) => setSortOrder(value as SortOrder)}
+                        >
+                          <SelectTrigger>
+                            <ArrowUpDown className="size-4 mr-2" />
+                            <SelectValue placeholder="정렬 기준" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="newest">최신순</SelectItem>
+                            <SelectItem value="oldest">오래된순</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 공고 목록 */}
+                {filteredAndSortedPosts.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Search className="size-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">검색 결과가 없습니다</p>
+                      <p className="text-sm text-gray-400">
+                        다른 검색어를 입력해보세요
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredAndSortedPosts.map((post) => (
+                      <JobCard key={post.id} item={postToJobItem(post)} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="managers">
             <Card>
               <CardContent className="py-12 text-center">
-                <Search className="size-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">검색 결과가 없습니다</p>
-                <p className="text-sm text-gray-400">
-                  다른 검색어를 입력해보세요
+                <Users className="size-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">매니저 팔로우 기능</p>
+                <p className="text-sm text-gray-400 mb-4">
+                  향후 업데이트에서 관심있는 매니저를 팔로우하고<br />
+                  새로운 공고 알림을 받을 수 있습니다
+                </p>
+                <p className="text-xs text-gray-400">
+                  Coming Soon...
                 </p>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2  gap-6">
-              {filteredAndSortedPosts.map((post) => (
-                <JobCard key={post.id} item={postToJobItem(post)} />
-              ))}
-            </div>
-          )}
-        </>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

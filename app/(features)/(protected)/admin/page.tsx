@@ -1,9 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { mockUsers, mockPosts } from '@/lib/mockData';
-import { User, Post } from '@/types/mockData';
-import { createClient } from '@/utils/supabase/client';
 import {
   Card,
   CardContent,
@@ -49,11 +46,17 @@ import {
   fetchPendingManagersAction,
   updateManagerStatusAction,
 } from './manager-actions';
+import {
+  fetchMembersAction,
+  fetchPostsAction,
+  type AdminMemberItem,
+  type AdminPostItem,
+} from './admin-data-actions';
 
 type AdminTab = 'members' | 'posts' | 'reports' | 'manager-approval';
 
 interface PostReportInfo {
-  post: Post;
+  post: AdminPostItem;
   reportCount: number;
   reasons: string[];
 }
@@ -66,14 +69,6 @@ const REPORT_REASONS = [
   '임금·근무 조건이 실제와 다르거나 명확하지 않아요.',
   '기타 커뮤니티 가이드라인을 위반한 것 같아요.',
 ];
-
-const mockPostReports: PostReportInfo[] = mockPosts
-  .slice(0, 6)
-  .map((post, index) => ({
-    post,
-    reportCount: (index + 1) * 3,
-    reasons: [REPORT_REASONS[index % REPORT_REASONS.length]],
-  }));
 
 interface PendingManager {
   id: string;
@@ -90,61 +85,51 @@ interface PendingManager {
   requestedAt: string;
 }
 
-type AdminMemberItem = {
-  id: string;
-  email: string;
-  name: string;
-  role: User['role'];
-  photo?: string | null;
-  attendanceScore?: number | null;
-};
-
 // 간단한 매니저 승급 요청 Mock 데이터
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('members');
   const [members, setMembers] = useState<AdminMemberItem[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [posts, setPosts] = useState<AdminPostItem[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [pendingManagers, setPendingManagers] = useState<PendingManager[]>([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
-
-  // 실제 구현에서는 서버에서 관리자를 판별하지만, 여기서는 role === 'admin' 유저를 관리자라고 가정
-  const adminUser = useMemo(
-    () => mockUsers.find((u) => u.role === 'admin'),
-    []
-  );
-
-  const supabase = useMemo(() => createClient(), []);
 
   const fetchMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, email, name, photo, role, attendance_score')
-        .neq('role', 'admin');
-      if (error) throw error;
-
-      const mapped: AdminMemberItem[] =
-        data?.map((row) => ({
-          id: row.user_id,
-          email: row.email,
-          name: row.name,
-          photo: row.photo,
-          role: row.role as User['role'],
-          attendanceScore: row.role === 'member' ? row.attendance_score : null,
-        })) ?? [];
-      setMembers(mapped);
+      const data = await fetchMembersAction();
+      console.log('Fetched members:', data);
+      setMembers(data);
     } catch (err) {
       console.error('Failed to load members', err);
       setMembers([]);
     } finally {
       setLoadingMembers(false);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  const fetchPosts = useCallback(async () => {
+    setLoadingPosts(true);
+    try {
+      const data = await fetchPostsAction();
+      console.log('Fetched posts:', data);
+      setPosts(data);
+    } catch (err) {
+      console.error('Failed to load posts', err);
+      setPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const [bannedUserIds, setBannedUserIds] = useState<string[]>([]);
   const [deletedPostIds, setDeletedPostIds] = useState<string[]>([]);
@@ -167,8 +152,8 @@ export default function AdminPage() {
   const [managerSearch, setManagerSearch] = useState('');
 
   const visiblePosts = useMemo(
-    () => mockPosts.filter((post) => !deletedPostIds.includes(post.id)),
-    [deletedPostIds]
+    () => posts.filter((post) => !deletedPostIds.includes(post.id)),
+    [posts, deletedPostIds]
   );
 
   const filteredMembers = useMemo(
@@ -177,8 +162,8 @@ export default function AdminPage() {
         .filter((user) => {
           const matchSearch =
             !memberSearch ||
-            user.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-            user.email.toLowerCase().includes(memberSearch.toLowerCase());
+            (user.name?.toLowerCase().includes(memberSearch.toLowerCase()) ?? false) ||
+            (user.email?.toLowerCase().includes(memberSearch.toLowerCase()) ?? false);
 
           const isBanned = bannedUserIds.includes(user.id);
 
@@ -191,7 +176,7 @@ export default function AdminPage() {
 
           return matchSearch && matchRole;
         })
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     [members, memberSearch, memberRoleFilter, bannedUserIds]
   );
 
@@ -211,21 +196,26 @@ export default function AdminPage() {
     [visiblePosts, postSearch, postStatusFilter]
   );
 
-  const sortedReports = useMemo(
-    () =>
-      mockPostReports
-        .filter((item) => !handledReportPostIds.includes(item.post.id))
-        .filter((item) => {
-          if (!reportSearch) return true;
-          const keyword = reportSearch.toLowerCase();
-          return (
-            item.post.title.toLowerCase().includes(keyword) ||
-            item.post.location.toLowerCase().includes(keyword)
-          );
-        })
-        .sort((a, b) => b.reportCount - a.reportCount),
-    [handledReportPostIds, reportSearch]
-  );
+  const sortedReports = useMemo(() => {
+    // Mock report data from real posts (임시 데이터 - 실제로는 reports 테이블에서 가져와야 함)
+    const mockReports: PostReportInfo[] = posts.slice(0, 6).map((post, index) => ({
+      post,
+      reportCount: (index + 1) * 3,
+      reasons: [REPORT_REASONS[index % REPORT_REASONS.length]],
+    }));
+
+    return mockReports
+      .filter((item) => !handledReportPostIds.includes(item.post.id))
+      .filter((item) => {
+        if (!reportSearch) return true;
+        const keyword = reportSearch.toLowerCase();
+        return (
+          item.post.title.toLowerCase().includes(keyword) ||
+          item.post.location.toLowerCase().includes(keyword)
+        );
+      })
+      .sort((a, b) => b.reportCount - a.reportCount);
+  }, [posts, handledReportPostIds, reportSearch]);
 
   const fetchPendingManagers = useCallback(async () => {
     setLoadingManagers(true);
@@ -285,7 +275,7 @@ export default function AdminPage() {
     }
   };
 
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedPost, setSelectedPost] = useState<AdminPostItem | null>(null);
 
   return (
     <div className="space-y-6">
@@ -358,9 +348,9 @@ export default function AdminPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체</SelectItem>
-                    <SelectItem value="member">회원만</SelectItem>
+                    <SelectItem value="member">스탭만</SelectItem>
                     <SelectItem value="manager">매니저만</SelectItem>
-                    <SelectItem value="banned">정지 회원만</SelectItem>
+                    <SelectItem value="banned">정지 스탭만</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -387,21 +377,21 @@ export default function AdminPage() {
                       <Avatar className="h-10 w-10">
                         <AvatarImage
                           src={user.photo ?? undefined}
-                          alt={user.name}
+                          alt={user.name ?? '사용자'}
                         />
-                        <AvatarFallback>{user.name.at(0)}</AvatarFallback>
+                        <AvatarFallback>{user.name?.at(0) ?? '?'}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col">
-                        <span className="font-medium text-sm">{user.name}</span>
+                        <span className="font-medium text-sm">{user.name ?? '알 수 없음'}</span>
                         <span className="text-xs text-gray-500">
-                          {user.email}
+                          {user.email ?? '이메일 없음'}
                         </span>
                         <div className="flex items-center gap-1 mt-1">
                           <Badge
                             variant="outline"
                             className="text-[10px] px-1.5 py-0.5"
                           >
-                            {user.role === 'manager' ? '매니저' : '회원'}
+                            {user.role === 'manager' ? '매니저' : '스탭'}
                           </Badge>
                           {user.role === 'member' && (
                             <Badge
@@ -487,32 +477,41 @@ export default function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {filteredPosts.map((post) => (
-              <div
-                key={post.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border px-4 py-3"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{post.title}</span>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1.5 py-0.5"
-                    >
-                      {post.status === 'recruiting'
-                        ? '모집중'
-                        : post.status === 'completed'
-                        ? '완료'
-                        : '긴급'}
-                    </Badge>
+            {loadingPosts ? (
+              <div className="text-sm text-gray-500 py-6 text-center">
+                불러오는 중...
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6">
+                조건에 맞는 게시글이 없습니다.
+              </p>
+            ) : (
+              filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border px-4 py-3"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{post.title}</span>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0.5"
+                      >
+                        {post.status === 'recruiting'
+                          ? '모집중'
+                          : post.status === 'completed'
+                          ? '완료'
+                          : '긴급'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {post.location} · {post.workDate} · {post.workTimeStart} ~ {post.workTimeEnd}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      작성자: {post.authorName}
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {post.location} · {post.date} · {post.time}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    작성자: {post.authorName}
-                  </p>
-                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -536,7 +535,8 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </CardContent>
         </Card>
       )}
@@ -581,7 +581,7 @@ export default function AdminPage() {
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {post.location} · {post.date}
+                    {post.location} · {post.workDate}
                   </p>
                   <p className="text-xs text-red-500 mt-0.5 line-clamp-2">
                     신고 사유: {reasons.join(', ')}
@@ -733,8 +733,8 @@ export default function AdminPage() {
                   {selectedPost.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  {selectedPost.location} · {selectedPost.date} ·{' '}
-                  {selectedPost.time}
+                  {selectedPost.location} · {selectedPost.workDate} ·{' '}
+                  {selectedPost.workTimeStart} ~ {selectedPost.workTimeEnd}
                 </DialogDescription>
               </DialogHeader>
               <div className="mt-3 space-y-2 text-sm">
@@ -742,9 +742,11 @@ export default function AdminPage() {
                   {selectedPost.description}
                 </p>
                 <p className="text-xs text-gray-500">
-                  시급 {selectedPost.salary.toLocaleString()}원 · 모집{' '}
-                  {selectedPost.recruitCount}명 · 현재 지원{' '}
-                  {selectedPost.currentApplicants}명
+                  급여 {Number(selectedPost.payAmount).toLocaleString()}원 ({selectedPost.payType === 'hourly' ? '시급' : selectedPost.payType === 'daily' ? '일급' : selectedPost.payType === 'weekly' ? '주급' : '월급'}) · 모집{' '}
+                  {selectedPost.recruitCount}명
+                </p>
+                <p className="text-xs text-gray-400">
+                  작성자: {selectedPost.authorName}
                 </p>
               </div>
             </>

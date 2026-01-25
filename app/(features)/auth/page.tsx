@@ -39,7 +39,7 @@ export default function AuthPage() {
           </Button>
         </section>
       </main>
-      <footer className="fixed bottom-0 left-0 right-0 text-sm text-gray-500 mt-3 text-center flex flex-col gap-2 p-4 border-t border-gray-200">
+      <footer className="fixed bottom-0 left-0 right-0 text-sm text-gray-500 mt-3 text-center flex flex-col gap-2 p-4 border-t border-gray-200 bg-white">
         <section className="flex justify-center gap-2">
           <Link href="/terms">이용약관</Link>
           <Link href="/privacy">개인정보처리방침</Link>
