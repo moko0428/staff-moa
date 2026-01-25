@@ -241,6 +241,14 @@ export default function SchedulePage() {
   const [isMounted, setIsMounted] = useState(false);
   const [managerPosts, setManagerPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [applicantsData, setApplicantsData] = useState<Record<string, Array<{
+    userId: string;
+    userName: string;
+    applicationId: string;
+    phone?: string;
+    kakaoId?: string;
+    gender?: string;
+  }>>>({});
 
   // 현재 사용자 ID 가져오기
   useEffect(() => {
@@ -262,7 +270,7 @@ export default function SchedulePage() {
   useEffect(() => {
     const fetchPosts = async () => {
       if (!currentUserId) return;
-      
+
       setIsLoading(true);
       try {
         const result = await getMyPostsAction();
@@ -271,6 +279,63 @@ export default function SchedulePage() {
             supabasePostToPost(post as SupabasePost)
           );
           setManagerPosts(convertedPosts);
+
+          // 각 포스트별 승인된 지원자 가져오기
+          const supabase = createClient();
+          const applicantsMap: Record<string, Array<{
+            userId: string;
+            userName: string;
+            applicationId: string;
+            phone?: string;
+            kakaoId?: string;
+            gender?: string;
+          }>> = {};
+
+          await Promise.all(
+            convertedPosts.map(async (post) => {
+              try {
+                // 승인된 지원자 조회
+                const postIdNum = Number(post.id);
+                if (isNaN(postIdNum)) {
+                  console.error(`Invalid post ID: ${post.id}`);
+                  return;
+                }
+                const { data: schedules } = await supabase
+                  .from('member_schedules')
+                  .select('member_schedule_id, member_id')
+                  .eq('post_id', postIdNum)
+                  .eq('status', 'accepted');
+
+                if (schedules && schedules.length > 0) {
+                  const memberIds = schedules.map(s => s.member_id);
+
+                  // 프로필 정보 조회
+                  const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('user_id, name, phone, kakao_id, gender')
+                    .in('user_id', memberIds);
+
+                  if (profiles) {
+                    applicantsMap[post.id] = schedules.map(schedule => {
+                      const profile = profiles.find(p => p.user_id === schedule.member_id);
+                      return {
+                        userId: schedule.member_id,
+                        userName: profile?.name || '알 수 없음',
+                        applicationId: schedule.member_schedule_id.toString(),
+                        phone: profile?.phone || undefined,
+                        kakaoId: profile?.kakao_id || undefined,
+                        gender: profile?.gender || undefined,
+                      };
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error(`Failed to fetch applicants for post ${post.id}:`, error);
+              }
+            })
+          );
+
+          setApplicantsData(applicantsMap);
         }
       } catch (error) {
         console.error('Failed to fetch posts:', error);
@@ -306,27 +371,15 @@ export default function SchedulePage() {
       const dates = parseDateString(post.date);
       if (dates.length === 0) return; // 유효한 날짜가 없으면 스킵
 
-      // TODO: applications 테이블이 생성되면 실제 데이터로 교체
-      // 현재는 빈 배열로 처리
-      const acceptedApplications: Array<{
-        id: string;
-        postId: string;
-        applicantId: string;
-        applicantName: string;
-        status: string;
-      }> = [];
+      // 실제 승인된 지원자 데이터 가져오기
+      const postApplicants = applicantsData[post.id] || [];
 
-      const participants = acceptedApplications.map((app) => {
+      const participants = postApplicants.map((app) => {
         const review = reviews.find(
-          (r) => r.postId === post.id && r.userId === app.applicantId
+          (r) => r.postId === post.id && r.userId === app.userId
         );
         return {
-          userId: app.applicantId,
-          userName: app.applicantName,
-          applicationId: app.id,
-          phone: undefined,
-          kakaoId: undefined,
-          gender: undefined,
+          ...app,
           review,
         };
       });
@@ -443,7 +496,7 @@ export default function SchedulePage() {
     });
 
     return { upcoming, ongoing, completed };
-  }, [managerPosts, reviews, isMounted]);
+  }, [managerPosts, reviews, isMounted, applicantsData]);
 
   const handleScheduleClick = (schedule: ScheduleWithPost) => {
     if (schedule.status === 'completed') {
@@ -1074,13 +1127,32 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
           </div>
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex items-center gap-1">
-              <Clock className="size-3 text-gray-500" />
+              <CalendarIcon className="size-3 text-gray-500" />
               <span className="text-xs font-medium text-gray-700">
+                {(() => {
+                  const dates = parseDateString(schedule.date);
+                  if (dates.length === 0) return schedule.date;
+
+                  if (dates.length === 1) {
+                    return format(parseISO(dates[0]), 'yyyy.MM.dd (E)', { locale: ko });
+                  } else if (schedule.date.includes('~')) {
+                    const firstDate = format(parseISO(dates[0]), 'MM.dd', { locale: ko });
+                    const lastDate = format(parseISO(dates[dates.length - 1]), 'MM.dd (E)', { locale: ko });
+                    return `${firstDate} ~ ${lastDate}`;
+                  } else {
+                    return `${format(parseISO(dates[0]), 'MM.dd', { locale: ko })} 외 ${dates.length - 1}일`;
+                  }
+                })()}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="size-3 text-gray-500" />
+              <span className="text-xs text-gray-600">
                 {schedule.time}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <CalendarIcon className="size-3 text-gray-500" />
+              <span className="text-xs text-gray-500">📍</span>
               <span className="text-xs text-gray-600">{schedule.location}</span>
             </div>
           </div>
