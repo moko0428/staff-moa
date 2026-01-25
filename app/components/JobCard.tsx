@@ -32,6 +32,8 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog';
 import { Switch } from '@/app/components/ui/switch';
+import { Textarea } from '@/app/components/ui/textarea';
+import { Label } from '@/app/components/ui/label';
 import { User } from '@/types/mockData';
 import { useUserStore } from '@/store/useUserStore';
 import {
@@ -73,6 +75,7 @@ export function JobCard({ item }: JobCardProps) {
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [applicationMessage, setApplicationMessage] = useState('');
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
     {
       personal: true, // 이름/전화/카톡/성별/MBTI
@@ -223,7 +226,10 @@ export function JobCard({ item }: JobCardProps) {
       return;
     }
 
-    // 선택한 정보를 메시지로 구성
+    // 사용자가 입력한 메시지를 기본으로 사용
+    let message = applicationMessage.trim();
+
+    // 선택한 정보를 메시지에 추가
     const selectedInfo: string[] = [];
     if (selectedFields.personal) {
       selectedInfo.push('개인정보');
@@ -241,9 +247,11 @@ export function JobCard({ item }: JobCardProps) {
       selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
     }
 
-    const message = selectedInfo.length > 0
-      ? `전달 정보: ${selectedInfo.join(', ')}`
-      : undefined;
+    // 선택한 정보가 있으면 메시지에 추가
+    if (selectedInfo.length > 0) {
+      const infoText = `\n\n[전달 정보: ${selectedInfo.join(', ')}]`;
+      message = message ? message + infoText : infoText.trim();
+    }
 
     try {
       // post_id가 string일 수 있으므로 number로 변환
@@ -254,11 +262,12 @@ export function JobCard({ item }: JobCardProps) {
         return;
       }
 
-      const result = await applyToPostAction(postId, message);
+      const result = await applyToPostAction(postId, message || undefined);
 
       if (result.ok) {
         alert(result.message);
         setApplyOpen(false);
+        setApplicationMessage(''); // 메시지 초기화
       } else {
         alert(result.message || '지원에 실패했습니다.');
       }
@@ -418,7 +427,7 @@ export function JobCard({ item }: JobCardProps) {
       <CardFooter className="flex justify-between pt-0">
         <div className="flex items-center gap-2">
           <Users className="size-4" />
-          <span>0/10명 지원</span>
+          <span>{item.TO || '0/0명 지원'}</span>
         </div>
         {isMember && roleHydrated && (
           <Button
@@ -526,12 +535,34 @@ export function JobCard({ item }: JobCardProps) {
                     </div>
                   )}
               </div>
+
+              {/* 지원 메시지 입력 */}
+              <div className="space-y-2">
+                <Label htmlFor="application-message" className="text-sm font-medium">
+                  지원 메시지 (선택)
+                </Label>
+                <Textarea
+                  id="application-message"
+                  placeholder="매니저에게 전할 메시지를 작성해주세요..."
+                  value={applicationMessage}
+                  onChange={(e) => setApplicationMessage(e.target.value)}
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-gray-500">
+                  지원 동기, 경력 설명 등을 자유롭게 작성할 수 있습니다.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setApplyOpen(false)}
+                  onClick={() => {
+                    setApplyOpen(false);
+                    setApplicationMessage('');
+                  }}
                 >
                   취소
                 </Button>
@@ -541,7 +572,7 @@ export function JobCard({ item }: JobCardProps) {
                   size="sm"
                   onClick={handleSubmitApplication}
                 >
-                  선택한 정보로 지원하기
+                  지원하기
                 </Button>
               </div>
             </div>

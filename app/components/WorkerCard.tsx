@@ -45,6 +45,8 @@ interface WorkerCardProps {
   };
   onCardClick: () => void;
   onStatusChange: (applicationId: string, newStatus: ApplicationStatus) => void;
+  onToggleFavorite?: (applicantId: string) => void;
+  onToggleBlacklist?: (applicantId: string) => void;
 }
 
 const getStatusBadge = (status: ApplicationStatus) => {
@@ -73,6 +75,8 @@ export default function WorkerCard({
   workerManagement,
   onCardClick,
   onStatusChange,
+  onToggleFavorite,
+  onToggleBlacklist,
 }: WorkerCardProps) {
   const statusBadge = getStatusBadge(application.status);
   const StatusIcon = statusBadge.icon;
@@ -103,7 +107,7 @@ export default function WorkerCard({
       onClick={onCardClick}
     >
       <CardContent className="pt-6">
-        <div className="flex items-center justify-center">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="w-12 h-12">
@@ -181,34 +185,41 @@ export default function WorkerCard({
                 <span>{application.postLocation}</span>
               </div>
             </div>
-            {/* <div className="flex items-center justify-between">
-              {application.status === 'pending' && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStatusChange(application.id, 'accepted');
-                    }}
-                  >
-                    <CheckCircle2 className="size-4 mr-1" />
-                    승인
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStatusChange(application.id, 'rejected');
-                    }}
-                  >
-                    <XCircle className="size-4 mr-1" />
-                    거절
-                  </Button>
-                </>
-              )}
-            </div> */}
+          </div>
+
+          {/* 즐겨찾기 및 벤 버튼 */}
+          <div className="flex flex-col gap-1">
+            {onToggleFavorite && (
+              <Button
+                size="sm"
+                variant={workerManagement?.is_favorite ? 'default' : 'outline'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(application.applicantId);
+                }}
+                className="h-7 w-7 p-0"
+              >
+                <Star
+                  className={cn(
+                    'size-3',
+                    workerManagement?.is_favorite && 'fill-yellow-400 text-yellow-400'
+                  )}
+                />
+              </Button>
+            )}
+            {onToggleBlacklist && (
+              <Button
+                size="sm"
+                variant={workerManagement?.is_blacklisted ? 'destructive' : 'outline'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBlacklist(application.applicantId);
+                }}
+                className="h-7 w-7 p-0"
+              >
+                <XCircle className="size-3" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

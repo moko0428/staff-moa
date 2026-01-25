@@ -1,6 +1,7 @@
 // components/ApplicationDetailModal.tsx
 'use client';
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   CardTitle,
 } from '@/app/components/ui/card';
 import { Label } from '@/app/components/ui/label';
+import { Switch } from '@/app/components/ui/switch';
 import {
   Avatar,
   AvatarFallback,
@@ -80,6 +82,8 @@ export default function ApplicationDetailModal({
   onClose,
   onStatusChange,
 }: ApplicationDetailModalProps) {
+  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+
   const statusBadge = {
     pending: {
       label: '대기중',
@@ -134,13 +138,22 @@ export default function ApplicationDetailModal({
                   <h3 className="font-semibold text-lg">
                     {application.applicantName}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    ID: {application.applicantId}
-                  </p>
                 </div>
               </div>
 
-              {application.applicantInfo && (
+              {/* 개인정보 보기 토글 */}
+              <div className="flex items-center justify-between pt-3 border-t">
+                <Label htmlFor="show-personal-info" className="text-sm font-medium">
+                  개인정보 보기
+                </Label>
+                <Switch
+                  id="show-personal-info"
+                  checked={showPersonalInfo}
+                  onCheckedChange={setShowPersonalInfo}
+                />
+              </div>
+
+              {application.applicantInfo && showPersonalInfo && (
                 <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                   {application.applicantInfo.age && (
                     <div className="flex items-center justify-between">

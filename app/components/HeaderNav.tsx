@@ -7,6 +7,7 @@ import {
   NavigationMenuLink,
 } from '@/app/components/ui/navigation-menu';
 import {
+  Bell,
   Briefcase,
   Calendar,
   Heart,
@@ -17,7 +18,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ import { createClient } from '@/utils/supabase/client';
 
 import { useUserStore } from '@/store/useUserStore';
 import { signOutAction } from '../(features)/auth/action';
+import { getUnreadNotificationCountAction } from '../(features)/(protected)/notification/actions';
 import AuthButtons from './AuthButtons';
 
 export default function HeaderNav() {
@@ -98,6 +100,33 @@ export default function HeaderNav() {
       listener?.subscription.unsubscribe();
     };
   }, [hydrateRole, refreshRole, roleGetter, supabase]);
+
+  // 읽지 않은 알림 개수
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!isAuthed) {
+        setUnreadNotificationCount(0);
+        return;
+      }
+      try {
+        const result = await getUnreadNotificationCountAction();
+        if (result.ok && typeof result.data === 'number') {
+          setUnreadNotificationCount(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch unread notification count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // 30초마다 새로고침
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthed]);
+
+  const hasUnreadNotifications = unreadNotificationCount > 0;
 
   const handleLogout = async () => {
     try {
@@ -208,6 +237,22 @@ export default function HeaderNav() {
               {isAuthed ? (
                 <>
                   <Link
+                    href="/notification"
+                    className={cn(
+                      'relative inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                      isHome
+                        ? 'text-white hover:text-white/80'
+                        : 'text-primary hover:text-primary/80'
+                    )}
+                    aria-label="알림"
+                    title="알림"
+                  >
+                    <Bell className="size-4" />
+                    {hasUnreadNotifications && (
+                      <span className="absolute top-1 right-1 size-2 bg-red-500 rounded-full" />
+                    )}
+                  </Link>
+                  <Link
                     href="/profile"
                     className={cn(
                       'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -250,7 +295,7 @@ export default function HeaderNav() {
                     <button
                       type="button"
                       className={cn(
-                        'inline-flex items-center justify-center rounded-md p-2 transition-colors',
+                        'relative inline-flex items-center justify-center rounded-md p-2 transition-colors',
                         isHome
                           ? 'text-white hover:text-white/80'
                           : 'text-primary hover:text-primary/80'
@@ -258,6 +303,9 @@ export default function HeaderNav() {
                       aria-label="메뉴 열기"
                     >
                       <Menu className="size-5" />
+                      {hasUnreadNotifications && (
+                        <span className="absolute top-1 right-1 size-2 bg-red-500 rounded-full" />
+                      )}
                     </button>
                   </DropdownMenuTrigger>
 
@@ -280,6 +328,25 @@ export default function HeaderNav() {
                             </span>
                           </Link>
                         </DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/notification"
+                            className="flex items-center gap-2"
+                          >
+                            <div className="relative">
+                              <Bell className="size-4" />
+                              {hasUnreadNotifications && (
+                                <span className="absolute -top-1 -right-1 size-2 bg-red-500 rounded-full" />
+                              )}
+                            </div>
+                            <span className="text-sm font-medium">알림</span>
+                            {hasUnreadNotifications && (
+                              <span className="ml-auto text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                                {unreadNotificationCount}
+                              </span>
+                            )}
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>
                     )}
