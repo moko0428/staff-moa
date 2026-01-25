@@ -44,6 +44,12 @@ type PostRow = {
   status: 'recruiting' | 'completed' | 'urgent';
   form_type?: 'basic' | 'free';
   created_at: string;
+  applicant_stats?: {
+    total: number;
+    pending: number;
+    accepted: number;
+    rejected: number;
+  };
 };
 
 export default function MyPostPage() {
@@ -313,7 +319,8 @@ export default function MyPostPage() {
                   phone: post.manager_phone as string,
                 },
                 recruitCount: post.recruit_count,
-                currentApplicants: 0,
+                currentApplicants: post.applicant_stats?.total || 0,
+                applicantStats: post.applicant_stats,
                 notes: (post.notes as string) || undefined,
                 requirements: (post.qualifications as string) || undefined,
                 preferences: (post.preferences as string) || undefined,
@@ -325,6 +332,9 @@ export default function MyPostPage() {
               }}
               onDelete={handleDelete}
               onStatusToggle={handleStatusToggle}
+              onRepost={(repostPost) => {
+                router.push(`/my-post/create?repost=${repostPost.id}`);
+              }}
             />
           ))}
         </div>

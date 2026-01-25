@@ -16,7 +16,7 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Badge } from '@/app/components/ui/badge';
 import { Switch } from '@/app/components/ui/switch';
-import { Edit, Trash2, Calendar, Users, X, Plus } from 'lucide-react';
+import { Edit, Trash2, Calendar, Users, X, Plus, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -25,6 +25,7 @@ interface MyPostCardProps {
   onEdit?: (post: Post) => void;
   onDelete?: (postId: string) => void;
   onStatusToggle?: (postId: string, newStatus: Post['status']) => void;
+  onRepost?: (post: Post) => void;
 }
 
 export default function MyPostCard({
@@ -32,6 +33,7 @@ export default function MyPostCard({
   onEdit,
   onDelete,
   onStatusToggle,
+  onRepost,
 }: MyPostCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -83,6 +85,12 @@ export default function MyPostCard({
     if (confirm('정말 삭제하시겠습니까?')) {
       onDelete?.(post.id);
     }
+  };
+
+  const handleRepost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onRepost?.(post);
   };
 
   const handleSave = () => {
@@ -192,9 +200,33 @@ export default function MyPostCard({
               </div>
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <Users className="size-4 text-gray-500" />
-                <span className="text-gray-700 font-medium">
-                  지원 현황: {post.currentApplicants}/{post.recruitCount}명
-                </span>
+                {post.applicantStats ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-700 font-medium">
+                      지원 현황: {post.applicantStats.total}명
+                      {post.applicantStats.total > post.recruitCount && (
+                        <span className="text-orange-600 ml-1">
+                          (티오 초과)
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex gap-2 text-xs">
+                      <span className="text-yellow-600">
+                        대기 {post.applicantStats.pending}
+                      </span>
+                      <span className="text-green-600">
+                        승인 {post.applicantStats.accepted}
+                      </span>
+                      <span className="text-red-600">
+                        거절 {post.applicantStats.rejected}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-gray-700 font-medium">
+                    지원 현황: {post.currentApplicants}/{post.recruitCount}명
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -462,9 +494,33 @@ export default function MyPostCard({
                   </div>
                   <div>
                     <span className="text-gray-500">모집 인원:</span>{' '}
-                    <span className="font-medium">
-                      {post.currentApplicants}/{post.recruitCount}명
-                    </span>
+                    {post.applicantStats ? (
+                      <div className="inline-flex flex-col gap-1">
+                        <span className="font-medium">
+                          {post.applicantStats.total}명 지원
+                          {post.applicantStats.total > post.recruitCount && (
+                            <span className="text-orange-600 ml-1">
+                              (티오 {post.recruitCount}명 초과)
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex gap-2 text-xs">
+                          <span className="text-yellow-600">
+                            대기 {post.applicantStats.pending}
+                          </span>
+                          <span className="text-green-600">
+                            승인 {post.applicantStats.accepted}
+                          </span>
+                          <span className="text-red-600">
+                            거절 {post.applicantStats.rejected}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="font-medium">
+                        {post.currentApplicants}/{post.recruitCount}명
+                      </span>
+                    )}
                   </div>
                   <div>
                     <span className="text-gray-500">지급일:</span>{' '}
@@ -533,6 +589,10 @@ export default function MyPostCard({
               <>
                 <Button variant="outline" onClick={() => setIsOpen(false)}>
                   닫기
+                </Button>
+                <Button variant="secondary" onClick={handleRepost}>
+                  <Copy className="size-4" />
+                  재공고
                 </Button>
                 <Button onClick={handleEdit}>
                   <Edit className="size-4" />

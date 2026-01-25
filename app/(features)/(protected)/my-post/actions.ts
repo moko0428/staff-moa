@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
+import { createBulkNotificationsAction } from '@/app/(features)/(protected)/notification/actions';
 
 type WorkSlot = {
   date: string; // YYYY-MM-DD
@@ -141,6 +142,20 @@ export async function updatePostStatusAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
+    // 공고 정보 가져오기 (이전 상태와 제목 확인)
+    const { data: post } = await supabase
+      .from('posts')
+      .select('status, title')
+      .eq('post_id', postId)
+      .eq('author_id', userData.user.id)
+      .single();
+
+    if (!post) {
+      return { ok: false, message: '공고를 찾을 수 없습니다.' };
+    }
+
+    const previousStatus = post.status;
+
     const { error } = await supabase
       .from('posts')
       .update({ status })
@@ -153,6 +168,28 @@ export async function updatePostStatusAction(
         ok: false,
         message: '공고 상태 변경에 실패했습니다. 다시 시도해주세요.',
       };
+    }
+
+    // 모집완료 → 모집중/급구로 변경 시 관심 목록 사용자에게 알림
+    if (previousStatus === 'completed' && (status === 'recruiting' || status === 'urgent')) {
+      // 해당 공고를 관심 목록에 추가한 사용자 조회
+      const { data: favorites } = await supabase
+        .from('favorites_posts')
+        .select('user_id')
+        .eq('post_id', postId);
+
+      if (favorites && favorites.length > 0) {
+        const statusText = status === 'urgent' ? '급구' : '모집';
+        const notifications = favorites.map((fav) => ({
+          userId: fav.user_id,
+          type: 'system' as const,
+          title: '관심 공고가 다시 모집을 시작했습니다',
+          message: `"${post.title}" 공고가 다시 ${statusText}중입니다. 지금 확인해보세요!`,
+          link: `/post?id=${postId}`,
+        }));
+
+        await createBulkNotificationsAction(notifications);
+      }
     }
 
     return { ok: true, message: '공고 상태가 변경되었습니다.' };
@@ -421,6 +458,9 @@ export async function updatePostAction(
       };
     }
 
+    // 수정 시 작성일도 현재 시점으로 업데이트
+    const now = new Date().toISOString();
+
     const { error } = await supabase
       .from('posts')
       .update({
@@ -445,7 +485,8 @@ export async function updatePostAction(
         keywords: parsed.data.keywords,
         status: parsed.data.status,
         form_type: parsed.data.form_type,
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       })
       .eq('post_id', postId)
       .eq('author_id', userData.user.id);
@@ -537,6 +578,26 @@ export async function getMyPostsAction(): Promise<
         if (post.post_id !== undefined && post.post_id !== null) {
           transformed.id = post.post_id.toString();
         }
+
+        // 지원자 통계 가져오기
+        const postId = post.post_id as number;
+        const { data: applicantStats } = await supabase
+          .from('member_schedules')
+          .select('status')
+          .eq('post_id', postId);
+
+        // 상태별 지원자 수 계산
+        const totalApplicants = applicantStats?.length || 0;
+        const pendingCount = applicantStats?.filter((a) => a.status === 'pending').length || 0;
+        const acceptedCount = applicantStats?.filter((a) => a.status === 'accepted').length || 0;
+        const rejectedCount = applicantStats?.filter((a) => a.status === 'rejected').length || 0;
+
+        transformed.applicant_stats = {
+          total: totalApplicants,
+          pending: pendingCount,
+          accepted: acceptedCount,
+          rejected: rejectedCount,
+        };
 
         // work_slots 형식 변환: start_time/end_time → start/end
         if (post.work_slots && Array.isArray(post.work_slots)) {

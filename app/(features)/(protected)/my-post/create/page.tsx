@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useActionState, useTransition, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useActionState, useTransition, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -37,7 +37,7 @@ import {
   Link as LinkIcon,
   List,
 } from 'lucide-react';
-import { createPostAction } from '../actions';
+import { createPostAction, getPostByIdAction } from '../actions';
 import { useUserStore } from '@/store/useUserStore';
 import {
   Dialog,
@@ -71,8 +71,12 @@ const initialState: ActionResult<{ id: string }> = {
   data: undefined,
 };
 
-export default function CreatePostPage() {
+function CreatePostContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const repostId = searchParams.get('repost');
+  const isRepostMode = !!repostId;
+
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isManager = role === 'manager';
@@ -216,6 +220,63 @@ export default function CreatePostPage() {
     };
     fetchUser();
   }, []);
+
+  // 재공고 모드: 기존 공고 데이터 로드
+  useEffect(() => {
+    if (!repostId) return;
+
+    const fetchRepostData = async () => {
+      try {
+        const result = await getPostByIdAction(repostId);
+        if (result.ok && result.data) {
+          const post = result.data;
+          setTitle(post.title as string || '');
+          setDescription(post.description as string || '');
+          setRecruitCount(post.recruit_count as number || 1);
+          setManagerName(post.manager_name as string || '');
+          setManagerPhone(post.manager_phone as string || '');
+          setEquipments(post.equipments as string || '');
+          setQualifications(post.qualifications as string || '');
+          setPreferences(post.preferences as string || '');
+          setNotes(post.notes as string || '');
+          setExternalLink(post.external_link as string || '');
+          setKeywords(post.keywords as string[] || []);
+          setStatus('recruiting'); // 재공고는 모집중으로 시작
+
+          // work_slots 변환
+          if (post.work_slots && Array.isArray(post.work_slots)) {
+            const slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
+              date: slot.date as string || '',
+              start: (slot.start_time || slot.start) as string || '',
+              end: (slot.end_time || slot.end) as string || '',
+              location: (slot.location || post.location) as string || '',
+              pay_type: (slot.pay_type || post.pay_type || 'hourly') as WorkSlot['pay_type'],
+              pay_amount: (slot.pay_amount || post.pay_amount || 0) as number,
+              tax_withholding: slot.tax_withholding !== undefined
+                ? slot.tax_withholding as boolean
+                : (post.tax_withholding as boolean || false),
+            }));
+            setWorkSlots(slots);
+          } else if (post.work_date) {
+            // 레거시 데이터 지원
+            setWorkSlots([{
+              date: post.work_date as string || '',
+              start: post.work_time_start as string || '',
+              end: post.work_time_end as string || '',
+              location: post.location as string || '',
+              pay_type: (post.pay_type || 'hourly') as WorkSlot['pay_type'],
+              pay_amount: Number(post.pay_amount) || 0,
+              tax_withholding: post.tax_withholding as boolean || false,
+            }]);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch repost data', err);
+      }
+    };
+
+    fetchRepostData();
+  }, [repostId]);
 
   useEffect(() => {
     if (state.ok && state.data?.id) {
@@ -701,7 +762,16 @@ export default function CreatePostPage() {
 
   return (
     <div>
-      <Hero title="새 공고 작성" description="새로운 공고를 작성하세요" />
+      <Hero
+        title={isRepostMode ? "재공고 작성" : "새 공고 작성"}
+        description={isRepostMode ? "기존 공고를 기반으로 새 공고를 작성합니다" : "새로운 공고를 작성하세요"}
+      />
+
+      {isRepostMode && (
+        <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+          <span className="font-medium">재공고 수정 중</span> - 기존 공고 내용을 수정하여 새로운 공고로 등록합니다.
+        </div>
+      )}
 
       <div className="mb-4 flex gap-2 justify-end items-center">
         <Button
@@ -1243,14 +1313,31 @@ export default function CreatePostPage() {
             {isPending ? (
               <>
                 <Loader2 className="size-4 mr-2 animate-spin" />
-                작성 중...
+                {isRepostMode ? '재공고 작성 중...' : '작성 중...'}
               </>
             ) : (
-              '작성하기'
+              isRepostMode ? '재공고 작성하기' : '작성하기'
             )}
           </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CreatePostPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-4">
+        <Hero title="공고 작성" description="공고를 불러오는 중..." />
+        <Card>
+          <CardContent className="py-6 text-sm text-gray-600">
+            페이지를 불러오는 중입니다...
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <CreatePostContent />
+    </Suspense>
   );
 }
