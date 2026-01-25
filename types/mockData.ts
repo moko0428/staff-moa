@@ -70,6 +70,12 @@ export interface Post {
   };
   recruitCount: number;
   currentApplicants: number;
+  applicantStats?: {
+    total: number;
+    pending: number;
+    accepted: number;
+    rejected: number;
+  };
   notes?: string;
   requirements?: string;
   preferences?: string;

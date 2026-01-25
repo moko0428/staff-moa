@@ -50,6 +50,20 @@
       "when": 1768908894632,
       "tag": "0006_secret_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769244903484,
+      "tag": "0007_pretty_thanos",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769333428903,
+      "tag": "0008_deep_zemo",
+      "breakpoints": true
     }
   ]
 }

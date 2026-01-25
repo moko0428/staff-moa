@@ -14,6 +14,268 @@ export type Database = {
   }
   public: {
     Tables: {
+      favorites_posts: {
+        Row: {
+          created_at: string
+          post_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_posts_post_id_posts_post_id_fk"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+          {
+            foreignKeyName: "favorites_posts_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      followers: {
+        Row: {
+          created_at: string
+          follower_id: string | null
+          following_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          follower_id?: string | null
+          following_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string | null
+          following_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followers_follower_id_profiles_user_id_fk"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "followers_following_id_profiles_user_id_fk"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      manager_worker_management: {
+        Row: {
+          created_at: string
+          id: string
+          is_blacklisted: boolean
+          is_favorite: boolean
+          manager_id: string
+          notes: string | null
+          rating: number | null
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_blacklisted?: boolean
+          is_favorite?: boolean
+          manager_id: string
+          notes?: string | null
+          rating?: number | null
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_blacklisted?: boolean
+          is_favorite?: boolean
+          manager_id?: string
+          notes?: string | null
+          rating?: number | null
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_worker_management_manager_id_profiles_user_id_fk"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "manager_worker_management_worker_id_profiles_user_id_fk"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      member_schedules: {
+        Row: {
+          created_at: string
+          member_id: string
+          member_schedule_id: string
+          message: string | null
+          post_id: number
+          status: Database["public"]["Enums"]["member_schedule_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+          member_schedule_id?: string
+          message?: string | null
+          post_id: number
+          status?: Database["public"]["Enums"]["member_schedule_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          member_schedule_id?: string
+          message?: string | null
+          post_id?: number
+          status?: Database["public"]["Enums"]["member_schedule_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_schedules_member_id_profiles_user_id_fk"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "member_schedules_post_id_posts_post_id_fk"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          is_read: boolean
+          link: string | null
+          message: string
+          notification_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          notification_id?: string
+          title: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          notification_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      personal_schedules: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          end_time: string
+          location: string | null
+          manager_name: string | null
+          manager_phone: string | null
+          pay_amount: number | null
+          pay_type: Database["public"]["Enums"]["pay_type"] | null
+          personal_schedule_id: string
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          end_time: string
+          location?: string | null
+          manager_name?: string | null
+          manager_phone?: string | null
+          pay_amount?: number | null
+          pay_type?: Database["public"]["Enums"]["pay_type"] | null
+          personal_schedule_id?: string
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          end_time?: string
+          location?: string | null
+          manager_name?: string | null
+          manager_phone?: string | null
+          pay_amount?: number | null
+          pay_type?: Database["public"]["Enums"]["pay_type"] | null
+          personal_schedule_id?: string
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_schedules_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string
@@ -22,20 +284,21 @@ export type Database = {
           equipments: string | null
           external_link: string | null
           form_type: string | null
-          id: string
           keywords: string[] | null
           location: string
           manager_name: string
           manager_phone: string
           notes: string | null
           pay_amount: number
-          pay_type: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          post_id: number
           preferences: string | null
           qualifications: string | null
           recruit_count: number
           status: Database["public"]["Enums"]["post_status"]
           tax_withholding: boolean
           title: string
+          updated_at: string
           work_date: string
           work_slots: Json
           work_time_end: string
@@ -48,20 +311,21 @@ export type Database = {
           equipments?: string | null
           external_link?: string | null
           form_type?: string | null
-          id?: string
           keywords?: string[] | null
           location: string
           manager_name: string
           manager_phone: string
           notes?: string | null
           pay_amount: number
-          pay_type?: string
+          pay_type?: Database["public"]["Enums"]["pay_type"]
+          post_id?: never
           preferences?: string | null
           qualifications?: string | null
           recruit_count: number
           status?: Database["public"]["Enums"]["post_status"]
           tax_withholding?: boolean
           title: string
+          updated_at?: string
           work_date: string
           work_slots?: Json
           work_time_end: string
@@ -74,110 +338,210 @@ export type Database = {
           equipments?: string | null
           external_link?: string | null
           form_type?: string | null
-          id?: string
           keywords?: string[] | null
           location?: string
           manager_name?: string
           manager_phone?: string
           notes?: string | null
           pay_amount?: number
-          pay_type?: string
+          pay_type?: Database["public"]["Enums"]["pay_type"]
+          post_id?: never
           preferences?: string | null
           qualifications?: string | null
           recruit_count?: number
           status?: Database["public"]["Enums"]["post_status"]
           tax_withholding?: boolean
           title?: string
+          updated_at?: string
           work_date?: string
           work_slots?: Json
           work_time_end?: string
           work_time_start?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_profiles_user_id_fk"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
-          age: number | null
           attendance_score: number
+          avatar: string | null
+          banned_at: string | null
+          banned_by_admin_id: string | null
+          banned_reason: string | null
+          banned_until: string | null
+          bio: string | null
           birth_date: string | null
           business_number: string | null
           company_certificate: string | null
           company_name: string | null
-          company_verify_status: string | null
+          company_verify_status:
+            | Database["public"]["Enums"]["company_verify_status"]
+            | null
+          cover_image: string | null
           created_at: string
           documents: Json | null
-          email: string
+          email: string | null
           experiences: Json | null
+          favorites: Json | null
           features: string | null
-          gender: string | null
+          gender: Database["public"]["Enums"]["gender"] | null
           height: number | null
-          introduction: string | null
+          is_banned: boolean
           kakao_id: string | null
+          last_ban_update_at: string | null
           mbti: string | null
-          name: string
+          name: string | null
           personality: string | null
           phone: string | null
-          photo: string | null
-          role: string
+          recent_photos: Json | null
+          role: Database["public"]["Enums"]["user_role"]
+          stats: Json | null
           updated_at: string
           user_id: string
+          views: Json | null
           weight: number | null
         }
         Insert: {
-          age?: number | null
           attendance_score?: number
+          avatar?: string | null
+          banned_at?: string | null
+          banned_by_admin_id?: string | null
+          banned_reason?: string | null
+          banned_until?: string | null
+          bio?: string | null
           birth_date?: string | null
           business_number?: string | null
           company_certificate?: string | null
           company_name?: string | null
-          company_verify_status?: string | null
+          company_verify_status?:
+            | Database["public"]["Enums"]["company_verify_status"]
+            | null
+          cover_image?: string | null
           created_at?: string
           documents?: Json | null
-          email: string
+          email?: string | null
           experiences?: Json | null
+          favorites?: Json | null
           features?: string | null
-          gender?: string | null
+          gender?: Database["public"]["Enums"]["gender"] | null
           height?: number | null
-          introduction?: string | null
+          is_banned?: boolean
           kakao_id?: string | null
+          last_ban_update_at?: string | null
           mbti?: string | null
-          name: string
+          name?: string | null
           personality?: string | null
           phone?: string | null
-          photo?: string | null
-          role?: string
+          recent_photos?: Json | null
+          role?: Database["public"]["Enums"]["user_role"]
+          stats?: Json | null
           updated_at?: string
           user_id: string
+          views?: Json | null
           weight?: number | null
         }
         Update: {
-          age?: number | null
           attendance_score?: number
+          avatar?: string | null
+          banned_at?: string | null
+          banned_by_admin_id?: string | null
+          banned_reason?: string | null
+          banned_until?: string | null
+          bio?: string | null
           birth_date?: string | null
           business_number?: string | null
           company_certificate?: string | null
           company_name?: string | null
-          company_verify_status?: string | null
+          company_verify_status?:
+            | Database["public"]["Enums"]["company_verify_status"]
+            | null
+          cover_image?: string | null
           created_at?: string
           documents?: Json | null
-          email?: string
+          email?: string | null
           experiences?: Json | null
+          favorites?: Json | null
           features?: string | null
-          gender?: string | null
+          gender?: Database["public"]["Enums"]["gender"] | null
           height?: number | null
-          introduction?: string | null
+          is_banned?: boolean
           kakao_id?: string | null
+          last_ban_update_at?: string | null
           mbti?: string | null
-          name?: string
+          name?: string | null
           personality?: string | null
           phone?: string | null
-          photo?: string | null
-          role?: string
+          recent_photos?: Json | null
+          role?: Database["public"]["Enums"]["user_role"]
+          stats?: Json | null
           updated_at?: string
           user_id?: string
+          views?: Json | null
           weight?: number | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by_admin_id: string | null
+          status: Database["public"]["Enums"]["report_status"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by_admin_id?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reported_user_id?: string
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by_admin_id?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reported_user_id_profiles_user_id_fk"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_profiles_user_id_fk"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reports_resolved_by_admin_id_profiles_user_id_fk"
+            columns: ["resolved_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
@@ -187,8 +551,29 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      pay_type_enum: "hourly" | "daily" | "weekly" | "monthly"
+      company_verify_status: "pending" | "approved" | "rejected"
+      gender: "남성" | "여성" | "미정"
+      manager_schedule_status: "upcoming" | "ongoing" | "completed"
+      member_schedule_status: "pending" | "accepted" | "rejected"
+      notification_type:
+        | "application_accepted"
+        | "application_rejected"
+        | "new_application"
+        | "schedule_reminder"
+        | "system"
+      pay_type: "hourly" | "daily" | "weekly" | "monthly"
       post_status: "recruiting" | "completed" | "urgent"
+      report_status:
+        | "pending"
+        | "reviewed"
+        | "resolved_ban"
+        | "resolved_no_action"
+      user_role:
+        | "member"
+        | "manager"
+        | "pending_manager"
+        | "rejected_manager"
+        | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -316,8 +701,32 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      pay_type_enum: ["hourly", "daily", "weekly", "monthly"],
+      company_verify_status: ["pending", "approved", "rejected"],
+      gender: ["남성", "여성", "미정"],
+      manager_schedule_status: ["upcoming", "ongoing", "completed"],
+      member_schedule_status: ["pending", "accepted", "rejected"],
+      notification_type: [
+        "application_accepted",
+        "application_rejected",
+        "new_application",
+        "schedule_reminder",
+        "system",
+      ],
+      pay_type: ["hourly", "daily", "weekly", "monthly"],
       post_status: ["recruiting", "completed", "urgent"],
+      report_status: [
+        "pending",
+        "reviewed",
+        "resolved_ban",
+        "resolved_no_action",
+      ],
+      user_role: [
+        "member",
+        "manager",
+        "pending_manager",
+        "rejected_manager",
+        "admin",
+      ],
     },
   },
 } as const
