@@ -14,6 +14,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  Settings,
   ShieldCheck,
   User,
   Users,
@@ -277,6 +278,19 @@ export default function HeaderNav() {
                     <User className="size-4" />
                     프로필 관리
                   </Link>
+                  <Link
+                    href="/settings"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                      isHome
+                        ? 'text-white hover:text-white/80'
+                        : 'text-primary hover:text-primary/80'
+                    )}
+                    aria-label="설정"
+                    title="설정"
+                  >
+                    <Settings className="size-4" />
+                  </Link>
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -357,6 +371,15 @@ export default function HeaderNav() {
                                 {unreadNotificationCount}
                               </span>
                             )}
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/settings"
+                            className="flex items-center gap-2"
+                          >
+                            <Settings className="size-4" />
+                            <span className="text-sm font-medium">설정</span>
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
