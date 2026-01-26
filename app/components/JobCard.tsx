@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -67,6 +68,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ item }: JobCardProps) {
+  const router = useRouter();
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
@@ -213,6 +215,11 @@ export function JobCard({ item }: JobCardProps) {
     setSelectedFields((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleCardClick = () => {
+    if (item.status === '모집완료') return;
+    router.push(`/post/${item.id}`);
+  };
+
   const handleApplyClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -283,8 +290,9 @@ export function JobCard({ item }: JobCardProps) {
       className={`${cn(
         statusClassName,
         enabledHoverClasses,
-        item.status === '모집완료' && 'pointer-events-none'
+        item.status === '모집완료' ? 'pointer-events-none' : 'cursor-pointer'
       )} relative overflow-hidden flex flex-col gap-2 rounded-xl border`}
+      onClick={handleCardClick}
     >
       {item.status === '모집완료' && (
         <div

@@ -38,6 +38,7 @@ import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { parseDateString } from '@/lib/dateUtils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Separator } from '@/app/components/Separator';
 import { ScheduleViewToggle } from '@/app/components/ScheduleViewToggle';
 import { ScheduleStatusLegend } from '@/app/components/ScheduleStatusLegend';
@@ -119,6 +120,7 @@ export interface ScheduleWithPost extends Omit<Post, 'status'> {
     userId: string;
     userName: string;
     applicationId: string;
+    avatar?: string;
     phone?: string;
     kakaoId?: string;
     gender?: string;
@@ -245,6 +247,7 @@ export default function SchedulePage() {
     userId: string;
     userName: string;
     applicationId: string;
+    avatar?: string;
     phone?: string;
     kakaoId?: string;
     gender?: string;
@@ -286,6 +289,7 @@ export default function SchedulePage() {
             userId: string;
             userName: string;
             applicationId: string;
+            avatar?: string;
             phone?: string;
             kakaoId?: string;
             gender?: string;
@@ -312,7 +316,7 @@ export default function SchedulePage() {
                   // 프로필 정보 조회
                   const { data: profiles } = await supabase
                     .from('profiles')
-                    .select('user_id, name, phone, kakao_id, gender')
+                    .select('user_id, name, avatar, phone, kakao_id, gender')
                     .in('user_id', memberIds);
 
                   if (profiles) {
@@ -322,6 +326,7 @@ export default function SchedulePage() {
                         userId: schedule.member_id,
                         userName: profile?.name || '알 수 없음',
                         applicationId: schedule.member_schedule_id.toString(),
+                        avatar: profile?.avatar || undefined,
                         phone: profile?.phone || undefined,
                         kakaoId: profile?.kakao_id || undefined,
                         gender: profile?.gender || undefined,
@@ -1623,29 +1628,62 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
           {schedule.participants && schedule.participants.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">참여자 목록</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="size-4" />
+                  참여자 목록
+                  <Badge variant="secondary" className="ml-auto">
+                    {schedule.participants.length}명
+                  </Badge>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 {schedule.participants.map((p) => {
                   const isReviewed = !!p.review;
                   return (
                     <div
                       key={p.userId}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-start gap-3 p-3 rounded-lg border bg-gray-50"
                     >
-                      <div className="space-y-0.5">
-                        <span className="font-medium">{p.userName}</span>
-                        <div className="flex flex-col text-xs text-gray-500">
-                          {p.phone && <span>전화번호: {p.phone}</span>}
-                          {p.kakaoId && <span>카카오톡: {p.kakaoId}</span>}
-                          {p.gender && <span>성별: {p.gender}</span>}
+                      {/* 아바타 */}
+                      <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
+                        <AvatarImage src={p.avatar} alt={p.userName} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+                          {p.userName.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* 정보 */}
+                      <div className="flex-1 flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-gray-900">
+                            {p.userName}
+                          </span>
+                          {isReviewed && (
+                            <Badge variant="outline" className="text-xs">
+                              <Star className="size-3 mr-1 fill-yellow-400 text-yellow-400" />
+                              {p.review?.score}점
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-0.5 text-sm text-gray-600">
+                          {p.phone && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 w-16">전화번호</span>
+                              <a
+                                href={`tel:${p.phone}`}
+                                className="text-primary hover:underline"
+                              >
+                                {p.phone}
+                              </a>
+                            </div>
+                          )}
+                          {p.kakaoId && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 w-16">카카오톡</span>
+                              <span className="text-gray-700">{p.kakaoId}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      {isReviewed && (
-                        <Badge variant="outline" className="text-xs">
-                          평가 {p.review?.score}점
-                        </Badge>
-                      )}
                     </div>
                   );
                 })}

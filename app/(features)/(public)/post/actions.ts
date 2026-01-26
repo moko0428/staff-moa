@@ -190,6 +190,70 @@ export async function getAllProfilesAction(): Promise<
   }
 }
 
+// 공개 공고 상세 조회 (ID로)
+export async function getPublicPostByIdAction(
+  postId: string
+): Promise<ActionResult<Record<string, unknown>>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('post_id', postId)
+      .single();
+
+    if (error) {
+      console.error('[getPublicPostByIdAction] Supabase select error', error);
+      return {
+        ok: false,
+        message: '공고를 찾을 수 없습니다.',
+      };
+    }
+
+    if (!data) {
+      return {
+        ok: false,
+        message: '공고를 찾을 수 없습니다.',
+      };
+    }
+
+    // 과거 포스트 상태 자동 업데이트
+    if (isPostPast(data) && data.status !== 'completed') {
+      await updatePostStatusIfPast(supabase, postId);
+      data.status = 'completed';
+    }
+
+    // 지원자 수 조회
+    const { data: applicants } = await supabase
+      .from('member_schedules')
+      .select('member_schedule_id')
+      .eq('post_id', postId);
+
+    data.currentApplicants = applicants?.length || 0;
+
+    // 작성자 정보 조회
+    const { data: authorProfile } = await supabase
+      .from('profiles')
+      .select('name, avatar, company_name')
+      .eq('user_id', data.author_id)
+      .single();
+
+    if (authorProfile) {
+      data.author_name = authorProfile.name;
+      data.author_avatar = authorProfile.avatar;
+      data.company_name = authorProfile.company_name;
+    }
+
+    return { ok: true, message: '', data };
+  } catch (err) {
+    console.error('[getPublicPostByIdAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '공고를 불러오는 중 오류가 발생했습니다.',
+    };
+  }
+}
+
 // 매니저의 공고 가져오기
 export async function getManagerPostsAction(
   managerId: string
