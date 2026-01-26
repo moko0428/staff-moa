@@ -104,27 +104,39 @@ export default function HeaderNav() {
   // 읽지 않은 알림 개수
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      if (!isAuthed) {
-        setUnreadNotificationCount(0);
-        return;
+  const fetchUnreadCount = useCallback(async () => {
+    if (!isAuthed) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+    try {
+      const result = await getUnreadNotificationCountAction();
+      if (result.ok && typeof result.data === 'number') {
+        setUnreadNotificationCount(result.data);
       }
-      try {
-        const result = await getUnreadNotificationCountAction();
-        if (result.ok && typeof result.data === 'number') {
-          setUnreadNotificationCount(result.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch unread notification count:', error);
-      }
-    };
+    } catch (error) {
+      console.error('Failed to fetch unread notification count:', error);
+    }
+  }, [isAuthed]);
 
+  useEffect(() => {
     fetchUnreadCount();
     // 30초마다 새로고침
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [isAuthed]);
+  }, [fetchUnreadCount]);
+
+  // 알림 페이지에서 읽음 처리 시 실시간 업데이트
+  useEffect(() => {
+    const handleNotificationUpdate = () => {
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('notification-updated', handleNotificationUpdate);
+    return () => {
+      window.removeEventListener('notification-updated', handleNotificationUpdate);
+    };
+  }, [fetchUnreadCount]);
 
   const hasUnreadNotifications = unreadNotificationCount > 0;
 

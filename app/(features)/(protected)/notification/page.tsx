@@ -87,6 +87,11 @@ export default function NotificationPage() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // 알림 상태 변경 시 HeaderNav에 알림
+  const dispatchNotificationUpdate = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('notification-updated'));
+  }, []);
+
   const handleMarkAsRead = async (notificationId: string) => {
     const result = await markNotificationAsReadAction(notificationId);
     if (result.ok) {
@@ -95,6 +100,7 @@ export default function NotificationPage() {
           n.notification_id === notificationId ? { ...n, is_read: true } : n
         )
       );
+      dispatchNotificationUpdate();
     }
   };
 
@@ -102,6 +108,7 @@ export default function NotificationPage() {
     const result = await markAllNotificationsAsReadAction();
     if (result.ok) {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      dispatchNotificationUpdate();
     }
   };
 
@@ -111,6 +118,7 @@ export default function NotificationPage() {
       setNotifications((prev) =>
         prev.filter((n) => n.notification_id !== notificationId)
       );
+      dispatchNotificationUpdate();
     }
   };
 

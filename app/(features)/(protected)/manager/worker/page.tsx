@@ -179,7 +179,9 @@ interface ApplicationWithPost {
 type TabType = 'all' | 'favorite' | 'blacklist';
 
 // 데이터 변환 헬퍼 함수
-function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost {
+function convertToApplicationWithPost(
+  data: ApplicantData,
+): ApplicationWithPost {
   const profile = data.profiles;
   const post = data.posts;
 
@@ -188,7 +190,7 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
   const experiences = Array.isArray(rawExperiences)
     ? rawExperiences.filter(
         (item): item is { title?: string; date?: string; location?: string } =>
-          typeof item === 'object' && item !== null
+          typeof item === 'object' && item !== null,
       )
     : undefined;
 
@@ -212,7 +214,10 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -230,7 +235,13 @@ function convertToApplicationWithPost(data: ApplicantData): ApplicationWithPost 
     postLocation: post?.location || '',
     postStatus: post?.status,
     workSlots: Array.isArray(post?.work_slots)
-      ? (post.work_slots as Array<{ date: string; start_time?: string; end_time?: string }>).map((slot) => ({
+      ? (
+          post.work_slots as Array<{
+            date: string;
+            start_time?: string;
+            end_time?: string;
+          }>
+        ).map((slot) => ({
           date: slot.date,
           start_time: slot.start_time,
           end_time: slot.end_time,
@@ -277,7 +288,7 @@ export default function WorkerManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>(
-    'all'
+    'all',
   );
   const [selectedApplication, setSelectedApplication] =
     useState<ApplicationWithPost | null>(null);
@@ -292,7 +303,7 @@ export default function WorkerManagementPage() {
         const result = await getApplicantsAction();
         if (result.ok && result.data) {
           const convertedData = result.data.map((item) =>
-            convertToApplicationWithPost(item as unknown as ApplicantData)
+            convertToApplicationWithPost(item as unknown as ApplicantData),
           );
           setApplications(convertedData);
 
@@ -369,7 +380,7 @@ export default function WorkerManagementPage() {
       filtered = filtered.filter(
         (app) =>
           app.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          app.postTitle.toLowerCase().includes(searchTerm.toLowerCase())
+          app.postTitle.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -430,7 +441,7 @@ export default function WorkerManagementPage() {
 
   const handleStatusChange = async (
     applicationId: string,
-    newStatus: ApplicationStatus
+    newStatus: ApplicationStatus,
   ) => {
     // pending 상태는 처리하지 않음
     if (newStatus === 'pending') {
@@ -439,14 +450,17 @@ export default function WorkerManagementPage() {
 
     try {
       // 서버 액션 호출
-      const result = await updateApplicantStatusAction(applicationId, newStatus);
+      const result = await updateApplicantStatusAction(
+        applicationId,
+        newStatus,
+      );
 
       if (result.ok) {
         // 로컬 상태 업데이트
         setApplications((prev) =>
           prev.map((app) =>
-            app.id === applicationId ? { ...app, status: newStatus } : app
-          )
+            app.id === applicationId ? { ...app, status: newStatus } : app,
+          ),
         );
 
         // 선택된 지원서도 업데이트
@@ -618,7 +632,8 @@ export default function WorkerManagementPage() {
                   applicantAge: application.applicantAge,
                   applicantGender: application.applicantGender,
                   applicantKakaoId: application.applicantKakaoId,
-                  applicantAttendanceScore: application.applicantAttendanceScore,
+                  applicantAttendanceScore:
+                    application.applicantAttendanceScore,
                   applicantPhoto: application.applicantPhoto,
                 }}
                 workerManagement={application.workerManagement}
@@ -637,8 +652,8 @@ export default function WorkerManagementPage() {
                                 is_favorite: !app.workerManagement?.is_favorite,
                               },
                             }
-                          : app
-                      )
+                          : app,
+                      ),
                     );
                   }
                 }}
@@ -652,11 +667,12 @@ export default function WorkerManagementPage() {
                               ...app,
                               workerManagement: {
                                 ...app.workerManagement,
-                                is_blacklisted: !app.workerManagement?.is_blacklisted,
+                                is_blacklisted:
+                                  !app.workerManagement?.is_blacklisted,
                               },
                             }
-                          : app
-                      )
+                          : app,
+                      ),
                     );
                   }
                 }}
@@ -681,8 +697,8 @@ export default function WorkerManagementPage() {
                       ...app,
                       workerManagement: { ...app.workerManagement, ...data },
                     }
-                  : app
-              )
+                  : app,
+              ),
             );
           }}
         />
@@ -698,7 +714,7 @@ interface ApplicationDetailModalProps {
   onStatusChange: (applicationId: string, newStatus: ApplicationStatus) => void;
   onDataChange: (
     workerId: string,
-    data: Partial<ApplicationWithPost['workerManagement']>
+    data: Partial<ApplicationWithPost['workerManagement']>,
   ) => void;
 }
 
@@ -708,7 +724,9 @@ function ApplicationDetailModal({
   onStatusChange,
   onDataChange,
 }: ApplicationDetailModalProps) {
-  const [rating, setRating] = useState(application.workerManagement?.rating || 0);
+  const [rating, setRating] = useState(
+    application.workerManagement?.rating || 0,
+  );
   const [notes, setNotes] = useState(application.workerManagement?.notes || '');
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -742,7 +760,9 @@ function ApplicationDetailModal({
     if (application.workSlots && application.workSlots.length > 0) {
       // 모든 슬롯의 마지막 날짜와 시간을 확인
       const lastSlot = application.workSlots[application.workSlots.length - 1];
-      const lastWorkDateTime = new Date(`${lastSlot.date}T${lastSlot.end_time || '23:59'}:00`);
+      const lastWorkDateTime = new Date(
+        `${lastSlot.date}T${lastSlot.end_time || '23:59'}:00`,
+      );
       return now > lastWorkDateTime;
     }
 
@@ -762,7 +782,7 @@ function ApplicationDetailModal({
     try {
       const result = await updateWorkerRatingAction(
         application.applicantId,
-        newRating
+        newRating,
       );
       if (result.ok) {
         setRating(newRating);
@@ -783,7 +803,7 @@ function ApplicationDetailModal({
     try {
       const result = await updateWorkerNotesAction(
         application.applicantId,
-        notes
+        notes,
       );
       if (result.ok) {
         onDataChange(application.applicantId, { notes });
@@ -837,7 +857,7 @@ function ApplicationDetailModal({
                             'size-6 transition-colors cursor-pointer',
                             star <= rating
                               ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300 hover:text-yellow-200'
+                              : 'text-gray-300 hover:text-yellow-200',
                           )}
                         />
                       </button>
@@ -969,7 +989,8 @@ function ApplicationDetailModal({
                 {application.applicantInfo?.weight && (
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-gray-500 flex items-center gap-1">
-                      <Weight className="size-3" />몸무게
+                      <Weight className="size-3" />
+                      몸무게
                     </Label>
                     <p className="font-semibold">
                       {application.applicantInfo.weight}kg
@@ -980,113 +1001,137 @@ function ApplicationDetailModal({
             </CardContent>
           </Card>
 
-
           {/* 서류 제출 현황 */}
-          {application.applicantInfo?.documents && (() => {
-            const docs = application.applicantInfo.documents;
-            const hasIdCard = !!docs.idCard;
-            const hasBankbook = !!docs.bankbook;
-            const hasHealthCert = !!docs.healthCertificate;
-            const hasDriverLicense = docs.extraDocuments?.includes('driverLicense');
-            const hasCertificates = docs.certificates && docs.certificates.length > 0;
-            const hasLanguage = docs.language && docs.language.length > 0;
+          {application.applicantInfo?.documents &&
+            (() => {
+              const docs = application.applicantInfo.documents;
+              const hasIdCard = !!docs.idCard;
+              const hasBankbook = !!docs.bankbook;
+              const hasHealthCert = !!docs.healthCertificate;
+              const hasDriverLicense =
+                docs.extraDocuments?.includes('driverLicense');
+              const hasCertificates =
+                docs.certificates && docs.certificates.length > 0;
+              const hasLanguage = docs.language && docs.language.length > 0;
 
-            // 제출한 서류가 하나라도 있는지 확인
-            const hasAnyDocument = hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense || hasCertificates || hasLanguage;
+              // 제출한 서류가 하나라도 있는지 확인
+              const hasAnyDocument =
+                hasIdCard ||
+                hasBankbook ||
+                hasHealthCert ||
+                hasDriverLicense ||
+                hasCertificates ||
+                hasLanguage;
 
-            if (!hasAnyDocument) return null;
+              if (!hasAnyDocument) return null;
 
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">서류 제출 현황</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {/* 기본 서류 (제출한 것만 표시) */}
-                  {(hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {hasIdCard && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="size-4 text-green-500" />
-                          <div className="flex items-center gap-1">
-                            <IdCard className="size-4 text-gray-500" />
-                            <span className="text-sm">신분증</span>
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">서류 제출 현황</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {/* 기본 서류 (제출한 것만 표시) */}
+                    {(hasIdCard ||
+                      hasBankbook ||
+                      hasHealthCert ||
+                      hasDriverLicense) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {hasIdCard && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="size-4 text-green-500" />
+                            <div className="flex items-center gap-1">
+                              <IdCard className="size-4 text-gray-500" />
+                              <span className="text-sm">신분증</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {hasBankbook && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="size-4 text-green-500" />
-                          <div className="flex items-center gap-1">
-                            <CreditCard className="size-4 text-gray-500" />
-                            <span className="text-sm">통장사본</span>
+                        )}
+                        {hasBankbook && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="size-4 text-green-500" />
+                            <div className="flex items-center gap-1">
+                              <CreditCard className="size-4 text-gray-500" />
+                              <span className="text-sm">통장사본</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {hasHealthCert && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="size-4 text-green-500" />
-                          <div className="flex items-center gap-1">
-                            <FileCheck className="size-4 text-gray-500" />
-                            <span className="text-sm">보건증</span>
+                        )}
+                        {hasHealthCert && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="size-4 text-green-500" />
+                            <div className="flex items-center gap-1">
+                              <FileCheck className="size-4 text-gray-500" />
+                              <span className="text-sm">보건증</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {hasDriverLicense && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="size-4 text-green-500" />
-                          <div className="flex items-center gap-1">
-                            <Car className="size-4 text-gray-500" />
-                            <span className="text-sm">운전면허증</span>
+                        )}
+                        {hasDriverLicense && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="size-4 text-green-500" />
+                            <div className="flex items-center gap-1">
+                              <Car className="size-4 text-gray-500" />
+                              <span className="text-sm">운전면허증</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 자격증 */}
-                  {hasCertificates && (
-                    <div className={cn(
-                      "mt-4 pt-4",
-                      (hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense) && "border-t"
-                    )}>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
-                        <Award className="size-4" />
-                        자격증
-                      </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {docs.certificates!.map((cert, index) => (
-                          <Badge key={index} variant="secondary">
-                            {cert}
-                          </Badge>
-                        ))}
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 어학 능력 */}
-                  {hasLanguage && (
-                    <div className={cn(
-                      "mt-4 pt-4",
-                      (hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense || hasCertificates) && "border-t"
-                    )}>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
-                        <Languages className="size-4" />
-                        어학 능력
-                      </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {docs.language!.map((lang, index) => (
-                          <Badge key={index} variant="secondary">
-                            {lang}
-                          </Badge>
-                        ))}
+                    {/* 자격증 */}
+                    {hasCertificates && (
+                      <div
+                        className={cn(
+                          'mt-4 pt-4',
+                          (hasIdCard ||
+                            hasBankbook ||
+                            hasHealthCert ||
+                            hasDriverLicense) &&
+                            'border-t',
+                        )}
+                      >
+                        <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                          <Award className="size-4" />
+                          자격증
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                          {docs.certificates!.map((cert, index) => (
+                            <Badge key={index} variant="secondary">
+                              {cert}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
+                    )}
+
+                    {/* 어학 능력 */}
+                    {hasLanguage && (
+                      <div
+                        className={cn(
+                          'mt-4 pt-4',
+                          (hasIdCard ||
+                            hasBankbook ||
+                            hasHealthCert ||
+                            hasDriverLicense ||
+                            hasCertificates) &&
+                            'border-t',
+                        )}
+                      >
+                        <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                          <Languages className="size-4" />
+                          어학 능력
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                          {docs.language!.map((lang, index) => (
+                            <Badge key={index} variant="secondary">
+                              {lang}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
           {/* 성격 및 특징 */}
           {application.applicantInfo &&
@@ -1142,11 +1187,11 @@ function ApplicationDetailModal({
                         {application.applicantInfo.experiences.map(
                           (experience) => (
                             <div key={experience.title}>
-                              <p>{experience.title}</p>
-                              <p>{experience.date}</p>
-                              <p>{experience.location}</p>
+                              <h2>{experience.title}</h2>
+                              <span>{experience.date}</span>
+                              <span>{experience.location}</span>
                             </div>
-                          )
+                          ),
                         )}
                       </p>
                     </div>
@@ -1205,9 +1250,15 @@ function ApplicationDetailModal({
                 {/* 지원 메시지 */}
                 {(() => {
                   // 메시지에서 전달 정보 부분을 분리
-                  const messageText = application.message.split('[전달 정보:')[0].trim();
-                  const transferInfoMatch = application.message.match(/\[전달 정보:\s*([^\]]+)\]/);
-                  const transferInfo = transferInfoMatch ? transferInfoMatch[1].trim() : '';
+                  const messageText = application.message
+                    .split('[전달 정보:')[0]
+                    .trim();
+                  const transferInfoMatch = application.message.match(
+                    /\[전달 정보:\s*([^\]]+)\]/,
+                  );
+                  const transferInfo = transferInfoMatch
+                    ? transferInfoMatch[1].trim()
+                    : '';
 
                   return (
                     <>
@@ -1224,13 +1275,19 @@ function ApplicationDetailModal({
                             {messageText.length > 100 && (
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <Button variant="link" size="sm" className="px-0 h-auto mt-1">
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="px-0 h-auto mt-1"
+                                  >
                                     전체 보기
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-96 max-h-96 overflow-y-auto">
                                   <div className="space-y-2">
-                                    <h4 className="font-semibold text-sm">전체 메시지</h4>
+                                    <h4 className="font-semibold text-sm">
+                                      전체 메시지
+                                    </h4>
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap">
                                       {messageText}
                                     </p>
@@ -1251,7 +1308,9 @@ function ApplicationDetailModal({
                           </Label>
                           <div className="flex items-center gap-2">
                             <div className="bg-blue-50 px-3 py-2 rounded-lg flex-1">
-                              <p className="text-sm text-blue-900">{transferInfo}</p>
+                              <p className="text-sm text-blue-900">
+                                {transferInfo}
+                              </p>
                             </div>
                             <Popover>
                               <PopoverTrigger asChild>
@@ -1261,91 +1320,160 @@ function ApplicationDetailModal({
                               </PopoverTrigger>
                               <PopoverContent className="w-80">
                                 <div className="space-y-3">
-                                  <h4 className="font-semibold text-sm mb-2">전달 정보 상세</h4>
+                                  <h4 className="font-semibold text-sm mb-2">
+                                    전달 정보 상세
+                                  </h4>
 
                                   {/* 경력 정보 */}
                                   {application.applicantInfo?.experiences &&
-                                   application.applicantInfo.experiences.length > 0 && (
-                                    <div>
-                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                                        <Briefcase className="size-3" />
-                                        경력 ({application.applicantInfo.experiences.length}개)
-                                      </Label>
-                                      <div className="space-y-1 bg-gray-50 p-2 rounded">
-                                        {application.applicantInfo.experiences.map((exp, idx) => (
-                                          <div key={idx} className="text-xs">
-                                            <p className="font-medium">{exp.title}</p>
-                                            <p className="text-gray-600">
-                                              {exp.date} · {exp.location}
-                                            </p>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* 자격증 */}
-                                  {application.applicantInfo?.documents?.certificates &&
-                                   application.applicantInfo.documents.certificates.length > 0 && (
-                                    <div>
-                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                                        <Award className="size-3" />
-                                        자격증 ({application.applicantInfo.documents.certificates.length}개)
-                                      </Label>
-                                      <div className="flex flex-wrap gap-1">
-                                        {application.applicantInfo.documents.certificates.map((cert, idx) => (
-                                          <Badge key={idx} variant="secondary" className="text-xs">
-                                            {cert}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* 어학 능력 */}
-                                  {application.applicantInfo?.documents?.language &&
-                                   application.applicantInfo.documents.language.length > 0 && (
-                                    <div>
-                                      <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                                        <Languages className="size-3" />
-                                        어학 능력 ({application.applicantInfo.documents.language.length}개)
-                                      </Label>
-                                      <div className="flex flex-wrap gap-1">
-                                        {application.applicantInfo.documents.language.map((lang, idx) => (
-                                          <Badge key={idx} variant="secondary" className="text-xs">
-                                            {lang}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* 서류 제출 현황 (제출한 것만 표시) */}
-                                  {application.applicantInfo?.documents && (() => {
-                                    const docs = application.applicantInfo.documents;
-                                    const submittedDocs = [];
-
-                                    if (docs.idCard) submittedDocs.push({ icon: CheckCircle2, label: '신분증' });
-                                    if (docs.bankbook) submittedDocs.push({ icon: CheckCircle2, label: '통장사본' });
-                                    if (docs.healthCertificate) submittedDocs.push({ icon: CheckCircle2, label: '보건증' });
-                                    if (docs.extraDocuments?.includes('driverLicense')) submittedDocs.push({ icon: CheckCircle2, label: '운전면허증' });
-
-                                    if (submittedDocs.length === 0) return null;
-
-                                    return (
+                                    application.applicantInfo.experiences
+                                      .length > 0 && (
                                       <div>
-                                        <Label className="text-xs text-gray-500 mb-1 block">서류 제출</Label>
-                                        <div className="grid grid-cols-2 gap-1 text-xs">
-                                          {submittedDocs.map((doc, idx) => (
-                                            <div key={idx} className="flex items-center gap-1">
-                                              <CheckCircle2 className="size-3 text-green-500" />
-                                              <span>{doc.label}</span>
-                                            </div>
-                                          ))}
+                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                          <Briefcase className="size-3" />
+                                          경력 (
+                                          {
+                                            application.applicantInfo
+                                              .experiences.length
+                                          }
+                                          개)
+                                        </Label>
+                                        <div className="space-y-1 bg-gray-50 p-2 rounded">
+                                          {application.applicantInfo.experiences.map(
+                                            (exp, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="text-xs"
+                                              >
+                                                <p className="font-medium">
+                                                  {exp.title}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                  {exp.date} · {exp.location}
+                                                </p>
+                                              </div>
+                                            ),
+                                          )}
                                         </div>
                                       </div>
-                                    );
-                                  })()}
+                                    )}
+
+                                  {/* 자격증 */}
+                                  {application.applicantInfo?.documents
+                                    ?.certificates &&
+                                    application.applicantInfo.documents
+                                      .certificates.length > 0 && (
+                                      <div>
+                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                          <Award className="size-3" />
+                                          자격증 (
+                                          {
+                                            application.applicantInfo.documents
+                                              .certificates.length
+                                          }
+                                          개)
+                                        </Label>
+                                        <div className="flex flex-wrap gap-1">
+                                          {application.applicantInfo.documents.certificates.map(
+                                            (cert, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                {cert}
+                                              </Badge>
+                                            ),
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* 어학 능력 */}
+                                  {application.applicantInfo?.documents
+                                    ?.language &&
+                                    application.applicantInfo.documents.language
+                                      .length > 0 && (
+                                      <div>
+                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                          <Languages className="size-3" />
+                                          어학 능력 (
+                                          {
+                                            application.applicantInfo.documents
+                                              .language.length
+                                          }
+                                          개)
+                                        </Label>
+                                        <div className="flex flex-wrap gap-1">
+                                          {application.applicantInfo.documents.language.map(
+                                            (lang, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                {lang}
+                                              </Badge>
+                                            ),
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  {/* 서류 제출 현황 (제출한 것만 표시) */}
+                                  {application.applicantInfo?.documents &&
+                                    (() => {
+                                      const docs =
+                                        application.applicantInfo.documents;
+                                      const submittedDocs = [];
+
+                                      if (docs.idCard)
+                                        submittedDocs.push({
+                                          icon: CheckCircle2,
+                                          label: '신분증',
+                                        });
+                                      if (docs.bankbook)
+                                        submittedDocs.push({
+                                          icon: CheckCircle2,
+                                          label: '통장사본',
+                                        });
+                                      if (docs.healthCertificate)
+                                        submittedDocs.push({
+                                          icon: CheckCircle2,
+                                          label: '보건증',
+                                        });
+                                      if (
+                                        docs.extraDocuments?.includes(
+                                          'driverLicense',
+                                        )
+                                      )
+                                        submittedDocs.push({
+                                          icon: CheckCircle2,
+                                          label: '운전면허증',
+                                        });
+
+                                      if (submittedDocs.length === 0)
+                                        return null;
+
+                                      return (
+                                        <div>
+                                          <Label className="text-xs text-gray-500 mb-1 block">
+                                            서류 제출
+                                          </Label>
+                                          <div className="grid grid-cols-2 gap-1 text-xs">
+                                            {submittedDocs.map((doc, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="flex items-center gap-1"
+                                              >
+                                                <CheckCircle2 className="size-3 text-green-500" />
+                                                <span>{doc.label}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                 </div>
                               </PopoverContent>
                             </Popover>
@@ -1387,7 +1515,6 @@ function ApplicationDetailModal({
               </>
             )}
           </div>
-      
         </DialogFooter>
       </DialogContent>
     </Dialog>
