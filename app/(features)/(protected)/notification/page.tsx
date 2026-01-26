@@ -165,7 +165,7 @@ export default function NotificationPage() {
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="max-h-[calc(100vh-280px)] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <Bell className="size-12 mx-auto mb-4 opacity-50" />
