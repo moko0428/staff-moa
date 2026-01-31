@@ -152,7 +152,7 @@ export default function EditPostPage() {
       <div className="space-y-4">
         <Hero title="공고 수정" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -165,7 +165,7 @@ export default function EditPostPage() {
       <div className="space-y-4">
         <Hero title="공고 수정" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             관리자 승인이 필요한 매니저 전용 페이지입니다.
           </CardContent>
         </Card>
@@ -179,8 +179,8 @@ export default function EditPostPage() {
         <Hero title="공고 수정" description="공고를 불러오는 중..." />
         <Card>
           <CardContent className="py-12 text-center">
-            <Loader2 className="size-6 animate-spin mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-500">공고를 불러오는 중...</p>
+            <Loader2 className="size-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
           </CardContent>
         </Card>
       </div>

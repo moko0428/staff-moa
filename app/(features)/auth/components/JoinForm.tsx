@@ -61,7 +61,7 @@ export default function JoinPage() {
             {' '}
             {role === 'member' ? '회원가입' : '매니저 회원가입'}
           </CardTitle>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {role === 'member'
               ? '회원가입을 통해 원하는 공고에 지원해보세요.'
               : '회원가입 후 프로필 관리에서 회사 정보를 추가하세요.'}
@@ -83,7 +83,7 @@ export default function JoinPage() {
                   매니저로 가입하기
                 </Label>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 가입 후 프로필 관리 페이지에서 회사 정보를 추가하여 관리자에게
                 승인을 받아야 합니다.
               </p>
@@ -95,7 +95,7 @@ export default function JoinPage() {
                 variant={'ghost'}
                 onClick={() => setActiveTab('social')}
                 className={cn(
-                  'border-b-2 border-gray-200 rounded-none',
+                  'border-b-2 border-border rounded-none',
                   activeTab === 'social'
                     ? 'border-b-primary text-primary'
                     : 'bg-transparent text-foreground'
@@ -108,7 +108,7 @@ export default function JoinPage() {
                 variant={'ghost'}
                 onClick={() => setActiveTab('integrated')}
                 className={cn(
-                  'border-b-2 border-gray-200 rounded-none',
+                  'border-b-2 border-border rounded-none',
                   activeTab === 'integrated'
                     ? 'border-b-primary text-primary'
                     : 'bg-transparent text-foreground'
@@ -268,12 +268,12 @@ export default function JoinPage() {
               //     구글로 계속하기
               //   </Button>
               // </div>
-              <div className="text-center text-sm text-gray-500">
+              <div className="text-center text-sm text-muted-foreground">
                 소셜 로그인 기능은 준비 중입니다.
               </div>
             )}
           </div>
-          <div className="text-sm text-gray-500 mt-2 text-center">
+          <div className="text-sm text-muted-foreground mt-2 text-center">
             <span>이미 계정이 있으신가요?</span>{' '}
             <Link href="/auth/login" className="text-blue-500">
               로그인

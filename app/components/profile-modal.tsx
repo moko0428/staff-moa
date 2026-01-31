@@ -101,7 +101,7 @@ export default function ProfileModal({
 
           {/* 이메일 */}
           {user.email && (
-            <p className="text-sm text-gray-600">{user.email}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           )}
 
           {/* 근태 점수 (스탭인 경우) */}
@@ -115,8 +115,8 @@ export default function ProfileModal({
 
           {/* 자기소개 */}
           {user.introduction && (
-            <div className="w-full mt-2 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+            <div className="w-full mt-2 p-4 bg-muted rounded-lg">
+              <p className="text-sm text-foreground whitespace-pre-wrap">
                 {user.introduction}
               </p>
             </div>
@@ -148,7 +148,7 @@ export default function ProfileModal({
 
           {/* 자신의 프로필인 경우 */}
           {isOwnProfile && (
-            <p className="text-xs text-gray-500 mt-2">내 프로필입니다</p>
+            <p className="text-xs text-muted-foreground mt-2">내 프로필입니다</p>
           )}
         </div>
       </DialogContent>

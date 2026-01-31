@@ -93,7 +93,7 @@ export default function WorkerCard({
               'size-3',
               star <= rating
                 ? 'fill-yellow-400 text-yellow-400'
-                : 'text-gray-300'
+                : 'text-muted-foreground/50'
             )}
           />
         ))}
@@ -134,45 +134,45 @@ export default function WorkerCard({
                     {statusBadge.label}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600">{application.postTitle}</p>
+                <p className="text-sm text-muted-foreground">{application.postTitle}</p>
                 {workerManagement?.rating && (
                   <div className="mt-1">{renderRating(workerManagement.rating)}</div>
                 )}
               </div>
             </div>
             {workerManagement?.notes && (
-              <div className="mb-2 p-2 bg-gray-50 rounded text-xs text-gray-600 line-clamp-2">
+              <div className="mb-2 p-2 bg-muted rounded text-xs text-muted-foreground line-clamp-2">
                 {workerManagement.notes}
               </div>
             )}
             <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-sm">
               {application.applicantAge && (
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="size-4" />
                   <span>{application.applicantAge}세</span>
                 </div>
               )}
               {application.applicantGender && (
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="size-4" />
                   <span>{application.applicantGender}</span>
                 </div>
               )}
               {application.applicantKakaoId && (
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <MessageSquare className="size-4" />
                   <span>{application.applicantKakaoId}</span>
                 </div>
               )}
               {application.applicantAttendanceScore !== undefined && (
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Star className="size-4 fill-yellow-400 text-yellow-400" />
                   <span>{application.applicantAttendanceScore}점</span>
                 </div>
               )}
             </div>
             <div className="grid grid-cols-3 md:grid-cols-2 gap-3 text-sm mt-2">
-              <div className="flex items-center gap-2 text-gray-600 col-span-1">
+              <div className="flex items-center gap-2 text-muted-foreground col-span-1">
                 <Calendar className="size-4" />
                 <span>
                   {format(parseISO(application.appliedAt), 'yyyy.MM.dd', {
@@ -180,7 +180,7 @@ export default function WorkerCard({
                   })}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-gray-600 col-span-2">
+              <div className="flex items-center gap-2 text-muted-foreground col-span-2">
                 <Briefcase className="size-4" />
                 <span>{application.postLocation}</span>
               </div>

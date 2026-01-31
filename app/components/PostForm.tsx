@@ -69,7 +69,7 @@ export default function PostForm({
   onCancel,
 }: PostFormProps) {
   return (
-    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow-sm p-6">
+    <form onSubmit={onSubmit} className="bg-card rounded-xl shadow-sm p-6">
       <div className="space-y-6">
         {/* 제목 */}
         <div className="space-y-2">
@@ -91,7 +91,7 @@ export default function PostForm({
           </Label>
           <textarea
             id="description"
-            className="w-full min-h-[100px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full min-h-[100px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
             value={formData.description}
             onChange={(e) => onFormDataChange('description', e.target.value)}
             required
@@ -284,7 +284,7 @@ export default function PostForm({
           <Label htmlFor="notes">기타 사항</Label>
           <textarea
             id="notes"
-            className="w-full min-h-[80px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full min-h-[80px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
             value={formData.notes || ''}
             onChange={(e) => onFormDataChange('notes', e.target.value)}
           />
@@ -297,9 +297,9 @@ export default function PostForm({
             {links.map((link, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 p-2 border rounded-md bg-gray-50"
+                className="flex items-center gap-2 p-2 border rounded-md bg-muted"
               >
-                <LinkIcon className="size-4 text-gray-500 shrink-0" />
+                <LinkIcon className="size-4 text-muted-foreground shrink-0" />
                 <a
                   href={link.url}
                   target="_blank"
@@ -308,13 +308,13 @@ export default function PostForm({
                 >
                   {link.text}
                 </a>
-                <span className="text-xs text-gray-400 truncate max-w-[200px]">
+                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                   {link.url}
                 </span>
                 <button
                   type="button"
                   onClick={() => onRemoveLink(index)}
-                  className="ml-2 rounded-full hover:bg-gray-200 p-1 transition-colors shrink-0"
+                  className="ml-2 rounded-full hover:bg-muted p-1 transition-colors shrink-0"
                   aria-label="링크 삭제"
                 >
                   <X className="size-3" />
@@ -367,7 +367,7 @@ export default function PostForm({
                 <button
                   type="button"
                   onClick={() => onRemoveKeyword(keyword)}
-                  className="ml-1 rounded-full hover:bg-gray-200 p-0.5 transition-colors"
+                  className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors"
                   aria-label={`${keyword} 삭제`}
                 >
                   <X className="size-3" />

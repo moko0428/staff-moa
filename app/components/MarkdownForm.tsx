@@ -155,7 +155,7 @@ export default function MarkdownForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow-sm p-6">
+    <form onSubmit={onSubmit} className="bg-card rounded-xl shadow-sm p-6">
       <div className="space-y-6">
         {/* 제목 */}
         <div className="space-y-2">
@@ -199,7 +199,7 @@ export default function MarkdownForm({
 
           {/* 마크다운 툴바 */}
           {!showPreview && (
-            <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-gray-50">
+            <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-muted">
               <Button
                 type="button"
                 variant="ghost"
@@ -227,7 +227,7 @@ export default function MarkdownForm({
               >
                 <Heading3 className="size-4" />
               </Button>
-              <div className="w-px h-6 bg-gray-300 mx-1" />
+              <div className="w-px h-6 bg-border mx-1" />
               <Button
                 type="button"
                 variant="ghost"
@@ -246,7 +246,7 @@ export default function MarkdownForm({
               >
                 <Italic className="size-4" />
               </Button>
-              <div className="w-px h-6 bg-gray-300 mx-1" />
+              <div className="w-px h-6 bg-border mx-1" />
               <Button
                 type="button"
                 variant="ghost"
@@ -270,7 +270,7 @@ export default function MarkdownForm({
 
           {showPreview ? (
             <div
-              className="w-full min-h-[500px] px-4 py-3 border rounded-md bg-gray-50 prose prose-sm max-w-none"
+              className="w-full min-h-[500px] px-4 py-3 border rounded-md bg-muted prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{
                 __html: renderMarkdown(content),
               }}

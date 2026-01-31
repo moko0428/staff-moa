@@ -7,8 +7,8 @@ export default function Hero({
 }) {
   return (
     <div className="mb-2">
-      <h1 className="text-gray-900 text-2xl font-bold mb-2">{title}</h1>
-      <p className="text-gray-600 text-sm">{description}</p>
+      <h1 className="text-foreground text-2xl font-bold mb-2">{title}</h1>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   );
 }

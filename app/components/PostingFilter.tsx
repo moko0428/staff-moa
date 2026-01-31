@@ -72,10 +72,10 @@ export default function PostingFilter({
     : undefined;
   const toDate =
     dateMode === 'range'
-      ? (toDateRaw ?? fromDate)
+      ? toDateRaw ?? fromDate
       : dateMode === 'single'
-        ? fromDate
-        : undefined;
+      ? fromDate
+      : undefined;
 
   const handleRangeApply = (range: DateRange | undefined) => {
     if (!range?.from) {
@@ -152,16 +152,16 @@ export default function PostingFilter({
   };
 
   return (
-    <div className="bg-white shadow-sm p-6 mb-6">
+    <div className="bg-card shadow-sm p-6 mb-6">
       <div className="flex gap-3 mb-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
             type="text"
             value={filters.searchTerm}
             onChange={(e) => set({ searchTerm: e.target.value })}
             placeholder="공고 제목으로 검색..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
         <button
@@ -170,7 +170,7 @@ export default function PostingFilter({
             'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
             showFilters
               ? 'bg-primary/10 border-primary text-primary'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-50',
+              : 'border-border text-foreground hover:bg-muted',
           )}
         >
           <FilterIcon className="size-5" />
@@ -225,7 +225,7 @@ export default function PostingFilter({
               </Label>
               <select
                 id="status"
-                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full px-3 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={filters.status}
                 onChange={(e) =>
                   set({ status: e.target.value as Filters['status'] })
@@ -244,7 +244,7 @@ export default function PostingFilter({
               </Label>
               <select
                 id="payMin"
-                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full px-3 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 value={filters.payMin ?? ''}
                 onChange={(e) => set({ payMin: e.target.value })}
               >
@@ -267,7 +267,7 @@ export default function PostingFilter({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="text-sm font-normal border border-gray-300 rounded-md"
+                      className="text-sm font-normal border border-border rounded-md"
                       onClick={() => setShowDatePicker(false)}
                     >
                       날짜 선택 취소
@@ -336,15 +336,15 @@ export default function PostingFilter({
                         {dateMode === 'open-end' &&
                           '선택한 날짜 이후(종료일 없음)로 검색합니다.'}
                       </p>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {fromDate
                           ? dateMode === 'range' && toDate
                             ? `${format(fromDate, 'PPP', {
                                 locale: ko,
                               })} ~ ${format(toDate, 'PPP', { locale: ko })}`
                             : dateMode === 'open-end'
-                              ? `${format(fromDate, 'PPP', { locale: ko })} 이후`
-                              : format(fromDate, 'PPP', { locale: ko })
+                            ? `${format(fromDate, 'PPP', { locale: ko })} 이후`
+                            : format(fromDate, 'PPP', { locale: ko })
                           : '선택된 날짜가 없습니다.'}
                       </div>
                     </div>
@@ -356,7 +356,7 @@ export default function PostingFilter({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-sm font-normal border border-gray-300 rounded-md"
+                    className="text-sm font-normal border border-border rounded-md"
                     onClick={() => setShowDatePicker(true)}
                   >
                     날짜 선택

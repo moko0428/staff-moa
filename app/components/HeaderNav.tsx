@@ -156,7 +156,7 @@ export default function HeaderNav() {
         'sticky top-0 z-50',
         isHome
           ? 'bg-primary text-white'
-          : 'bg-white text-primary border-b border-gray-200'
+          : 'bg-background text-primary border-b border-border'
       )}
     >
       <div className="max-w-7xl mx-auto px-4">
@@ -470,14 +470,14 @@ export default function HeaderNav() {
                           <button
                             type="button"
                             onClick={handleLogout}
-                            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50"
+                            className="w-full rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
                           >
                             로그아웃
                           </button>
                         ) : (
                           <Link
                             href="/auth/login"
-                            className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-primary hover:bg-gray-50"
+                            className="block w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-primary hover:bg-muted"
                           >
                             로그인
                           </Link>

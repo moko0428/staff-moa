@@ -139,7 +139,7 @@ export default function MyPostCard({
     },
     completed: {
       label: '완료',
-      className: 'bg-gray-100 text-gray-600 border-gray-200',
+      className: 'bg-muted text-muted-foreground border-border',
     },
   }[post.status];
 
@@ -157,7 +157,7 @@ export default function MyPostCard({
                   {statusBadge.label}
                 </Badge>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600">급구</span>
+                  <span className="text-xs text-muted-foreground">급구</span>
                   <Switch
                     checked={isUrgent}
                     disabled={isCompleted}
@@ -166,7 +166,7 @@ export default function MyPostCard({
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600">모집 완료</span>
+                  <span className="text-xs text-muted-foreground">모집 완료</span>
                   <Switch
                     checked={isCompleted}
                     onCheckedChange={handleCompletedToggle}
@@ -177,18 +177,18 @@ export default function MyPostCard({
                   variant="ghost"
                   size="icon"
                   onClick={handleDelete}
-                  className="ml-auto h-8 w-8 text-gray-500 hover:text-destructive hover:bg-destructive/10"
+                  className="ml-auto h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   aria-label="삭제"
                 >
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 {post.title.length > 24
                   ? `${post.title.slice(0, 24)}...`
                   : post.title}
               </h3>
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                 <Calendar className="size-4" />
                 <span>
                   작성일:{' '}
@@ -198,10 +198,10 @@ export default function MyPostCard({
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-2 text-sm">
-                <Users className="size-4 text-gray-500" />
+                <Users className="size-4 text-muted-foreground" />
                 {post.applicantStats ? (
                   <div className="flex flex-col gap-1">
-                    <span className="text-gray-700 font-medium">
+                    <span className="text-foreground font-medium">
                       지원 현황: {post.applicantStats.total}명
                       {post.applicantStats.total > post.recruitCount && (
                         <span className="text-orange-600 ml-1">
@@ -222,7 +222,7 @@ export default function MyPostCard({
                     </div>
                   </div>
                 ) : (
-                  <span className="text-gray-700 font-medium">
+                  <span className="text-foreground font-medium">
                     지원 현황: {post.currentApplicants}/{post.recruitCount}명
                   </span>
                 )}
@@ -423,7 +423,7 @@ export default function MyPostCard({
                         <button
                           type="button"
                           onClick={() => handleRemoveKeyword(keyword)}
-                          className="ml-1 rounded-full hover:bg-gray-200 p-0.5 transition-colors"
+                          className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors"
                           aria-label={`${keyword} 삭제`}
                         >
                           <X className="size-3" />
@@ -459,7 +459,7 @@ export default function MyPostCard({
                   <Badge className={cn('text-xs', statusBadge.className)}>
                     {statusBadge.label}
                   </Badge>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-muted-foreground">
                     작성일:{' '}
                     {post.createdAt
                       ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
@@ -469,30 +469,30 @@ export default function MyPostCard({
 
                 <div>
                   <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
-                  <p className="text-gray-700">{post.description}</p>
+                  <p className="text-foreground">{post.description}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">날짜:</span>{' '}
+                    <span className="text-muted-foreground">날짜:</span>{' '}
                     <span className="font-medium">{post.date}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">시간:</span>{' '}
+                    <span className="text-muted-foreground">시간:</span>{' '}
                     <span className="font-medium">{post.time}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">장소:</span>{' '}
+                    <span className="text-muted-foreground">장소:</span>{' '}
                     <span className="font-medium">{post.location}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">급여:</span>{' '}
+                    <span className="text-muted-foreground">급여:</span>{' '}
                     <span className="font-medium">
                       {post.salary.toLocaleString()}원
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">모집 인원:</span>{' '}
+                    <span className="text-muted-foreground">모집 인원:</span>{' '}
                     {post.applicantStats ? (
                       <div className="inline-flex flex-col gap-1">
                         <span className="font-medium">
@@ -522,41 +522,41 @@ export default function MyPostCard({
                     )}
                   </div>
                   <div>
-                    <span className="text-gray-500">지급일:</span>{' '}
+                    <span className="text-muted-foreground">지급일:</span>{' '}
                     <span className="font-medium">{post.paymentDate}</span>
                   </div>
                 </div>
 
                 {post.preparation && (
                   <div>
-                    <span className="text-gray-500">준비물:</span>{' '}
+                    <span className="text-muted-foreground">준비물:</span>{' '}
                     <span className="font-medium">{post.preparation}</span>
                   </div>
                 )}
 
                 {post.requirements && (
                   <div>
-                    <span className="text-gray-500">자격 요건:</span>{' '}
+                    <span className="text-muted-foreground">자격 요건:</span>{' '}
                     <span className="font-medium">{post.requirements}</span>
                   </div>
                 )}
 
                 {post.preferences && (
                   <div>
-                    <span className="text-gray-500">우대 사항:</span>{' '}
+                    <span className="text-muted-foreground">우대 사항:</span>{' '}
                     <span className="font-medium">{post.preferences}</span>
                   </div>
                 )}
 
                 {post.notes && (
                   <div>
-                    <span className="text-gray-500">기타 사항:</span>{' '}
+                    <span className="text-muted-foreground">기타 사항:</span>{' '}
                     <span className="font-medium">{post.notes}</span>
                   </div>
                 )}
 
                 <div>
-                  <span className="text-gray-500">키워드:</span>
+                  <span className="text-muted-foreground">키워드:</span>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {post.keywords.map((keyword) => (
                       <Badge key={keyword} variant="outline">
@@ -567,9 +567,9 @@ export default function MyPostCard({
                 </div>
 
                 <div>
-                  <span className="text-gray-500">담당자:</span>{' '}
+                  <span className="text-muted-foreground">담당자:</span>{' '}
                   <span className="font-medium">{post.managerInfo.name}</span>
-                  <span className="text-gray-500 ml-4">연락처:</span>{' '}
+                  <span className="text-muted-foreground ml-4">연락처:</span>{' '}
                   <span className="font-medium">{post.managerInfo.phone}</span>
                 </div>
               </>

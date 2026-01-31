@@ -118,7 +118,7 @@ export default function ProfilePage() {
       <div>
         <Hero title="프로필" description="내 프로필 정보" />
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
@@ -128,13 +128,13 @@ export default function ProfilePage() {
     return (
       <div>
         <Hero title="프로필" description="내 프로필 정보" />
-        <div className="flex flex-col items-center justify-center gap-4 min-h-[400px] text-gray-600">
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[400px] text-muted-foreground">
           <p>로그인이 필요합니다.</p>
           <div className="flex gap-2">
             <Link href="/auth/login" className="text-primary underline">
               로그인
             </Link>
-            <span className="text-gray-400">|</span>
+            <span className="text-muted-foreground">|</span>
             <Link href="/auth/join" className="text-primary underline">
               회원가입
             </Link>
@@ -333,7 +333,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                  <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                     <UserIcon className="size-4" />
                     이름
                   </Label>
@@ -349,7 +349,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                  <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                     <Mail className="size-4" />
                     이메일
                   </Label>
@@ -366,7 +366,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                  <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                     <Phone className="size-4" />
                     전화번호
                   </Label>
@@ -382,7 +382,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                  <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                     <MessageSquare className="size-4" />
                     카카오톡 ID
                   </Label>
@@ -401,7 +401,7 @@ export default function ProfilePage() {
                 </div>
                 {isMember && (
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       MBTI
                     </Label>
                     {isEditing ? (
@@ -418,7 +418,7 @@ export default function ProfilePage() {
                 )}
               </div>
               {(isManager || isPendingManager) && (
-                <p className="text-sm text-gray-500 text-right">
+                <p className="text-sm text-muted-foreground text-right">
                   프로필을 모두 채우면 기업 신뢰도가 상승해요.
                 </p>
               )}
@@ -448,7 +448,7 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       <Building2 className="size-4" />
                       회사명
                     </Label>
@@ -467,7 +467,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       <CreditCard className="size-4" />
                       사업자등록번호
                     </Label>
@@ -493,7 +493,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div className="md:col-span-2">
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       <FileCheck className="size-4" />
                       기업인증 파일
                     </Label>
@@ -505,7 +505,7 @@ export default function ProfilePage() {
                           onChange={handleCompanyCertUpload}
                         />
                         {currentUser.companyCertificate && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             {currentUser.companyCertificate}
                           </p>
                         )}
@@ -519,11 +519,11 @@ export default function ProfilePage() {
                 </div>
                 {isEditing && isAdmin && (
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       인증 상태
                     </Label>
                     <select
-                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                      className="w-full rounded-md border border-border px-3 py-2 text-sm"
                       value={companyStatusRaw}
                       disabled={!companyInfoFilled}
                       onChange={(e) =>
@@ -534,7 +534,7 @@ export default function ProfilePage() {
                       <option value="approved">인증 완료</option>
                     </select>
                     {!companyInfoFilled && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         회사명·사업자등록번호·인증 파일을 모두 입력해야 승인할
                         수 있습니다.
                       </p>
@@ -567,7 +567,7 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <Label className="text-gray-500 mb-2">나이</Label>
+                      <Label className="text-muted-foreground mb-2">나이</Label>
                       {isEditing ? (
                         <div>
                           <Input
@@ -577,7 +577,7 @@ export default function ProfilePage() {
                               handleBirthDateChange(e.target.value)
                             }
                           />
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             생년월일을 선택해주세요
                           </p>
                         </div>
@@ -588,10 +588,10 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div>
-                      <Label className="text-gray-500 mb-2">성별</Label>
+                      <Label className="text-muted-foreground mb-2">성별</Label>
                       {isEditing ? (
                         <select
-                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border px-3 py-2 text-sm"
                           value={currentUser.gender || ''}
                           onChange={(e) =>
                             handleInputChange('gender', e.target.value || '')
@@ -606,7 +606,7 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div>
-                      <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                         <Ruler className="size-4" />키
                       </Label>
                       {isEditing ? (
@@ -622,7 +622,7 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div>
-                      <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                      <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                         <Weight className="size-4" />
                         몸무게
                       </Label>
@@ -649,7 +649,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       <Smile className="size-4" />
                       성격
                     </Label>
@@ -669,7 +669,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <Label className="flex items-center gap-2 text-gray-500 mb-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                       <Star className="size-4" />
                       특징
                     </Label>

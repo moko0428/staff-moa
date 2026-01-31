@@ -17,6 +17,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/app/components/ui/dialog';
+import { Button } from '@/app/components/ui/button';
+import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/Separator';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -45,6 +55,9 @@ import {
   LogIn,
   Trash2,
   Eye,
+  MoreHorizontal,
+  Star,
+  MessageSquare,
 } from 'lucide-react';
 import Hero from '@/app/components/Hero';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -174,7 +187,7 @@ export default function SettingsPage() {
   if (!roleHydrated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-sm text-gray-500">로딩 중...</div>
+        <div className="text-sm text-muted-foreground">로딩 중...</div>
       </div>
     );
   }

@@ -426,7 +426,7 @@ export default function PostPage() {
             <CardContent>
               <div className="space-y-4">
                 {profiles.length === 0 ? (
-                  <p className="text-sm text-gray-500">사용자 데이터를 불러오는 중...</p>
+                  <p className="text-sm text-muted-foreground">사용자 데이터를 불러오는 중...</p>
                 ) : (
                   profiles.map((profile) => (
                     <div
@@ -437,10 +437,10 @@ export default function PostPage() {
                         <p className="font-semibold">
                           {(profile.name as string) || '이름 없음'}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                           {profile.email as string}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           역할: {profile.role as string}
                         </p>
                       </div>
@@ -461,9 +461,9 @@ export default function PostPage() {
             <CardContent>
               <div className="space-y-4">
                 {isLoading ? (
-                  <p className="text-sm text-gray-500">공고 데이터를 불러오는 중...</p>
+                  <p className="text-sm text-muted-foreground">공고 데이터를 불러오는 중...</p>
                 ) : posts.length === 0 ? (
-                  <p className="text-sm text-gray-500">등록된 공고가 없습니다.</p>
+                  <p className="text-sm text-muted-foreground">등록된 공고가 없습니다.</p>
                 ) : (
                   posts.map((post) => (
                     <div key={post.id} className="p-3 border rounded-lg">
@@ -471,10 +471,10 @@ export default function PostPage() {
                         <p className="font-semibold">{post.title}</p>
                         <Badge>{post.status}</Badge>
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {post.location} - {post.date}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         모집: {post.currentApplicants}/{post.recruitCount}
                       </p>
                     </div>
@@ -490,7 +490,7 @@ export default function PostPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   지원서 기능은 준비 중입니다. (applications 테이블 필요)
                 </p>
               </div>
@@ -508,9 +508,9 @@ export default function PostPage() {
         <h2 className="text-2xl font-bold">내 공고</h2>
         <div className="space-y-4">
           {isLoadingManagerPosts ? (
-            <p className="text-sm text-gray-500">공고를 불러오는 중...</p>
+            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
           ) : managerPosts.length === 0 ? (
-            <p className="text-sm text-gray-500">등록된 공고가 없습니다.</p>
+            <p className="text-sm text-muted-foreground">등록된 공고가 없습니다.</p>
           ) : (
             managerPosts.map((post) => (
               <JobCard key={post.id} item={postToJobItem(post)} />
@@ -528,11 +528,11 @@ export default function PostPage() {
         <h2 className="text-2xl font-bold">내 스케줄</h2>
         <div className="space-y-4">
           {isLoadingSchedules ? (
-            <p className="text-sm text-gray-500">스케줄을 불러오는 중...</p>
+            <p className="text-sm text-muted-foreground">스케줄을 불러오는 중...</p>
           ) : userSchedules.length === 0 ? (
             <Card>
               <CardContent className="py-6 text-center">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   스케줄 기능은 준비 중입니다. (applications/schedules 테이블 필요)
                 </p>
               </CardContent>
@@ -556,7 +556,7 @@ export default function PostPage() {
                         {schedule.salary.toLocaleString()}원
                       </p>
                       {post && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                           {(post as Post & { work_slots?: Array<{ location?: string }> }).work_slots?.[0]?.location || post.location || ''}
                         </p>
                       )}
@@ -587,7 +587,7 @@ export default function PostPage() {
       />
       {!roleHydrated ? (
         <Card className="mb-3">
-          <CardContent className="py-3 text-sm text-gray-600">
+          <CardContent className="py-3 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -602,13 +602,13 @@ export default function PostPage() {
       {isLoading ? (
         <Card className="mb-3">
           <CardContent className="py-6 text-center">
-            <p className="text-sm text-gray-600">공고를 불러오는 중...</p>
+            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
         <Card className="mb-3">
           <CardContent className="py-6 text-center">
-            <p className="text-sm text-gray-600">조건에 맞는 공고가 없습니다.</p>
+            <p className="text-sm text-muted-foreground">조건에 맞는 공고가 없습니다.</p>
           </CardContent>
         </Card>
       ) : (

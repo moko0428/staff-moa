@@ -270,14 +270,14 @@ export default function WorkerFavoritePage() {
       {!roleHydrated ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Loader2 className="size-12 text-gray-300 mx-auto mb-4 animate-spin" />
-            <p className="text-gray-500">역할 정보를 불러오는 중입니다...</p>
+            <Loader2 className="size-12 text-muted-foreground/50 mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">역할 정보를 불러오는 중입니다...</p>
           </CardContent>
         </Card>
       ) : !isMember ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-gray-500">스탭만 관심 목록을 사용할 수 있습니다.</p>
+            <p className="text-muted-foreground">스탭만 관심 목록을 사용할 수 있습니다.</p>
           </CardContent>
         </Card>
       ) : (
@@ -297,16 +297,16 @@ export default function WorkerFavoritePage() {
             {isLoading ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <Loader2 className="size-12 text-gray-300 mx-auto mb-4 animate-spin" />
-                  <p className="text-gray-500">관심 목록을 불러오는 중...</p>
+                  <Loader2 className="size-12 text-muted-foreground/50 mx-auto mb-4 animate-spin" />
+                  <p className="text-muted-foreground">관심 목록을 불러오는 중...</p>
                 </CardContent>
               </Card>
             ) : favoritePosts.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <Heart className="size-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-2">관심 목록이 비어있습니다</p>
-                  <p className="text-sm text-gray-400 mb-4">
+                  <Heart className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-2">관심 목록이 비어있습니다</p>
+                  <p className="text-sm text-muted-foreground/80 mb-4">
                     공고 카드의 하트 아이콘을 클릭하여 관심 목록에 추가하세요
                   </p>
                   <Button onClick={() => (window.location.href = '/post')}>
@@ -322,7 +322,7 @@ export default function WorkerFavoritePage() {
                     <div className="flex flex-col md:flex-row gap-4">
                       <div className="flex-1">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground/80" />
                           <Input
                             placeholder="제목, 장소, 키워드로 검색..."
                             value={searchTerm}
@@ -354,9 +354,9 @@ export default function WorkerFavoritePage() {
                 {filteredAndSortedPosts.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
-                      <Search className="size-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500 mb-2">검색 결과가 없습니다</p>
-                      <p className="text-sm text-gray-400">
+                      <Search className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">검색 결과가 없습니다</p>
+                      <p className="text-sm text-muted-foreground/80">
                         다른 검색어를 입력해보세요
                       </p>
                     </CardContent>
@@ -375,13 +375,13 @@ export default function WorkerFavoritePage() {
           <TabsContent value="managers">
             <Card>
               <CardContent className="py-12 text-center">
-                <Users className="size-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">매니저 팔로우 기능</p>
-                <p className="text-sm text-gray-400 mb-4">
+                <Users className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+                <p className="text-muted-foreground mb-2">매니저 팔로우 기능</p>
+                <p className="text-sm text-muted-foreground/80 mb-4">
                   향후 업데이트에서 관심있는 매니저를 팔로우하고<br />
                   새로운 공고 알림을 받을 수 있습니다
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground/80">
                   Coming Soon...
                 </p>
               </CardContent>

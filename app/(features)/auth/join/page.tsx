@@ -190,7 +190,7 @@ export default function JoinPage() {
               </Button>
             </form>
           </div>
-          <div className="text-sm text-gray-500 mt-2 text-center">
+          <div className="text-sm text-muted-foreground mt-2 text-center">
             <span>이미 계정이 있으신가요?</span>{' '}
             <Link href="/auth/login" className="text-blue-500">
               로그인

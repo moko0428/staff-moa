@@ -303,7 +303,7 @@ function CreatePostContent() {
       <div className="space-y-4">
         <Hero title="새 공고 작성" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -316,7 +316,7 @@ function CreatePostContent() {
       <div className="space-y-4">
         <Hero title="새 공고 작성" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             관리자 승인이 필요한 매니저 전용 페이지입니다.
           </CardContent>
         </Card>
@@ -824,7 +824,7 @@ function CreatePostContent() {
                 className="min-h-[300px] font-mono text-sm"
               />
             </div>
-            <div className="text-xs text-gray-500 space-y-1">
+            <div className="text-xs text-muted-foreground space-y-1">
               <p>지원 형식:</p>
               <ul className="list-disc list-inside space-y-0.5 ml-2">
                 <li>📅 일시: 날짜 및 시간</li>
@@ -870,7 +870,7 @@ function CreatePostContent() {
               <Label htmlFor="title">
                 제목 <span className="text-red-500">*</span>
               </Label>
-              <small className="text-gray-500">최대 24자</small>
+              <small className="text-muted-foreground">최대 24자</small>
               <Input
                 id="title"
                 value={title}
@@ -909,7 +909,7 @@ function CreatePostContent() {
                 </Button>
               </div>
               {!showMarkdownPreview && (
-                <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-gray-50 mb-2">
+                <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-muted mb-2">
                   <Button
                     type="button"
                     variant="ghost"
@@ -937,7 +937,7 @@ function CreatePostContent() {
                   >
                     <Heading3 className="size-4" />
                   </Button>
-                  <div className="w-px h-6 bg-gray-300 mx-1" />
+                  <div className="w-px h-6 bg-border mx-1" />
                   <Button
                     type="button"
                     variant="ghost"
@@ -956,7 +956,7 @@ function CreatePostContent() {
                   >
                     <Italic className="size-4" />
                   </Button>
-                  <div className="w-px h-6 bg-gray-300 mx-1" />
+                  <div className="w-px h-6 bg-border mx-1" />
                   <Button
                     type="button"
                     variant="ghost"
@@ -995,7 +995,7 @@ function CreatePostContent() {
                 />
               ) : (
                 <div
-                  className="w-full min-h-[300px] px-4 py-3 border rounded-md bg-gray-50 prose prose-sm max-w-none"
+                  className="w-full min-h-[300px] px-4 py-3 border rounded-md bg-muted prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{
                     __html: renderMarkdown(description),
                   }}
@@ -1354,7 +1354,7 @@ export default function CreatePostPage() {
         <div className="space-y-4">
           <Hero title="공고 작성" description="공고를 불러오는 중..." />
           <Card>
-            <CardContent className="py-6 text-sm text-gray-600">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               페이지를 불러오는 중입니다...
             </CardContent>
           </Card>

@@ -157,7 +157,7 @@ export default function ApplicationDetailModal({
                 <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                   {application.applicantInfo.age && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">나이</Label>
+                      <Label className="text-sm text-muted-foreground">나이</Label>
                       <p className="font-semibold">
                         {application.applicantInfo.age}세
                       </p>
@@ -165,7 +165,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.gender && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">성별</Label>
+                      <Label className="text-sm text-muted-foreground">성별</Label>
                       <p className="font-semibold">
                         {application.applicantInfo.gender}
                       </p>
@@ -173,7 +173,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.kakaoId && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">카카오톡</Label>
+                      <Label className="text-sm text-muted-foreground">카카오톡</Label>
                       <p className="font-semibold">
                         {application.applicantInfo.kakaoId}
                       </p>
@@ -181,7 +181,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.attendanceScore !== undefined && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">근태 점수</Label>
+                      <Label className="text-sm text-muted-foreground">근태 점수</Label>
                       <div className="flex items-center gap-1">
                         <Star className="size-4 fill-yellow-400 text-yellow-400" />
                         <p className="font-semibold">
@@ -192,7 +192,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.phone && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">전화번호</Label>
+                      <Label className="text-sm text-muted-foreground">전화번호</Label>
                       <p className="font-semibold">
                         {application.applicantInfo.phone}
                       </p>
@@ -200,7 +200,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.email && (
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm text-gray-500">이메일</Label>
+                      <Label className="text-sm text-muted-foreground">이메일</Label>
                       <p className="font-semibold text-xs">
                         {application.applicantInfo.email}
                       </p>
@@ -223,7 +223,7 @@ export default function ApplicationDetailModal({
                   <div className="grid grid-cols-2 gap-3">
                     {application.applicantInfo.height && (
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-500 flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground flex items-center gap-2">
                           <Ruler className="size-4" />키
                         </Label>
                         <p className="font-semibold">
@@ -233,7 +233,7 @@ export default function ApplicationDetailModal({
                     )}
                     {application.applicantInfo.weight && (
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-500 flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground flex items-center gap-2">
                           <Weight className="size-4" />
                           몸무게
                         </Label>
@@ -262,7 +262,7 @@ export default function ApplicationDetailModal({
                       <XCircle className="size-4 text-red-500" />
                     )}
                     <div className="flex items-center gap-1">
-                      <IdCard className="size-4 text-gray-500" />
+                      <IdCard className="size-4 text-muted-foreground" />
                       <span className="text-sm">신분증</span>
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export default function ApplicationDetailModal({
                       <XCircle className="size-4 text-red-500" />
                     )}
                     <div className="flex items-center gap-1">
-                      <CreditCard className="size-4 text-gray-500" />
+                      <CreditCard className="size-4 text-muted-foreground" />
                       <span className="text-sm">통장사본</span>
                     </div>
                   </div>
@@ -284,7 +284,7 @@ export default function ApplicationDetailModal({
                       <XCircle className="size-4 text-red-500" />
                     )}
                     <div className="flex items-center gap-1">
-                      <FileCheck className="size-4 text-gray-500" />
+                      <FileCheck className="size-4 text-muted-foreground" />
                       <span className="text-sm">보건증</span>
                     </div>
                   </div>
@@ -297,7 +297,7 @@ export default function ApplicationDetailModal({
                       <XCircle className="size-4 text-red-500" />
                     )}
                     <div className="flex items-center gap-1">
-                      <Car className="size-4 text-gray-500" />
+                      <Car className="size-4 text-muted-foreground" />
                       <span className="text-sm">운전면허증</span>
                     </div>
                   </div>
@@ -308,7 +308,7 @@ export default function ApplicationDetailModal({
                   application.applicantInfo.documents.certificates.length >
                     0 && (
                     <div className="mt-4 pt-4 border-t">
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                         <Award className="size-4" />
                         자격증
                       </Label>
@@ -328,7 +328,7 @@ export default function ApplicationDetailModal({
                 {application.applicantInfo.documents.language &&
                   application.applicantInfo.documents.language.length > 0 && (
                     <div className="mt-4 pt-4 border-t">
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                         <Languages className="size-4" />
                         어학 능력
                       </Label>
@@ -358,7 +358,7 @@ export default function ApplicationDetailModal({
                 <CardContent className="space-y-3">
                   {application.applicantInfo.personality && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Smile className="size-4" />
                         성격
                       </Label>
@@ -369,7 +369,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.features && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Star className="size-4" />
                         특징
                       </Label>
@@ -393,7 +393,7 @@ export default function ApplicationDetailModal({
                 <CardContent className="space-y-3">
                   {application.applicantInfo.experiences && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Briefcase className="size-4" />
                         경력
                       </Label>
@@ -402,7 +402,7 @@ export default function ApplicationDetailModal({
                           (experience) => (
                             <div key={experience.title}>
                               <p>{experience.title}</p>
-                              <p className="text-gray-500">
+                              <p className="text-muted-foreground">
                                 {experience.date} · {experience.location}
                               </p>
                             </div>
@@ -413,7 +413,7 @@ export default function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.introduction && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <FileText className="size-4" />
                         자기소개
                       </Label>
@@ -433,19 +433,19 @@ export default function ApplicationDetailModal({
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">공고명</Label>
+                <Label className="text-sm text-muted-foreground">공고명</Label>
                 <p className="font-semibold">{application.postTitle}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">근무일</Label>
+                <Label className="text-sm text-muted-foreground">근무일</Label>
                 <p className="font-semibold">{application.postDate}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">근무 장소</Label>
+                <Label className="text-sm text-muted-foreground">근무 장소</Label>
                 <p className="font-semibold">{application.postLocation}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">지원일</Label>
+                <Label className="text-sm text-muted-foreground">지원일</Label>
                 <p className="font-semibold">
                   {format(parseISO(application.appliedAt), 'yyyy년 MM월 dd일', {
                     locale: ko,

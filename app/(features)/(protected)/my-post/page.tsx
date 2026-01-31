@@ -162,7 +162,7 @@ export default function MyPostPage() {
       <div className="space-y-4">
         <Hero title="내 공고 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -175,7 +175,7 @@ export default function MyPostPage() {
       <div className="space-y-4">
         <Hero title="내 공고 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             {isPendingManager
               ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
               : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
@@ -193,11 +193,11 @@ export default function MyPostPage() {
 
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-600 mb-2">전체 공고</p>
-          <p className="text-2xl text-gray-900">{myPosts.length}개</p>
+          <p className="text-sm text-muted-foreground mb-2">전체 공고</p>
+          <p className="text-2xl text-foreground">{myPosts.length}개</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-600 mb-2">모집중</p>
+          <p className="text-sm text-muted-foreground mb-2">모집중</p>
           <p className="text-2xl text-green-600">
             {
               myPosts.filter(
@@ -208,8 +208,8 @@ export default function MyPostPage() {
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <p className="text-sm text-gray-600 mb-2">완료</p>
-          <p className="text-2xl text-gray-600">
+          <p className="text-sm text-muted-foreground mb-2">완료</p>
+          <p className="text-2xl text-muted-foreground">
             {myPosts.filter((p) => p.status === 'completed').length}개
           </p>
         </div>
@@ -224,7 +224,7 @@ export default function MyPostPage() {
             'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
             showFilters
               ? 'bg-primary/10 border-primary text-primary'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              : 'border-border text-foreground hover:bg-muted'
           )}
         >
           <FilterIcon className="size-5" />
@@ -242,7 +242,7 @@ export default function MyPostPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">정렬:</span>
+              <span className="text-sm font-medium text-foreground">정렬:</span>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -263,13 +263,13 @@ export default function MyPostPage() {
               </div>
             </div>
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="공고 제목 또는 내용으로 검색..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
@@ -279,13 +279,13 @@ export default function MyPostPage() {
       {loading ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Loader2 className="size-6 animate-spin mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-500">공고를 불러오는 중...</p>
+            <Loader2 className="size-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
           </CardContent>
         </Card>
       ) : myPosts.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-gray-500 mb-4">작성한 공고가 없습니다.</p>
+          <p className="text-muted-foreground mb-4">작성한 공고가 없습니다.</p>
           <Button
             asChild
             className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"

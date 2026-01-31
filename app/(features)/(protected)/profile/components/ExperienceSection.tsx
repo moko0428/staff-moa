@@ -131,11 +131,11 @@ const ExperienceSection: React.FC<Props> = ({
               {currentUser.experiences.map((exp, index) => (
                 <div
                   key={index}
-                  className="flex items-start justify-between p-3 border rounded-lg bg-gray-50"
+                  className="flex items-start justify-between p-3 border rounded-lg bg-muted"
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm">{exp.title}</h4>
-                    <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                    <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <CalendarIcon className="size-3" />
                         <span>
@@ -166,7 +166,7 @@ const ExperienceSection: React.FC<Props> = ({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">등록된 경력이 없습니다.</p>
+            <p className="text-sm text-muted-foreground">등록된 경력이 없습니다.</p>
           )}
         </div>
       </CardContent>

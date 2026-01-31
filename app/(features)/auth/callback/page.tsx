@@ -36,7 +36,7 @@ function CallbackPageInner() {
 
   return (
     <div className="flex h-screen w-full items-center justify-center px-4">
-      <div className="flex flex-col items-center gap-3 text-sm text-gray-600 text-center">
+      <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground text-center">
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
         <p>이메일 인증을 확인하고 있습니다...</p>
         {error && <p className="text-xs text-red-500">{error}</p>}
@@ -50,7 +50,7 @@ export default function CallbackPage() {
     <Suspense
       fallback={
         <div className="flex h-screen w-full items-center justify-center px-4">
-          <div className="flex flex-col items-center gap-3 text-sm text-gray-600 text-center">
+          <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground text-center">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <p>이메일 인증을 확인하고 있습니다...</p>
           </div>

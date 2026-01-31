@@ -416,7 +416,7 @@ export default function WorkerManagementPage() {
       <div className="space-y-4">
         <Hero title="지원자 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -429,7 +429,7 @@ export default function WorkerManagementPage() {
       <div className="space-y-4">
         <Hero title="지원자 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             {isPendingManager
               ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
               : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
@@ -493,12 +493,12 @@ export default function WorkerManagementPage() {
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-gray-500 leading-tight">지원자 수</p>
+              <p className="text-xs text-muted-foreground leading-tight">지원자 수</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold">
                   {statistics.total}
                 </p>
-                <User className="size-6 sm:size-8 text-gray-400" />
+                <User className="size-6 sm:size-8 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -507,7 +507,7 @@ export default function WorkerManagementPage() {
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-gray-500">대기중</p>
+              <p className="text-xs text-muted-foreground">대기중</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-yellow-600">
                   {statistics.pending}
@@ -521,7 +521,7 @@ export default function WorkerManagementPage() {
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-gray-500">승인</p>
+              <p className="text-xs text-muted-foreground">승인</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   {statistics.accepted}
@@ -535,7 +535,7 @@ export default function WorkerManagementPage() {
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-gray-500">거절</p>
+              <p className="text-xs text-muted-foreground">거절</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   {statistics.rejected}
@@ -567,7 +567,7 @@ export default function WorkerManagementPage() {
           <div className="flex md:flex-row gap-3 sm:gap-4">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
                   placeholder="지원자 이름 또는 공고명 검색..."
                   value={searchTerm}
@@ -602,15 +602,15 @@ export default function WorkerManagementPage() {
       {/* 지원자 목록 */}
       {isLoading ? (
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
           {filteredApplications.length === 0 ? (
             <Card>
               <CardContent className="py-10 sm:py-12 text-center">
-                <User className="size-10 sm:size-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                <p className="text-sm sm:text-base text-gray-500">
+                <User className="size-10 sm:size-12 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
+                <p className="text-sm sm:text-base text-muted-foreground">
                   {searchTerm || statusFilter !== 'all'
                     ? '검색 결과가 없습니다.'
                     : '지원자가 없습니다.'}
@@ -857,13 +857,13 @@ function ApplicationDetailModal({
                             'size-6 transition-colors cursor-pointer',
                             star <= rating
                               ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300 hover:text-yellow-200',
+                              : 'text-muted-foreground/50 hover:text-yellow-200',
                           )}
                         />
                       </button>
                     ))}
                     {rating > 0 && (
-                      <span className="ml-2 text-sm text-gray-600">
+                      <span className="ml-2 text-sm text-muted-foreground">
                         {rating}점
                       </span>
                     )}
@@ -917,7 +917,7 @@ function ApplicationDetailModal({
                     {application.applicantName}
                   </h3>
                   {application.applicantInfo?.email && (
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Mail className="size-3" />
                       <span>{application.applicantInfo.email}</span>
                     </div>
@@ -928,7 +928,7 @@ function ApplicationDetailModal({
               <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                 {/* 근태점수는 무조건 표시 */}
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm text-gray-500">근태 점수</Label>
+                  <Label className="text-sm text-muted-foreground">근태 점수</Label>
                   <div className="flex items-center gap-1">
                     <Star className="size-4 fill-yellow-400 text-yellow-400" />
                     <span className="font-semibold">
@@ -938,7 +938,7 @@ function ApplicationDetailModal({
                 </div>
                 {application.applicantInfo?.kakaoId && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500">카카오톡</Label>
+                    <Label className="text-sm text-muted-foreground">카카오톡</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.kakaoId}
                     </p>
@@ -946,7 +946,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.phone && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500">전화번호</Label>
+                    <Label className="text-sm text-muted-foreground">전화번호</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.phone}
                     </p>
@@ -954,7 +954,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.mbti && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500">MBTI</Label>
+                    <Label className="text-sm text-muted-foreground">MBTI</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.mbti}
                     </p>
@@ -962,7 +962,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.gender && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500">성별</Label>
+                    <Label className="text-sm text-muted-foreground">성별</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.gender}
                     </p>
@@ -970,7 +970,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.age && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500">나이</Label>
+                    <Label className="text-sm text-muted-foreground">나이</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.age}세
                     </p>
@@ -978,7 +978,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.height && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500 flex items-center gap-1">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-1">
                       <Ruler className="size-3" />키
                     </Label>
                     <p className="font-semibold">
@@ -988,7 +988,7 @@ function ApplicationDetailModal({
                 )}
                 {application.applicantInfo?.weight && (
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-gray-500 flex items-center gap-1">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-1">
                       <Weight className="size-3" />
                       몸무게
                     </Label>
@@ -1041,7 +1041,7 @@ function ApplicationDetailModal({
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="size-4 text-green-500" />
                             <div className="flex items-center gap-1">
-                              <IdCard className="size-4 text-gray-500" />
+                              <IdCard className="size-4 text-muted-foreground" />
                               <span className="text-sm">신분증</span>
                             </div>
                           </div>
@@ -1050,7 +1050,7 @@ function ApplicationDetailModal({
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="size-4 text-green-500" />
                             <div className="flex items-center gap-1">
-                              <CreditCard className="size-4 text-gray-500" />
+                              <CreditCard className="size-4 text-muted-foreground" />
                               <span className="text-sm">통장사본</span>
                             </div>
                           </div>
@@ -1059,7 +1059,7 @@ function ApplicationDetailModal({
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="size-4 text-green-500" />
                             <div className="flex items-center gap-1">
-                              <FileCheck className="size-4 text-gray-500" />
+                              <FileCheck className="size-4 text-muted-foreground" />
                               <span className="text-sm">보건증</span>
                             </div>
                           </div>
@@ -1068,7 +1068,7 @@ function ApplicationDetailModal({
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="size-4 text-green-500" />
                             <div className="flex items-center gap-1">
-                              <Car className="size-4 text-gray-500" />
+                              <Car className="size-4 text-muted-foreground" />
                               <span className="text-sm">운전면허증</span>
                             </div>
                           </div>
@@ -1088,7 +1088,7 @@ function ApplicationDetailModal({
                             'border-t',
                         )}
                       >
-                        <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                        <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                           <Award className="size-4" />
                           자격증
                         </Label>
@@ -1115,7 +1115,7 @@ function ApplicationDetailModal({
                             'border-t',
                         )}
                       >
-                        <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                        <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                           <Languages className="size-4" />
                           어학 능력
                         </Label>
@@ -1144,7 +1144,7 @@ function ApplicationDetailModal({
                 <CardContent className="space-y-3">
                   {application.applicantInfo.personality && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Smile className="size-4" />
                         성격
                       </Label>
@@ -1155,7 +1155,7 @@ function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.features && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Star className="size-4" />
                         특징
                       </Label>
@@ -1179,7 +1179,7 @@ function ApplicationDetailModal({
                 <CardContent className="space-y-3">
                   {application.applicantInfo.experiences && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <Briefcase className="size-4" />
                         경력
                       </Label>
@@ -1198,7 +1198,7 @@ function ApplicationDetailModal({
                   )}
                   {application.applicantInfo.introduction && (
                     <div>
-                      <Label className="text-sm text-gray-500 flex items-center gap-2 mb-1">
+                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
                         <FileText className="size-4" />
                         자기소개
                       </Label>
@@ -1218,19 +1218,19 @@ function ApplicationDetailModal({
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">공고명</Label>
+                <Label className="text-sm text-muted-foreground">공고명</Label>
                 <p className="font-semibold">{application.postTitle}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">근무일</Label>
+                <Label className="text-sm text-muted-foreground">근무일</Label>
                 <p className="font-semibold">{application.postDate}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">근무 장소</Label>
+                <Label className="text-sm text-muted-foreground">근무 장소</Label>
                 <p className="font-semibold">{application.postLocation}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">지원일</Label>
+                <Label className="text-sm text-muted-foreground">지원일</Label>
                 <p className="font-semibold">
                   {format(parseISO(application.appliedAt), 'yyyy년 MM월 dd일', {
                     locale: ko,
@@ -1264,11 +1264,11 @@ function ApplicationDetailModal({
                     <>
                       {messageText && (
                         <div>
-                          <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                          <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                             <MessageSquare className="size-4" />
                             지원 메시지
                           </Label>
-                          <div className="bg-gray-50 p-3 rounded-lg">
+                          <div className="bg-muted p-3 rounded-lg">
                             <p className="text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">
                               {messageText}
                             </p>
@@ -1302,7 +1302,7 @@ function ApplicationDetailModal({
                       {/* 전달 정보 */}
                       {transferInfo && (
                         <div>
-                          <Label className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                          <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
                             <Info className="size-4" />
                             전달 정보
                           </Label>
@@ -1329,7 +1329,7 @@ function ApplicationDetailModal({
                                     application.applicantInfo.experiences
                                       .length > 0 && (
                                       <div>
-                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                                           <Briefcase className="size-3" />
                                           경력 (
                                           {
@@ -1338,7 +1338,7 @@ function ApplicationDetailModal({
                                           }
                                           개)
                                         </Label>
-                                        <div className="space-y-1 bg-gray-50 p-2 rounded">
+                                        <div className="space-y-1 bg-muted p-2 rounded">
                                           {application.applicantInfo.experiences.map(
                                             (exp, idx) => (
                                               <div
@@ -1348,7 +1348,7 @@ function ApplicationDetailModal({
                                                 <p className="font-medium">
                                                   {exp.title}
                                                 </p>
-                                                <p className="text-gray-600">
+                                                <p className="text-muted-foreground">
                                                   {exp.date} · {exp.location}
                                                 </p>
                                               </div>
@@ -1364,7 +1364,7 @@ function ApplicationDetailModal({
                                     application.applicantInfo.documents
                                       .certificates.length > 0 && (
                                       <div>
-                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                                           <Award className="size-3" />
                                           자격증 (
                                           {
@@ -1395,7 +1395,7 @@ function ApplicationDetailModal({
                                     application.applicantInfo.documents.language
                                       .length > 0 && (
                                       <div>
-                                        <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                                           <Languages className="size-3" />
                                           어학 능력 (
                                           {
@@ -1457,7 +1457,7 @@ function ApplicationDetailModal({
 
                                       return (
                                         <div>
-                                          <Label className="text-xs text-gray-500 mb-1 block">
+                                          <Label className="text-xs text-muted-foreground mb-1 block">
                                             서류 제출
                                           </Label>
                                           <div className="grid grid-cols-2 gap-1 text-xs">

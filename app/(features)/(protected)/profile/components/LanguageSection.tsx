@@ -52,7 +52,7 @@ const LanguageSection: React.FC<Props> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="p-3 border rounded-lg">
-          <Label className="flex items-center gap-2 text-gray-500 mb-3">
+          <Label className="flex items-center gap-2 text-muted-foreground mb-3">
             <Languages className="size-4" />
             어학 능력
           </Label>
@@ -78,7 +78,7 @@ const LanguageSection: React.FC<Props> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 등록된 어학 능력이 없습니다.
               </p>
             )}

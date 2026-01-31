@@ -60,8 +60,8 @@ const notificationTypeConfig = {
   system: {
     icon: Info,
     label: '시스템',
-    className: 'bg-gray-100 text-gray-700',
-    iconClassName: 'text-gray-600',
+    className: 'bg-muted text-foreground',
+    iconClassName: 'text-muted-foreground',
   },
 };
 
@@ -129,7 +129,7 @@ export default function NotificationPage() {
       <div>
         <Hero title="알림" description="새로운 소식을 확인하세요" />
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
@@ -167,7 +167,7 @@ export default function NotificationPage() {
           </CardHeader>
           <CardContent className="max-h-[calc(100vh-280px)] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 <Bell className="size-12 mx-auto mb-4 opacity-50" />
                 <p>알림이 없습니다</p>
               </div>
@@ -183,7 +183,7 @@ export default function NotificationPage() {
                       className={cn(
                         'p-4 rounded-lg border transition-colors',
                         notification.is_read
-                          ? 'bg-gray-50 border-gray-200'
+                          ? 'bg-muted border-border'
                           : 'bg-white border-primary/20 shadow-sm'
                       )}
                     >
@@ -191,13 +191,13 @@ export default function NotificationPage() {
                         <div
                           className={cn(
                             'p-2 rounded-full',
-                            notification.is_read ? 'bg-gray-200' : config.className
+                            notification.is_read ? 'bg-muted' : config.className
                           )}
                         >
                           <IconComponent
                             className={cn(
                               'size-4',
-                              notification.is_read ? 'text-gray-500' : config.iconClassName
+                              notification.is_read ? 'text-muted-foreground' : config.iconClassName
                             )}
                           />
                         </div>
@@ -210,7 +210,7 @@ export default function NotificationPage() {
                                   className={cn(
                                     'text-xs',
                                     notification.is_read
-                                      ? 'bg-gray-100 text-gray-600'
+                                      ? 'bg-muted text-muted-foreground'
                                       : config.className
                                   )}
                                 >
@@ -223,7 +223,7 @@ export default function NotificationPage() {
                               <h3
                                 className={cn(
                                   'font-semibold text-sm',
-                                  notification.is_read && 'text-gray-600'
+                                  notification.is_read && 'text-muted-foreground'
                                 )}
                               >
                                 {notification.title}
@@ -232,13 +232,13 @@ export default function NotificationPage() {
                                 className={cn(
                                   'text-sm mt-1',
                                   notification.is_read
-                                    ? 'text-gray-500'
-                                    : 'text-gray-700'
+                                    ? 'text-muted-foreground'
+                                    : 'text-foreground'
                                 )}
                               >
                                 {notification.message}
                               </p>
-                              <p className="text-xs text-gray-400 mt-2">
+                              <p className="text-xs text-muted-foreground mt-2">
                                 {format(
                                   parseISO(notification.created_at),
                                   'yyyy년 MM월 dd일 HH:mm',

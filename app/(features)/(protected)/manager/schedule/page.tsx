@@ -608,7 +608,7 @@ export default function SchedulePage() {
       <div className="space-y-4">
         <Hero title="스케줄 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -621,7 +621,7 @@ export default function SchedulePage() {
       <div className="space-y-4">
         <Hero title="스케줄 관리" description="매니저 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             {isPendingManager
               ? '관리자 승인 후에 접근할 수 있습니다. 프로필을 완성하고 재요청을 진행해주세요.'
               : '관리자 승인이 필요한 매니저 전용 페이지입니다.'}
@@ -640,7 +640,7 @@ export default function SchedulePage() {
           description="스케줄 정보를 확인하고 근태를 평가하세요"
         />
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
@@ -756,7 +756,7 @@ function ScheduleStatusColumn({
       <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
         <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
           {schedules.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4 w-full">
+            <p className="text-sm text-muted-foreground text-center py-4 w-full">
               스케줄이 없습니다.
             </p>
           ) : (
@@ -916,7 +916,7 @@ function CalendarView({
               {selectedDate ? (
                 // 선택된 날짜의 스케줄
                 selectedDateSchedules.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">
+                  <p className="text-sm text-muted-foreground text-center py-4">
                     선택한 날짜에 스케줄이 없습니다.
                   </p>
                 ) : (
@@ -1023,7 +1023,7 @@ function CalendarView({
                   const sortedDates = Object.keys(groupedByDate).sort();
 
                   return sortedDates.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
+                    <p className="text-sm text-muted-foreground text-center py-4">
                       이번 달에 스케줄이 없습니다.
                     </p>
                   ) : (
@@ -1114,7 +1114,7 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
     <div
       className={`p-3 border rounded-lg ${
         isClickable
-          ? 'cursor-pointer hover:bg-gray-50 hover:border-primary transition-colors'
+          ? 'cursor-pointer hover:bg-muted hover:border-primary transition-colors'
           : ''
       }`}
       onClick={isClickable ? onClick : undefined}
@@ -1132,8 +1132,8 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
           </div>
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex items-center gap-1">
-              <CalendarIcon className="size-3 text-gray-500" />
-              <span className="text-xs font-medium text-gray-700">
+              <CalendarIcon className="size-3 text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground">
                 {(() => {
                   const dates = parseDateString(schedule.date);
                   if (dates.length === 0) return schedule.date;
@@ -1151,19 +1151,19 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Clock className="size-3 text-gray-500" />
-              <span className="text-xs text-gray-600">
+              <Clock className="size-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
                 {schedule.time}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">📍</span>
-              <span className="text-xs text-gray-600">{schedule.location}</span>
+              <span className="text-xs text-muted-foreground">📍</span>
+              <span className="text-xs text-muted-foreground">{schedule.location}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <Users className="size-3 text-gray-400" />
-            <span className="text-xs text-gray-600">
+            <Users className="size-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
               참여자: {schedule.participants.length}명
             </span>
           </div>
@@ -1280,7 +1280,7 @@ function AttendanceReviewModal({
           {!selectedParticipant ? (
             // 1단계: 지원자 목록
             schedule.participants.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
+              <p className="text-center text-muted-foreground py-8">
                 참여한 지원자가 없습니다.
               </p>
             ) : (
@@ -1291,7 +1291,7 @@ function AttendanceReviewModal({
                   return (
                     <Card
                       key={participant.userId}
-                      className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="p-4 cursor-pointer hover:bg-muted transition-colors"
                       onClick={() => handleSelectParticipant(participant)}
                     >
                       <div className="flex items-center justify-between">
@@ -1306,7 +1306,7 @@ function AttendanceReviewModal({
                               {participant.userName}
                             </h4>
                             {isReviewed && (
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                                 <Star className="size-3 fill-yellow-400 text-yellow-400" />
                                 <span>
                                   평가 완료: {participant.review?.score}점
@@ -1331,7 +1331,7 @@ function AttendanceReviewModal({
                               평가 대기
                             </Badge>
                           )}
-                          <ChevronRight className="size-5 text-gray-400" />
+                          <ChevronRight className="size-5 text-muted-foreground" />
                         </div>
                       </div>
                     </Card>
@@ -1387,13 +1387,13 @@ function AttendanceReviewModal({
                           className={`p-1 ${
                             reviewData.score >= star * 20
                               ? 'text-yellow-400'
-                              : 'text-gray-300'
+                              : 'text-muted-foreground/50'
                           } hover:text-yellow-400 transition-colors`}
                         >
                           <Star className="size-8 fill-current" />
                         </button>
                       ))}
-                      <span className="ml-2 text-lg font-semibold text-gray-700">
+                      <span className="ml-2 text-lg font-semibold text-foreground">
                         {reviewData.score}점
                       </span>
                     </div>
@@ -1523,21 +1523,21 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-gray-500">근무 시간</Label>
+                  <Label className="text-sm text-muted-foreground">근무 시간</Label>
                   <p className="font-semibold">{schedule.time}</p>
                 </div>
                 <div>
-                  <Label className="text-sm text-gray-500">근무 장소</Label>
+                  <Label className="text-sm text-muted-foreground">근무 장소</Label>
                   <p className="font-semibold">{schedule.location}</p>
                 </div>
                 <div>
-                  <Label className="text-sm text-gray-500">급여</Label>
+                  <Label className="text-sm text-muted-foreground">급여</Label>
                   <p className="font-semibold text-primary">
                     {totalSalary.toLocaleString()}원
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm text-gray-500">지급일</Label>
+                  <Label className="text-sm text-muted-foreground">지급일</Label>
                   <p className="font-semibold">{schedule.paymentDate}</p>
                 </div>
               </div>
@@ -1551,18 +1551,18 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">모집 인원</Label>
+                <Label className="text-sm text-muted-foreground">모집 인원</Label>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-lg">
                     {schedule.currentApplicants}
                   </span>
-                  <span className="text-gray-500">/</span>
-                  <span className="text-gray-500">
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-muted-foreground">
                     {schedule.recruitCount}명
                   </span>
                 </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all"
                   style={{
@@ -1584,14 +1584,14 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <Label className="text-sm text-gray-500">업무 설명</Label>
+                <Label className="text-sm text-muted-foreground">업무 설명</Label>
                 <p className="mt-1 text-sm leading-relaxed">
                   {schedule.description}
                 </p>
               </div>
               {schedule.preparation && (
                 <div>
-                  <Label className="text-sm text-gray-500">준비사항</Label>
+                  <Label className="text-sm text-muted-foreground">준비사항</Label>
                   <p className="mt-1 text-sm leading-relaxed">
                     {schedule.preparation}
                   </p>
@@ -1599,7 +1599,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
               )}
               {schedule.requirements && (
                 <div>
-                  <Label className="text-sm text-gray-500">자격 요건</Label>
+                  <Label className="text-sm text-muted-foreground">자격 요건</Label>
                   <p className="mt-1 text-sm leading-relaxed">
                     {schedule.requirements}
                   </p>
@@ -1607,7 +1607,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
               )}
               {schedule.preferences && (
                 <div>
-                  <Label className="text-sm text-gray-500">우대 사항</Label>
+                  <Label className="text-sm text-muted-foreground">우대 사항</Label>
                   <p className="mt-1 text-sm leading-relaxed">
                     {schedule.preferences}
                   </p>
@@ -1615,7 +1615,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
               )}
               {schedule.notes && (
                 <div>
-                  <Label className="text-sm text-gray-500">기타 사항</Label>
+                  <Label className="text-sm text-muted-foreground">기타 사항</Label>
                   <p className="mt-1 text-sm leading-relaxed">
                     {schedule.notes}
                   </p>
@@ -1642,7 +1642,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
                   return (
                     <div
                       key={p.userId}
-                      className="flex items-start gap-3 p-3 rounded-lg border bg-gray-50"
+                      className="flex items-start gap-3 p-3 rounded-lg border bg-muted"
                     >
                       {/* 아바타 */}
                       <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
@@ -1654,7 +1654,7 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
                       {/* 정보 */}
                       <div className="flex-1 flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-foreground">
                             {p.userName}
                           </span>
                           {isReviewed && (
@@ -1664,10 +1664,10 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
                             </Badge>
                           )}
                         </div>
-                        <div className="flex flex-col gap-0.5 text-sm text-gray-600">
+                        <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
                           {p.phone && (
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-16">전화번호</span>
+                              <span className="text-muted-foreground w-16">전화번호</span>
                               <a
                                 href={`tel:${p.phone}`}
                                 className="text-primary hover:underline"
@@ -1678,8 +1678,8 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
                           )}
                           {p.kakaoId && (
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-16">카카오톡</span>
-                              <span className="text-gray-700">{p.kakaoId}</span>
+                              <span className="text-muted-foreground w-16">카카오톡</span>
+                              <span className="text-foreground">{p.kakaoId}</span>
                             </div>
                           )}
                         </div>
@@ -1698,11 +1698,11 @@ function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">담당자</Label>
+                <Label className="text-sm text-muted-foreground">담당자</Label>
                 <p className="font-semibold">{schedule.managerInfo.name}</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-500">연락처</Label>
+                <Label className="text-sm text-muted-foreground">연락처</Label>
                 <p className="font-semibold">{schedule.managerInfo.phone}</p>
               </div>
             </CardContent>

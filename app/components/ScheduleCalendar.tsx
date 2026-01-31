@@ -82,7 +82,7 @@ export default function ScheduleCalendar<T extends BaseScheduleWithPost = BaseSc
         <button
           type="button"
           className={cn(
-            'relative w-full h-full p-2 text-center flex flex-col items-center justify-start transition-colors border border-gray-200',
+            'relative w-full h-full p-2 text-center flex flex-col items-center justify-start transition-colors border border-border',
             // 선택된 날짜
             modifiers.selected && 'bg-primary text-primary-foreground',
             // 외부 날짜 (다른 월)

@@ -1,35 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
 import {
-  CheckCircle2,
   Briefcase,
   Building2,
   Zap,
   Search,
   ArrowRight,
-  Star,
   User,
 } from 'lucide-react';
-
-const stats = [
-  { label: '활동 스탭', value: '999+', icon: <User className="size-6" /> },
-  {
-    label: '등록 공고',
-    value: '999+',
-    icon: <Briefcase className="size-6" />,
-  },
-  {
-    label: '파트너 업체',
-    value: '99+',
-    icon: <Building2 className="size-6" />,
-  },
-  { label: '평균 평점', value: '5', icon: <Star className="size-6" /> },
-];
+import { getLandingStatsAction, type LandingStats } from './actions';
 
 const steps = [
   { title: '회원가입', desc: '이메일로 간단히 가입하고 역할을 선택하세요.' },
@@ -44,33 +28,19 @@ const steps = [
   },
 ];
 
-const featuresByRole = [
-  {
-    role: '스탭',
-    items: [
-      '공고 검색/필터',
-      '관심 목록 관리',
-      '지원 정보 선택 전송',
-      '내 스케줄 확인',
-    ],
-  },
-  {
-    role: '매니저',
-    items: [
-      '공고 등록/수정',
-      '지원자 관리',
-      '스케줄 관리',
-      '매니저 승인 프로세스',
-    ],
-  },
-  {
-    role: '관리자',
-    items: ['회원/공고/신고 관리', '매니저 승인 관리', '시스템 모니터링'],
-  },
-];
+const formatCount = (count: number): string => {
+  if (count >= 1000) {
+    return `${Math.floor(count / 1000)}K+`;
+  }
+  if (count >= 100) {
+    return `${count}+`;
+  }
+  return String(count);
+};
 
 export default function LandingPage() {
   const router = useRouter();
+  const [stats, setStats] = useState<LandingStats | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -79,8 +49,36 @@ export default function LandingPage() {
     if (authed) router.replace('/post');
   }, [router]);
 
+  useEffect(() => {
+    const fetchStats = async () => {
+      const result = await getLandingStatsAction();
+      if (result.ok && result.data) {
+        setStats(result.data);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const statsItems = [
+    {
+      label: '등록 스탭',
+      value: stats ? formatCount(stats.memberCount) : '-',
+      icon: <User className="size-6" />,
+    },
+    {
+      label: '활성 공고',
+      value: stats ? formatCount(stats.activePostCount) : '-',
+      icon: <Briefcase className="size-6" />,
+    },
+    {
+      label: '파트너 업체',
+      value: stats ? formatCount(stats.managerCount) : '-',
+      icon: <Building2 className="size-6" />,
+    },
+  ];
+
   return (
-    <div className="flex flex-col bg-gradient-to-b from-primary to-white">
+    <div className="flex flex-col bg-gradient-to-b from-primary to-background">
       {/* Hero */}
       <section className="max-w-3xl mx-auto p-4">
         <div className="flex flex-col items-center justify-center pt-6 pb-12">
@@ -112,14 +110,17 @@ export default function LandingPage() {
                 </Link>
               </Button>
               <Button variant="outline" asChild size="lg">
-                <Link href="/auth">
-                  <span className="text-primary">무료로 시작하기</span>
-                  <ArrowRight className="size-4 text-primary" />
+                <Link
+                  href="/auth"
+                  className="border border-white/50 rounded-full px-4 py-2 hover:bg-white/10"
+                >
+                  <span className="text-foreground">무료로 시작하기</span>
+                  <ArrowRight className="size-4 text-foreground" />
                 </Link>
               </Button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-4">
-              {stats.map((s) => (
+            <div className="grid grid-cols-3 gap-8 pt-4">
+              {statsItems.map((s) => (
                 <div
                   key={s.label}
                   className="flex flex-col items-center justify-center gap-3 *:text-white"
@@ -127,10 +128,10 @@ export default function LandingPage() {
                   <div className="flex items-center justify-center gap-2 bg-white/10 rounded-lg p-4">
                     {s.icon}
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <p className="text-2xl sm:text-3xl font-bold text-white">
                     {s.value}
                   </p>
-                  <p className="text-sm text-gray-500">{s.label}</p>
+                  <p className="text-sm text-white/80">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -139,18 +140,18 @@ export default function LandingPage() {
       </section>
 
       {/* 이용 방법 */}
-      <section className="bg-white border-t border-b border-slate-200">
+      <section className="bg-background border-t border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">이용 방법</h2>
+          <h2 className="text-2xl font-bold text-foreground">이용 방법</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, idx) => (
               <Card key={step.title} className="h-full">
                 <CardContent className="p-4 space-y-2">
-                  <p className="text-xs font-semibold text-blue-600">
+                  <p className="text-xs font-semibold text-primary">
                     STEP {idx + 1}
                   </p>
-                  <p className="font-bold text-gray-900">{step.title}</p>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="font-bold text-foreground">{step.title}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.desc}
                   </p>
                 </CardContent>
@@ -161,32 +162,32 @@ export default function LandingPage() {
       </section>
 
       {/* 파트너 섹션 */}
-      <section className="bg-slate-50 border-t border-b border-slate-200">
+      <section className="bg-muted border-t border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-4">
           <div className="flex items-center gap-2">
-            <Building2 className="text-blue-600" />
-            <h2 className="text-2xl font-bold text-gray-900">
-              500+ 파트너 업체와 함께합니다
+            <Building2 className="text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">
+              {stats ? `${stats.managerCount}+` : ''} 파트너 업체와 함께합니다
             </h2>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             이벤트, 박람회, 프로모션, 오프라인 채널 등 다양한 도메인의
             파트너사들이 스탭알바를 통해 스탭을 모집하고 있습니다.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 text-sm text-gray-700">
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 text-sm text-foreground">
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
               대형 유통/리테일
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
               IT/스타트업
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
               이벤트/프로모션
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
               스포츠/행사
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
               F&B/외식
             </div>
           </div>
@@ -219,13 +220,13 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300">
+      <footer className="bg-zinc-900 text-zinc-300">
         <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
             <Briefcase className="size-4 text-white" />
             <span className="text-sm font-semibold text-white">스탭알바</span>
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-zinc-400">
             © {new Date().getFullYear()} Staff-MOA. All rights reserved.
           </div>
         </div>

@@ -323,7 +323,7 @@ export default function AdminPage() {
             <CardTitle className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span>회원 관리</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   총 {filteredMembers.length}명 / 전체 {members.length}명
                   (관리자 제외)
                 </span>
@@ -358,11 +358,11 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loadingMembers ? (
-              <div className="text-sm text-gray-500 py-6 text-center">
+              <div className="text-sm text-muted-foreground py-6 text-center">
                 불러오는 중...
               </div>
             ) : filteredMembers.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-6">
                 조건에 맞는 회원이 없습니다.
               </p>
             ) : (
@@ -383,7 +383,7 @@ export default function AdminPage() {
                       </Avatar>
                       <div className="flex flex-col">
                         <span className="font-medium text-sm">{user.name ?? '알 수 없음'}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {user.email ?? '이메일 없음'}
                         </span>
                         <div className="flex items-center gap-1 mt-1">
@@ -444,7 +444,7 @@ export default function AdminPage() {
             <CardTitle className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span>게시글 관리</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   총 {filteredPosts.length}건 / 전체 {visiblePosts.length}건
                 </span>
               </div>
@@ -478,11 +478,11 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loadingPosts ? (
-              <div className="text-sm text-gray-500 py-6 text-center">
+              <div className="text-sm text-muted-foreground py-6 text-center">
                 불러오는 중...
               </div>
             ) : filteredPosts.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-6">
                 조건에 맞는 게시글이 없습니다.
               </p>
             ) : (
@@ -505,10 +505,10 @@ export default function AdminPage() {
                           : '긴급'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {post.location} · {post.workDate} · {post.workTimeStart} ~ {post.workTimeEnd}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       작성자: {post.authorName}
                     </p>
                   </div>
@@ -547,7 +547,7 @@ export default function AdminPage() {
             <CardTitle className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span>신고 관리</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   신고 많은 순 정렬 · 총 {sortedReports.length}건
                 </span>
               </div>
@@ -567,7 +567,7 @@ export default function AdminPage() {
               >
                 <Link
                   href={`/post/${post.id}`}
-                  className="flex-1 cursor-pointer hover:bg-gray-50 rounded-md -mx-2 px-2 py-1 transition-colors"
+                  className="flex-1 cursor-pointer hover:bg-muted rounded-md -mx-2 px-2 py-1 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm line-clamp-1">
@@ -580,13 +580,13 @@ export default function AdminPage() {
                       신고 {reportCount}건
                     </Badge>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {post.location} · {post.workDate}
                   </p>
                   <p className="text-xs text-red-500 mt-0.5 line-clamp-2">
                     신고 사유: {reasons.join(', ')}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     작성자: {post.authorName}
                   </p>
                 </Link>
@@ -631,7 +631,7 @@ export default function AdminPage() {
             <CardTitle className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span>매니저 승인 관리</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   대기 {filteredPendingManagers.length}명
                 </span>
               </div>
@@ -645,12 +645,12 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loadingManagers ? (
-              <div className="flex items-center justify-center py-10 text-sm text-gray-500 gap-2">
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
                 <Loader2 className="size-4 animate-spin" />
                 불러오는 중...
               </div>
             ) : filteredPendingManagers.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-6">
                 대기 중인 매니저 승급 요청이 없습니다.
               </p>
             ) : (
@@ -668,11 +668,11 @@ export default function AdminPage() {
                     </Avatar>
                     <div className="flex flex-col">
                       <span className="font-medium text-sm">{req.name}</span>
-                      <span className="text-xs text-gray-500">{req.email}</span>
-                      <span className="text-xs text-gray-400 mt-1">
+                      <span className="text-xs text-muted-foreground">{req.email}</span>
+                      <span className="text-xs text-muted-foreground mt-1">
                         요청일: {req.requestedAt?.slice(0, 10) || '-'}
                       </span>
-                      <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-600">
+                      <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
                         {[
                           { label: '전화번호', ok: !!req.phone },
                           { label: '카카오 ID', ok: !!req.kakaoId },
@@ -682,7 +682,7 @@ export default function AdminPage() {
                         ].map((item) => (
                           <span
                             key={item.label}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-200"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border"
                           >
                             {item.ok ? (
                               <Check className="size-3 text-emerald-600" />
@@ -738,14 +738,14 @@ export default function AdminPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="mt-3 space-y-2 text-sm">
-                <p className="text-gray-700 whitespace-pre-line">
+                <p className="text-foreground whitespace-pre-line">
                   {selectedPost.description}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   급여 {Number(selectedPost.payAmount).toLocaleString()}원 ({selectedPost.payType === 'hourly' ? '시급' : selectedPost.payType === 'daily' ? '일급' : selectedPost.payType === 'weekly' ? '주급' : '월급'}) · 모집{' '}
                   {selectedPost.recruitCount}명
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   작성자: {selectedPost.authorName}
                 </p>
               </div>

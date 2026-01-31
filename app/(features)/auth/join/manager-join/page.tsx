@@ -55,7 +55,7 @@ export default function ManagerJoinPage() {
             <h2 className="text-xl font-semibold">매니저 회원가입</h2>
           </header>
         </div>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           가입 후 프로필 관리 페이지에서 회사 정보를 추가하여 관리자에게 승인을
           받아야 합니다.
         </p>
@@ -192,7 +192,7 @@ export default function ManagerJoinPage() {
               </Button>
             </form>
           </div>
-          <div className="text-sm text-gray-500 mt-2 text-center">
+          <div className="text-sm text-muted-foreground mt-2 text-center">
             <span>이미 계정이 있으신가요?</span>{' '}
             <Link href="/auth/login" className="text-blue-500">
               로그인

@@ -86,7 +86,7 @@ const DocumentsSection: React.FC<Props> = ({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">추가된 서류 항목이 없습니다.</p>
+          <p className="text-sm text-muted-foreground">추가된 서류 항목이 없습니다.</p>
         )}
       </CardContent>
     </Card>

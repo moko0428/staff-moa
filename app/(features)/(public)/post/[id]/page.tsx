@@ -313,7 +313,7 @@ export default function PostDetailPage({
       case 'urgent':
         return { label: '급구', className: 'bg-red-100 text-red-700 border-red-200' };
       case 'completed':
-        return { label: '모집완료', className: 'bg-gray-100 text-gray-600 border-gray-200' };
+        return { label: '모집완료', className: 'bg-muted text-muted-foreground border-border' };
       default:
         return { label: '모집중', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
     }
@@ -324,7 +324,7 @@ export default function PostDetailPage({
       <div>
         <Hero title="공고 상세" description="공고 정보를 불러오는 중..." />
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
@@ -335,7 +335,7 @@ export default function PostDetailPage({
       <div>
         <Hero title="공고 상세" description="공고를 찾을 수 없습니다" />
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-          <p className="text-gray-500">존재하지 않는 공고입니다.</p>
+          <p className="text-muted-foreground">존재하지 않는 공고입니다.</p>
           <Button onClick={() => router.push('/post')}>
             <ArrowLeft className="size-4 mr-2" />
             공고 목록으로
@@ -375,13 +375,13 @@ export default function PostDetailPage({
                   'size-5',
                   isFavorite
                     ? 'fill-red-500 text-red-500'
-                    : 'text-gray-400 hover:text-red-500'
+                    : 'text-muted-foreground hover:text-red-500'
                 )}
               />
             </Button>
           )}
           <Button variant="ghost" size="icon" onClick={handleShare}>
-            <Share2 className="size-5 text-gray-500" />
+            <Share2 className="size-5 text-muted-foreground" />
           </Button>
         </div>
       </div>
@@ -411,13 +411,13 @@ export default function PostDetailPage({
             <div>
               <p className="font-medium text-sm">{post.author_name || post.manager_name}</p>
               {post.company_name && (
-                <p className="text-xs text-gray-500 flex items-center gap-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Building2 className="size-3" />
                   {post.company_name}
                 </p>
               )}
             </div>
-            <p className="ml-auto text-xs text-gray-400">
+            <p className="ml-auto text-xs text-muted-foreground">
               {post.created_at && format(parseISO(post.created_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
             </p>
           </div>
@@ -435,9 +435,9 @@ export default function PostDetailPage({
             <CardContent className="grid grid-cols-2 gap-4">
               {workDate && (
                 <div className="flex items-start gap-3">
-                  <Calendar className="size-5 text-gray-400 mt-0.5" />
+                  <Calendar className="size-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500">근무일</p>
+                    <p className="text-sm text-muted-foreground">근무일</p>
                     <p className="font-medium">
                       {post.work_slots && post.work_slots.length > 1
                         ? `${format(parseISO(post.work_slots[0].date), 'yyyy.MM.dd')} 외 ${post.work_slots.length - 1}일`
@@ -448,31 +448,31 @@ export default function PostDetailPage({
               )}
               {workTimeStart && workTimeEnd && (
                 <div className="flex items-start gap-3">
-                  <Clock className="size-5 text-gray-400 mt-0.5" />
+                  <Clock className="size-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500">근무 시간</p>
+                    <p className="text-sm text-muted-foreground">근무 시간</p>
                     <p className="font-medium">{workTimeStart} - {workTimeEnd}</p>
                   </div>
                 </div>
               )}
               {workLocation && (
                 <div className="flex items-start gap-3">
-                  <MapPin className="size-5 text-gray-400 mt-0.5" />
+                  <MapPin className="size-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500">근무 장소</p>
+                    <p className="text-sm text-muted-foreground">근무 장소</p>
                     <p className="font-medium">{workLocation}</p>
                   </div>
                 </div>
               )}
               {payAmount && (
                 <div className="flex items-start gap-3">
-                  <CreditCard className="size-5 text-gray-400 mt-0.5" />
+                  <CreditCard className="size-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500">급여</p>
+                    <p className="text-sm text-muted-foreground">급여</p>
                     <p className="font-medium text-primary">
                       {getPayTypeLabel(payType)} {formatNumberWithComma(payAmount)}원
                       {firstSlot?.tax_withholding && (
-                        <span className="text-xs text-gray-500 ml-1">(3.3% 공제)</span>
+                        <span className="text-xs text-muted-foreground ml-1">(3.3% 공제)</span>
                       )}
                     </p>
                   </div>
@@ -491,13 +491,13 @@ export default function PostDetailPage({
                 {post.work_slots.map((slot, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
                   >
                     <div className="flex items-center gap-4">
                       <span className="text-sm font-medium">
                         {format(parseISO(slot.date), 'MM.dd (E)', { locale: ko })}
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-muted-foreground">
                         {slot.start_time || slot.start} - {slot.end_time || slot.end}
                       </span>
                     </div>
@@ -521,38 +521,38 @@ export default function PostDetailPage({
               </div>
               {post.equipments && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-1">
                     <BriefcaseBusiness className="size-4" />
                     준비물
                   </p>
-                  <p className="text-sm text-gray-600 ml-6">{post.equipments}</p>
+                  <p className="text-sm text-muted-foreground ml-6">{post.equipments}</p>
                 </div>
               )}
               {post.qualifications && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-1">
                     <Check className="size-4" />
                     자격 요건
                   </p>
-                  <p className="text-sm text-gray-600 ml-6">{post.qualifications}</p>
+                  <p className="text-sm text-muted-foreground ml-6">{post.qualifications}</p>
                 </div>
               )}
               {post.preferences && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-1">
                     <FileText className="size-4" />
                     우대 사항
                   </p>
-                  <p className="text-sm text-gray-600 ml-6">{post.preferences}</p>
+                  <p className="text-sm text-muted-foreground ml-6">{post.preferences}</p>
                 </div>
               )}
               {post.notes && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-1">
                     <FileText className="size-4" />
                     기타 사항
                   </p>
-                  <p className="text-sm text-gray-600 ml-6">{post.notes}</p>
+                  <p className="text-sm text-muted-foreground ml-6">{post.notes}</p>
                 </div>
               )}
             </CardContent>
@@ -571,12 +571,12 @@ export default function PostDetailPage({
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">지원자 수</span>
+                <span className="text-sm text-muted-foreground">지원자 수</span>
                 <span className="font-semibold">
                   {post.currentApplicants || 0} / {post.recruit_count}명
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all"
                   style={{
@@ -597,16 +597,16 @@ export default function PostDetailPage({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
-                <User2 className="size-5 text-gray-400" />
+                <User2 className="size-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-gray-500">담당자</p>
+                  <p className="text-sm text-muted-foreground">담당자</p>
                   <p className="font-medium">{post.manager_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Phone className="size-5 text-gray-400" />
+                <Phone className="size-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-gray-500">연락처</p>
+                  <p className="text-sm text-muted-foreground">연락처</p>
                   <a
                     href={`tel:${post.manager_phone}`}
                     className="font-medium text-primary hover:underline"
@@ -630,8 +630,8 @@ export default function PostDetailPage({
           )}
 
           {post.status === 'completed' && (
-            <div className="p-4 bg-gray-100 rounded-lg text-center">
-              <p className="text-gray-600 font-medium">모집이 완료되었습니다</p>
+            <div className="p-4 bg-muted rounded-lg text-center">
+              <p className="text-muted-foreground font-medium">모집이 완료되었습니다</p>
             </div>
           )}
 
@@ -653,7 +653,7 @@ export default function PostDetailPage({
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 아래 항목 중 지원 시 전달할 정보를 선택해주세요.
               </p>
               <div className="grid grid-cols-2 gap-4">
@@ -752,7 +752,7 @@ export default function PostDetailPage({
               </div>
             </div>
           ) : (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               지원하려면 먼저 로그인해주세요.
             </p>
           )}

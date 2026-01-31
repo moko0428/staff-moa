@@ -189,7 +189,7 @@ export function JobCard({ item }: JobCardProps) {
     item.status === '급구'
       ? 'border-red-300/70 bg-red-50'
       : item.status === '모집완료'
-      ? 'bg-gray-200'
+      ? 'bg-muted'
       : '';
 
   const enabledHoverClasses =
@@ -201,7 +201,7 @@ export function JobCard({ item }: JobCardProps) {
     item.status === '급구'
       ? 'bg-red-100 text-red-700 border-red-200'
       : item.status === '모집완료'
-      ? 'bg-gray-100 text-gray-600 border-gray-200'
+      ? 'bg-muted text-muted-foreground border-border'
       : 'bg-emerald-100 text-emerald-700 border-emerald-200';
 
   const formatNumberWithComma = (value: string | undefined) => {
@@ -297,9 +297,9 @@ export function JobCard({ item }: JobCardProps) {
       {item.status === '모집완료' && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gray-200/10 backdrop-blur-sm"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted/10 backdrop-blur-sm"
         >
-          <span className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-widest text-gray-500 opacity-80">
+          <span className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-widest text-muted-foreground opacity-80">
             모집 완료
           </span>
         </div>
@@ -318,7 +318,7 @@ export function JobCard({ item }: JobCardProps) {
               'size-5',
               isFavorite
                 ? 'fill-red-500 text-red-500'
-                : 'text-gray-400 hover:text-red-500'
+                : 'text-muted-foreground hover:text-red-500'
             )}
           />
         </Button>
@@ -339,7 +339,7 @@ export function JobCard({ item }: JobCardProps) {
               {item.categories.map((c) => (
                 <span
                   key={c}
-                  className="text-xs sm:text-sm text-gray-700 border border-gray-300 rounded-full px-2.5 py-0.5 bg-gray-100"
+                  className="text-xs sm:text-sm text-foreground border border-border rounded-full px-2.5 py-0.5 bg-muted"
                 >
                   {c}
                 </span>
@@ -362,39 +362,39 @@ export function JobCard({ item }: JobCardProps) {
       </CardHeader>
       <CardContent className="pt-0 grid grid-cols-2 md:grid-cols-4 gap-2">
         {item.date && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <Calendar className="size-4" />
             <span>{item.date}</span>
           </p>
         )}
         {item.time && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <Clock className="size-4" />
             <span>{item.time}</span>
           </p>
         )}
         {item.place && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <MapPin className="size-4" />
             <span>{item.place}</span>
           </p>
         )}
 
         {item.need && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <BriefcaseBusiness className="size-4" />
             <span>{item.need}</span>
           </p>
         )}
 
         {item.manager && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <User2 className="size-4" />
-            <span className="text-gray-500">담당자:</span> {item.manager}
+            <span className="text-muted-foreground">담당자:</span> {item.manager}
           </p>
         )}
         {item.managerPhone && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <Phone className="size-4" />
             <button
               type="button"
@@ -408,7 +408,7 @@ export function JobCard({ item }: JobCardProps) {
           </p>
         )}
         {item.pay && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <CreditCard className="size-4" />
             <span>{formatNumberWithComma(item.pay)}원</span>
           </p>
@@ -417,13 +417,13 @@ export function JobCard({ item }: JobCardProps) {
 
       <div className="flex flex-col gap-2 px-6 py-2">
         {item.qualifications && item.qualifications.length > 0 && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <Check className="size-4" />
             <span>{item.qualifications.join(', ')}</span>
           </p>
         )}
         {item.etc && (
-          <p className="flex items-center gap-2 text-sm text-gray-700">
+          <p className="flex items-center gap-2 text-sm text-foreground">
             <FileText className="size-4" />
             <span>{item.etc}</span>
           </p>
@@ -466,7 +466,7 @@ export function JobCard({ item }: JobCardProps) {
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 아래 항목 중 지원 시 전달할 정보를 선택해주세요.
               </p>
               <div className="grid grid-cols-2 gap-4">
@@ -496,7 +496,7 @@ export function JobCard({ item }: JobCardProps) {
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <p className="font-medium">서류</p>
-                        <ul className="text-xs text-gray-500 space-y-0.5">
+                        <ul className="text-xs text-muted-foreground space-y-0.5">
                           {currentUser.documents.idCard && <li>신분증</li>}
                           {currentUser.documents.bankbook && <li>통장사본</li>}
                           {currentUser.documents.healthCertificate && (
@@ -515,7 +515,7 @@ export function JobCard({ item }: JobCardProps) {
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <p className="font-medium">자격증</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {currentUser.documents.certificates.join(', ')}
                         </p>
                       </div>
@@ -532,7 +532,7 @@ export function JobCard({ item }: JobCardProps) {
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <p className="font-medium">어학 능력</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {currentUser.documents.language.join(', ')}
                         </p>
                       </div>
@@ -557,7 +557,7 @@ export function JobCard({ item }: JobCardProps) {
                   rows={4}
                   className="resize-none"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   지원 동기, 경력 설명 등을 자유롭게 작성할 수 있습니다.
                 </p>
               </div>
@@ -585,7 +585,7 @@ export function JobCard({ item }: JobCardProps) {
               </div>
             </div>
           ) : (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               지원하려면 먼저 로그인해주세요.
             </p>
           )}

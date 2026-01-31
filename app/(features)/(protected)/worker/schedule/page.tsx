@@ -719,7 +719,7 @@ export default function WorkerSchedulePage() {
       <div className="space-y-4">
         <Hero title="내 스케줄" description="스탭 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
           </CardContent>
         </Card>
@@ -732,7 +732,7 @@ export default function WorkerSchedulePage() {
       <div className="space-y-4">
         <Hero title="내 스케줄" description="스탭 전용 페이지" />
         <Card>
-          <CardContent className="py-6 text-sm text-gray-600">
+          <CardContent className="py-6 text-sm text-muted-foreground">
             스탭만 접근할 수 있는 페이지입니다.
           </CardContent>
         </Card>
@@ -749,7 +749,7 @@ export default function WorkerSchedulePage() {
           description="지원한 공고의 스케줄을 확인하세요"
         />
         <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
@@ -828,7 +828,7 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             </div>
             {categorizedSchedules.upcoming.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-sm text-gray-500">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
                   예정된 스케줄이 없습니다
                 </CardContent>
               </Card>
@@ -854,7 +854,7 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             </div>
             {categorizedSchedules.ongoing.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-sm text-gray-500">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
                   진행중인 스케줄이 없습니다
                 </CardContent>
               </Card>
@@ -880,7 +880,7 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
             </div>
             {categorizedSchedules.completed.length === 0 ? (
               <Card>
-                <CardContent className="py-8 text-center text-sm text-gray-500">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
                   완료된 스케줄이 없습니다
                 </CardContent>
               </Card>
@@ -903,7 +903,7 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
         <div className="space-y-4">
           {categorizedSchedules.applications.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-sm text-gray-500">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 지원한 공고가 없습니다
               </CardContent>
             </Card>
@@ -1002,7 +1002,7 @@ function CalendarView({
             </CardHeader>
             <CardContent>
               {selectedDateSchedules.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">
+                <p className="text-sm text-muted-foreground text-center py-4">
                   {selectedDate
                     ? '해당 날짜에 스케줄이 없습니다'
                     : '캘린더에서 날짜를 선택하세요'}
@@ -1106,19 +1106,19 @@ function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatu
       </CardHeader>
       <CardContent className={cn('pt-0', compact && 'pt-0')}>
         <div className={cn('space-y-2 text-sm', compact && 'space-y-1 text-xs')}>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <CalendarIcon className="size-4" />
             <span>{schedule.date}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="size-4" />
             <span>{schedule.time}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <span>📍</span>
             <span className="truncate">{schedule.location}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <span>💰</span>
             <span>{schedule.salary.toLocaleString()}원</span>
           </div>
@@ -1200,8 +1200,8 @@ function EarningsSection({ earnings }: EarningsSectionProps) {
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 leading-relaxed">
+          <div className="mt-4 p-3 bg-muted rounded-lg">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               💡 <strong>이번 주/달 예상 급여</strong>는 승인된 스케줄을 기준으로 계산됩니다.<br />
               <strong>누적 급여</strong>는 완료된 스케줄만 포함됩니다.<br />
               <strong>급여 타입별 계산:</strong> 시급(근무시간×시급), 일급(근무일수×일급), 주급/월급(해당 기간 1회)
@@ -1497,7 +1497,7 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                 className="w-full min-h-[100px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              <p className="text-sm text-foreground whitespace-pre-wrap">
                 {schedule.description || '없음'}
               </p>
             )}
@@ -1540,7 +1540,7 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
           {!isEditMode && schedule.notes && (
             <div>
               <h3 className="font-semibold mb-2">참고사항</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              <p className="text-sm text-foreground whitespace-pre-wrap">
                 {schedule.notes}
               </p>
             </div>

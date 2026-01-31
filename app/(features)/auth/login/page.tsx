@@ -105,10 +105,10 @@ export default function LoginPage() {
           </form>
 
           {/* <div className="mt-6 space-y-3">
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <div className="flex-1 h-px bg-gray-200" />
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex-1 h-px bg-border" />
               <span>간편 로그인</span>
-              <div className="flex-1 h-px bg-gray-200" />
+              <div className="flex-1 h-px bg-border" />
             </div>
             <Button
               type="button"
@@ -126,7 +126,7 @@ export default function LoginPage() {
             </Button>
           </div> */}
 
-          <div className="text-sm text-gray-500 mt-3 text-center">
+          <div className="text-sm text-muted-foreground mt-3 text-center">
             <span>계정이 없으신가요?</span>{' '}
             <Link href="/auth/join" className="text-blue-500">
               회원가입
