@@ -27,6 +27,9 @@ interface ProfileModalProps {
     role: string;
     introduction?: string | null;
     attendanceScore?: number | null;
+    followerCount?: number;
+    companyName?: string | null;
+    companyVerifyStatus?: string | null;
   };
   currentUserId?: string; // 현재 로그인한 사용자 ID (자신은 팔로우 불가)
   isFollowing?: boolean;
@@ -110,6 +113,32 @@ export default function ProfileModal({
               <Badge variant="secondary" className="text-xs">
                 근태 점수: {user.attendanceScore}점
               </Badge>
+            </div>
+          )}
+
+          {/* 팔로워 수 (매니저인 경우) */}
+          {user.role === 'manager' && typeof user.followerCount === 'number' && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                팔로워 {user.followerCount}명
+              </Badge>
+            </div>
+          )}
+
+          {/* 회사 정보 (매니저인 경우) */}
+          {user.role === 'manager' && (user.companyName || user.companyVerifyStatus) && (
+            <div className="w-full mt-1 p-4 bg-muted rounded-lg space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">회사 정보</p>
+                {user.companyVerifyStatus && (
+                  <Badge variant="outline" className="text-xs">
+                    인증: {user.companyVerifyStatus}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {user.companyName || '-'}
+              </p>
             </div>
           )}
 

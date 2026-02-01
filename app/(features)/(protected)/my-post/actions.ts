@@ -62,6 +62,10 @@ type ActionResult<T = void> = {
   fieldErrors?: Record<string, string>;
 };
 
+function normalizeKeyword(input: string): string {
+  return input.trim().toLowerCase();
+}
+
 // 포스트의 날짜/시간을 확인하여 과거인지 판단하는 헬퍼 함수
 function isPostPast(post: Record<string, unknown>): boolean {
   const now = new Date();
@@ -281,6 +285,13 @@ export async function createPostAction(
       return { ok: false, message: firstError, fieldErrors };
     }
 
+    // 키워드 정규화 (매칭/overlaps 안정화)
+    const normalizedKeywords = Array.isArray(parsed.data.keywords)
+      ? parsed.data.keywords
+          .map((k) => normalizeKeyword(String(k)))
+          .filter(Boolean)
+      : [];
+
     // work_date, work_time_start, work_time_end는 work_slots의 첫 번째 항목에서 추출
     const firstSlot = parsed.data.work_slots[0];
     const workDate = firstSlot?.date || null;
@@ -321,7 +332,7 @@ export async function createPostAction(
         preferences: parsed.data.preferences || null,
         notes: parsed.data.notes || null,
         external_link: parsed.data.external_link || null,
-        keywords: parsed.data.keywords,
+        keywords: normalizedKeywords,
         author_id: userData.user.id,
         status: parsed.data.status,
         form_type: parsed.data.form_type,
@@ -335,6 +346,82 @@ export async function createPostAction(
         ok: false,
         message: '공고 작성에 실패했습니다. 다시 시도해주세요.',
       };
+    }
+
+    // 알림: 관심 키워드 매칭 + 팔로우 매니저
+    try {
+      const postId = data.post_id;
+      const link = `/post/${postId}`;
+
+      const followerRecipients = new Set<string>();
+      const keywordRecipients = new Set<string>();
+
+      // 1) 팔로우한 사용자
+      const { data: follows } = await supabase
+        .from('manager_follows')
+        .select('follower_id')
+        .eq('manager_id', userData.user.id);
+      (follows || []).forEach((f) => {
+        if (f.follower_id) followerRecipients.add(String(f.follower_id));
+      });
+
+      // 2) 관심 키워드 매칭 사용자
+      if (normalizedKeywords.length > 0) {
+        const { data: kwUsers } = await supabase
+          .from('favorites_keywords')
+          .select('user_id, keyword')
+          .in('keyword', normalizedKeywords);
+        (kwUsers || []).forEach((u) => {
+          if (u.user_id) keywordRecipients.add(String(u.user_id));
+        });
+      }
+
+      followerRecipients.delete(userData.user.id);
+      keywordRecipients.delete(userData.user.id);
+
+      if (parsed.data.status !== 'completed') {
+        const notifications: Array<{
+          userId: string;
+          type: 'system';
+          title: string;
+          message: string;
+          link: string;
+        }> = [];
+
+        // 팔로우 알림: "OOO 매니저님이 공고를 올리셨습니다 지금 바로 확인해보세요!"
+        if (followerRecipients.size > 0) {
+          const managerName = parsed.data.manager_name || profile?.name || '매니저';
+          Array.from(followerRecipients).forEach((userId) => {
+            notifications.push({
+              userId,
+              type: 'system',
+              title: '팔로우 매니저 공고 알림',
+              message: `${managerName} 매니저님이 공고를 올리셨습니다 지금 바로 확인해보세요!`,
+              link,
+            });
+          });
+        }
+
+        // 키워드 알림: 기존 메시지 유지 (팔로우 대상과 겹치면 팔로우 메시지를 우선)
+        if (keywordRecipients.size > 0) {
+          Array.from(keywordRecipients).forEach((userId) => {
+            if (followerRecipients.has(userId)) return;
+            notifications.push({
+              userId,
+              type: 'system',
+              title: '관심 공고 알림',
+              message: `"${parsed.data.title}" 공고가 등록되었습니다. 지금 확인해보세요!`,
+              link,
+            });
+          });
+        }
+
+        if (notifications.length > 0) {
+          await createBulkNotificationsAction(notifications);
+        }
+      }
+    } catch (notifyErr) {
+      console.error('[createPostAction] Failed to notify favorites', notifyErr);
     }
 
     return {
