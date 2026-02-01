@@ -36,26 +36,29 @@ const notificationTypeConfig = {
   application_accepted: {
     icon: Check,
     label: '지원 승인',
-    className: 'bg-green-100 text-green-700',
-    iconClassName: 'text-green-600',
+    className:
+      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200',
+    iconClassName: 'text-emerald-700 dark:text-emerald-200',
   },
   application_rejected: {
     icon: AlertCircle,
     label: '지원 거절',
-    className: 'bg-red-100 text-red-700',
-    iconClassName: 'text-red-600',
+    className: 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-200',
+    iconClassName: 'text-red-700 dark:text-red-200',
   },
   new_application: {
     icon: Briefcase,
     label: '새 지원',
-    className: 'bg-blue-100 text-blue-700',
-    iconClassName: 'text-blue-600',
+    className:
+      'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200',
+    iconClassName: 'text-blue-700 dark:text-blue-200',
   },
   schedule_reminder: {
     icon: Calendar,
     label: '스케줄 알림',
-    className: 'bg-orange-100 text-orange-700',
-    iconClassName: 'text-orange-600',
+    className:
+      'bg-orange-100 text-orange-800 dark:bg-orange-950/30 dark:text-orange-200',
+    iconClassName: 'text-orange-700 dark:text-orange-200',
   },
   system: {
     icon: Info,
@@ -184,7 +187,7 @@ export default function NotificationPage() {
                         'p-4 rounded-lg border transition-colors',
                         notification.is_read
                           ? 'bg-muted border-border'
-                          : 'bg-white border-primary/20 shadow-sm'
+                          : 'bg-card border-primary/30 shadow-sm'
                       )}
                     >
                       <div className="flex items-start gap-3">
