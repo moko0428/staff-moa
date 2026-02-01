@@ -28,6 +28,7 @@ import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/Separator';
 import { submitReviewAction, getMyReviewAction } from './actions';
+import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import {
@@ -220,7 +221,7 @@ export default function SettingsPage() {
   // 리뷰 제출 핸들러
   const handleSubmitReview = async () => {
     if (reviewRating === 0 || !reviewContent.trim()) {
-      alert('별점과 리뷰 내용을 모두 입력해주세요.');
+      toast.error('별점과 리뷰 내용을 모두 입력해주세요.');
       return;
     }
 
@@ -232,14 +233,14 @@ export default function SettingsPage() {
       });
 
       if (result.ok) {
-        alert(result.message);
+        toast.success(result.message);
         setIsReviewModalOpen(false);
       } else {
-        alert(result.message);
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to submit review:', error);
-      alert('리뷰 제출에 실패했습니다. 다시 시도해주세요.');
+      toast.error('리뷰 제출에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -254,7 +255,7 @@ export default function SettingsPage() {
     }
 
     // TODO: 계정 탈퇴 로직 구현
-    alert('계정 탈퇴 기능은 곧 구현될 예정입니다.');
+    toast.message('계정 탈퇴 기능은 곧 구현될 예정입니다.');
   };
 
   return (

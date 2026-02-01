@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -271,7 +272,7 @@ export default function AdminPage() {
       setPendingManagers((prev) => prev.filter((r) => r.id !== req.id));
     } catch (err) {
       console.error('Failed to update manager status', err);
-      alert('승인/거절 처리에 실패했습니다. 다시 시도해주세요.');
+      toast.error('승인/거절 처리에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

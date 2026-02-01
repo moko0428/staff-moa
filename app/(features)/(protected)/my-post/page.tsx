@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   getMyPostsAction,
   deletePostAction,
@@ -107,7 +108,7 @@ export default function MyPostPage() {
       filtered = filtered.filter(
         (p) =>
           p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
+          p.description.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -125,27 +126,28 @@ export default function MyPostPage() {
     const result = await deletePostAction(postId);
     if (result.ok) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
+      toast.success('삭제되었습니다.');
     } else {
-      alert(result.message);
+      toast.error(result.message);
     }
   };
 
   const handleStatusToggle = async (
     postId: string,
-    newStatus: PostRow['status']
+    newStatus: PostRow['status'],
   ) => {
     // 낙관적 업데이트를 위해 이전 상태 저장
     const prevPosts = posts;
     const prevStatus = posts.find((p) => p.id === postId)?.status;
 
     setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
+      prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p)),
     );
 
     const result = await updatePostStatusAction(postId, newStatus);
 
     if (!result.ok) {
-      alert(result.message || '공고 상태 변경에 실패했습니다.');
+      toast.error(result.message || '공고 상태 변경에 실패했습니다.');
       // 실패 시 이전 상태로 롤백
       if (prevStatus) {
         setPosts(prevPosts);
@@ -201,7 +203,7 @@ export default function MyPostPage() {
           <p className="text-2xl text-green-600">
             {
               myPosts.filter(
-                (p) => p.status === 'recruiting' || p.status === 'urgent'
+                (p) => p.status === 'recruiting' || p.status === 'urgent',
               ).length
             }
             개
@@ -224,11 +226,10 @@ export default function MyPostPage() {
             'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
             showFilters
               ? 'bg-primary/10 border-primary text-primary'
-              : 'border-border text-foreground hover:bg-muted'
+              : 'border-border text-foreground hover:bg-muted',
           )}
         >
           <FilterIcon className="size-5" />
-          필터
         </Button>
         <Button variant="default" size="sm" asChild>
           <Link href="/my-post/create">
@@ -280,7 +281,9 @@ export default function MyPostPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Loader2 className="size-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
+            <p className="text-sm text-muted-foreground">
+              공고를 불러오는 중...
+            </p>
           </CardContent>
         </Card>
       ) : myPosts.length === 0 ? (
@@ -307,7 +310,10 @@ export default function MyPostPage() {
                 description: post.description,
                 keywords: post.keywords || [],
                 date: post.work_slots?.[0]?.date || '',
-                location: (post.work_slots?.[0]?.location as string) || (post.location as string) || '',
+                location:
+                  (post.work_slots?.[0]?.location as string) ||
+                  (post.location as string) ||
+                  '',
                 time: post.work_slots?.[0]
                   ? `${post.work_slots[0].start} - ${post.work_slots[0].end}`
                   : '',

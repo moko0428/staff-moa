@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useActionState } from 'react';
 import Hero from '@/app/components/Hero';
+import { toast } from 'sonner';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -48,7 +49,7 @@ export default function EditPostPage() {
 
   const [state, formAction, isPending] = useActionState(
     updatePostAction,
-    initialState
+    initialState,
   );
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,7 @@ export default function EditPostPage() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
   const [status, setStatus] = useState<'recruiting' | 'completed' | 'urgent'>(
-    'recruiting'
+    'recruiting',
   );
   const [formType, setFormType] = useState<'basic' | 'free'>('basic');
 
@@ -89,19 +90,44 @@ export default function EditPostPage() {
           setNotes((post.notes as string) || '');
           setExternalLink((post.external_link as string) || '');
           setKeywords((post.keywords as string[]) || []);
-          setStatus((post.status as 'recruiting' | 'completed' | 'urgent') || 'recruiting');
+          setStatus(
+            (post.status as 'recruiting' | 'completed' | 'urgent') ||
+              'recruiting',
+          );
           setFormType((post.form_type as 'basic' | 'free') || 'basic');
 
           // work_slots 변환: Supabase 형식(start_time, end_time) → 클라이언트 형식(start, end)
-          if (post.work_slots && Array.isArray(post.work_slots) && post.work_slots.length > 0) {
-            const convertedWorkSlots: WorkSlot[] = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
+          if (
+            post.work_slots &&
+            Array.isArray(post.work_slots) &&
+            post.work_slots.length > 0
+          ) {
+            const convertedWorkSlots: WorkSlot[] = (
+              post.work_slots as Array<Record<string, unknown>>
+            ).map((slot) => ({
               date: (slot.date as string) || (post.work_date as string) || '',
-              start: (slot.start_time as string) || (slot.start as string) || (post.work_time_start as string) || '',
-              end: (slot.end_time as string) || (slot.end as string) || (post.work_time_end as string) || '',
-              location: (slot.location as string) || (post.location as string) || '',
-              pay_type: ((slot.pay_type || post.pay_type || 'hourly') as 'hourly' | 'daily' | 'weekly' | 'monthly'),
-              pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
-              tax_withholding: (slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false)) as boolean,
+              start:
+                (slot.start_time as string) ||
+                (slot.start as string) ||
+                (post.work_time_start as string) ||
+                '',
+              end:
+                (slot.end_time as string) ||
+                (slot.end as string) ||
+                (post.work_time_end as string) ||
+                '',
+              location:
+                (slot.location as string) || (post.location as string) || '',
+              pay_type: (slot.pay_type || post.pay_type || 'hourly') as
+                | 'hourly'
+                | 'daily'
+                | 'weekly'
+                | 'monthly',
+              pay_amount:
+                (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+              tax_withholding: (slot.tax_withholding !== undefined
+                ? slot.tax_withholding
+                : post.tax_withholding || false) as boolean,
             }));
             setWorkSlots(convertedWorkSlots);
           } else {
@@ -112,19 +138,23 @@ export default function EditPostPage() {
                 start: (post.work_time_start as string) || '',
                 end: (post.work_time_end as string) || '',
                 location: (post.location as string) || '',
-                pay_type: ((post.pay_type || 'hourly') as 'hourly' | 'daily' | 'weekly' | 'monthly'),
+                pay_type: (post.pay_type || 'hourly') as
+                  | 'hourly'
+                  | 'daily'
+                  | 'weekly'
+                  | 'monthly',
                 pay_amount: Number(post.pay_amount) || 0,
                 tax_withholding: (post.tax_withholding as boolean) || false,
               },
             ]);
           }
         } else {
-          alert('공고를 불러오는데 실패했습니다.');
+          toast.error('공고를 불러오는데 실패했습니다.');
           router.push('/my-post');
         }
       } catch (err) {
         console.error('Failed to fetch post', err);
-        alert('공고를 불러오는 중 오류가 발생했습니다.');
+        toast.error('공고를 불러오는 중 오류가 발생했습니다.');
         router.push('/my-post');
       } finally {
         setLoading(false);
@@ -180,7 +210,9 @@ export default function EditPostPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Loader2 className="size-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">공고를 불러오는 중...</p>
+            <p className="text-sm text-muted-foreground">
+              공고를 불러오는 중...
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -211,7 +243,7 @@ export default function EditPostPage() {
   const handleWorkSlotChange = (
     index: number,
     field: keyof WorkSlot,
-    value: string | number | boolean
+    value: string | number | boolean,
   ) => {
     const updated = [...workSlots];
     updated[index] = { ...updated[index], [field]: value };
@@ -426,7 +458,7 @@ export default function EditPostPage() {
                         handleWorkSlotChange(
                           index,
                           'pay_type',
-                          v as WorkSlot['pay_type']
+                          v as WorkSlot['pay_type'],
                         )
                       }
                     >
@@ -453,7 +485,7 @@ export default function EditPostPage() {
                         handleWorkSlotChange(
                           index,
                           'pay_amount',
-                          Number(e.target.value)
+                          Number(e.target.value),
                         )
                       }
                       required
@@ -468,7 +500,7 @@ export default function EditPostPage() {
                         handleWorkSlotChange(
                           index,
                           'tax_withholding',
-                          e.target.checked
+                          e.target.checked,
                         )
                       }
                       className="size-4"
@@ -570,6 +602,9 @@ export default function EditPostPage() {
             </div>
             <div>
               <Label>키워드</Label>
+              <small className="text-sm text-muted-foreground">
+                효율적인 매칭을 위해 키워드를 입력해주세요.
+              </small>
               <div className="flex gap-2 mb-2">
                 <Input
                   value={newKeyword}
