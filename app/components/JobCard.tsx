@@ -38,6 +38,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Label } from '@/app/components/ui/label';
 import { User } from '@/types/mockData';
 import { useUserStore } from '@/store/useUserStore';
+import { toast } from 'sonner';
 import {
   addFavoriteAction,
   removeFavoriteAction,
@@ -53,6 +54,7 @@ export interface JobItem {
   title: string;
   content?: string;
   date?: string;
+  workSlotCount?: number;
   time?: string;
   need?: string;
   place?: string;
@@ -78,7 +80,7 @@ export function JobCard({ item }: JobCardProps) {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
-  
+
   const [isFavorite, setIsFavorite] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -105,14 +107,14 @@ export function JobCard({ item }: JobCardProps) {
         const { data } = await supabase.auth.getUser();
         if (data.user) {
           setCurrentUserId(data.user.id);
-          
+
           // Supabase에서 프로필 가져오기
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', data.user.id)
             .single();
-          
+
           if (profile) {
             // Supabase 프로필을 User 타입으로 변환
             const user: User = {
@@ -122,13 +124,14 @@ export function JobCard({ item }: JobCardProps) {
               role: (profile.role as User['role']) || 'member',
               phone: profile.phone || undefined,
               kakaoId: profile.kakao_id || undefined,
-              gender: (profile.gender === '남성' || profile.gender === '여성') 
-                ? profile.gender 
-                : undefined,
+              gender:
+                profile.gender === '남성' || profile.gender === '여성'
+                  ? profile.gender
+                  : undefined,
               mbti: profile.mbti || undefined,
               personality: profile.personality || undefined,
-              experiences: profile.experiences as User['experiences'] || [],
-              documents: profile.documents as User['documents'] || undefined,
+              experiences: (profile.experiences as User['experiences']) || [],
+              documents: (profile.documents as User['documents']) || undefined,
               attendanceScore: profile.attendance_score || 50,
               createdAt: profile.created_at || new Date().toISOString(),
             };
@@ -139,7 +142,7 @@ export function JobCard({ item }: JobCardProps) {
         console.error('Failed to fetch current user:', error);
       }
     };
-    
+
     fetchCurrentUser();
   }, []);
 
@@ -176,7 +179,14 @@ export function JobCard({ item }: JobCardProps) {
     };
 
     run();
-  }, [roleHydrated, isMember, currentUserId, item.id, item.applied, item.status]);
+  }, [
+    roleHydrated,
+    isMember,
+    currentUserId,
+    item.id,
+    item.applied,
+    item.status,
+  ]);
 
   useEffect(() => {
     // 관심 목록 확인 (Supabase에서)
@@ -210,7 +220,7 @@ export function JobCard({ item }: JobCardProps) {
           // 관심 목록 업데이트 이벤트 발생
           window.dispatchEvent(new Event('favorites-updated'));
         } else {
-          alert(result.message || '관심목록 제거에 실패했습니다.');
+          toast.error(result.message || '관심목록 제거에 실패했습니다.');
         }
       } else {
         // 관심목록에 추가
@@ -220,12 +230,12 @@ export function JobCard({ item }: JobCardProps) {
           // 관심 목록 업데이트 이벤트 발생
           window.dispatchEvent(new Event('favorites-updated'));
         } else {
-          alert(result.message || '관심목록 추가에 실패했습니다.');
+          toast.error(result.message || '관심목록 추가에 실패했습니다.');
         }
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
-      alert('관심목록 변경 중 오류가 발생했습니다.');
+      toast.error('관심목록 변경 중 오류가 발생했습니다.');
     }
   };
   const statusClassName =
@@ -278,9 +288,19 @@ export function JobCard({ item }: JobCardProps) {
     return `https://${raw}`;
   })();
 
+  const dateLabel = (() => {
+    const base = item.date;
+    if (!base) return base;
+    const count = item.workSlotCount;
+    if (typeof count === 'number' && count > 1) {
+      return `${base} 외 ${count - 1}일`;
+    }
+    return base;
+  })();
+
   const handleSubmitApplication = async () => {
     if (!currentUser) {
-      alert('로그인이 필요합니다.');
+      toast.error('로그인이 필요합니다.');
       return;
     }
 
@@ -298,8 +318,13 @@ export function JobCard({ item }: JobCardProps) {
     if (selectedFields.documents && currentUser.documents) {
       selectedInfo.push('서류');
     }
-    if (selectedFields.certificates && currentUser.documents?.certificates?.length) {
-      selectedInfo.push(`자격증(${currentUser.documents.certificates.length}개)`);
+    if (
+      selectedFields.certificates &&
+      currentUser.documents?.certificates?.length
+    ) {
+      selectedInfo.push(
+        `자격증(${currentUser.documents.certificates.length}개)`
+      );
     }
     if (selectedFields.languages && currentUser.documents?.language?.length) {
       selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
@@ -316,14 +341,14 @@ export function JobCard({ item }: JobCardProps) {
       const postId = typeof item.id === 'string' ? parseInt(item.id) : item.id;
 
       if (isNaN(postId)) {
-        alert('올바른 공고 ID가 아닙니다.');
+        toast.error('올바른 공고 ID가 아닙니다.');
         return;
       }
 
       const result = await applyToPostAction(postId, message || undefined);
 
       if (result.ok) {
-        alert(result.message);
+        toast.success(result.message || '지원이 완료되었습니다.');
         setIsApplied(true);
         setApplyOpen(false);
         setApplicationMessage(''); // 메시지 초기화
@@ -333,11 +358,11 @@ export function JobCard({ item }: JobCardProps) {
           setIsApplied(true);
           setApplyOpen(false);
         }
-        alert(result.message || '지원에 실패했습니다.');
+        toast.error(result.message || '지원에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to apply:', error);
-      alert('지원 중 오류가 발생했습니다.');
+      toast.error('지원 중 오류가 발생했습니다.');
     }
   };
 
@@ -418,10 +443,10 @@ export function JobCard({ item }: JobCardProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-0 grid grid-cols-2 md:grid-cols-4 gap-2">
-        {item.date && (
+        {dateLabel && (
           <p className="flex items-center gap-2 text-sm text-foreground">
             <Calendar className="size-4" />
-            <span>{item.date}</span>
+            <span>{dateLabel}</span>
           </p>
         )}
         {item.time && (
@@ -447,7 +472,8 @@ export function JobCard({ item }: JobCardProps) {
         {item.manager && (
           <p className="flex items-center gap-2 text-sm text-foreground">
             <User2 className="size-4" />
-            <span className="text-muted-foreground">담당자:</span> {item.manager}
+            <span className="text-muted-foreground">담당자:</span>{' '}
+            {item.manager}
           </p>
         )}
         {item.managerPhone && (
@@ -516,21 +542,27 @@ export function JobCard({ item }: JobCardProps) {
             type="button"
             variant={isApplied ? 'secondary' : 'default'}
             size="sm"
-            disabled={item.status === '모집완료' || isApplied || isCheckingApplied}
+            disabled={
+              item.status === '모집완료' || isApplied || isCheckingApplied
+            }
             aria-label="지원하기"
             title={
               item.status === '모집완료'
                 ? '모집이 완료되어 지원할 수 없습니다'
                 : isApplied
-                  ? '이미 지원한 공고입니다'
-                  : isCheckingApplied
-                    ? '지원 여부 확인 중...'
-                    : '지원하기'
+                ? '이미 지원한 공고입니다'
+                : isCheckingApplied
+                ? '지원 여부 확인 중...'
+                : '지원하기'
             }
             className={cn(isApplied && 'text-muted-foreground')}
             onClick={handleApplyClick}
           >
-            {isApplied ? '지원완료' : isCheckingApplied ? '확인 중...' : '지원하기'}
+            {isApplied
+              ? '지원완료'
+              : isCheckingApplied
+              ? '확인 중...'
+              : '지원하기'}
           </Button>
         )}
       </CardFooter>
@@ -625,7 +657,10 @@ export function JobCard({ item }: JobCardProps) {
 
               {/* 지원 메시지 입력 */}
               <div className="space-y-2">
-                <Label htmlFor="application-message" className="text-sm font-medium">
+                <Label
+                  htmlFor="application-message"
+                  className="text-sm font-medium"
+                >
                   지원 메시지 (선택)
                 </Label>
                 <Textarea

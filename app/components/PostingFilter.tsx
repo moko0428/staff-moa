@@ -158,7 +158,7 @@ export default function PostingFilter({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
             type="text"
-            value={filters.searchTerm}
+            value={filters.searchTerm ?? ''}
             onChange={(e) => set({ searchTerm: e.target.value })}
             placeholder="공고 제목으로 검색..."
             className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -170,11 +170,10 @@ export default function PostingFilter({
             'px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors',
             showFilters
               ? 'bg-primary/10 border-primary text-primary'
-              : 'border-border text-foreground hover:bg-muted',
+              : 'border-border text-foreground hover:bg-muted'
           )}
         >
           <FilterIcon className="size-5" />
-          필터
         </button>
       </div>
       <div className="flex flex-col gap-1 overflow-x-scroll scroll-none max-w-full max-h-[3.5rem]">
@@ -301,7 +300,7 @@ export default function PostingFilter({
                                     from: value,
                                     to: value,
                                   }
-                                : undefined,
+                                : undefined
                             )
                           }
                           numberOfMonths={1}
@@ -375,7 +374,7 @@ export default function PostingFilter({
                     'rounded-full border px-3 py-1 text-xs',
                     !filters.placeText
                       ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted text-foreground border-border',
+                      : 'bg-muted text-foreground border-border'
                   )}
                 >
                   전체 지역
@@ -391,7 +390,7 @@ export default function PostingFilter({
                         'rounded-full border px-3 py-1 text-xs',
                         active
                           ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted text-foreground border-border',
+                          : 'bg-muted text-foreground border-border'
                       )}
                     >
                       {loc}

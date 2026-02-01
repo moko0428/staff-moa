@@ -167,12 +167,14 @@ function postToJobItem(post: Post & {
   const recruitCount = post.recruit_count || post.recruitCount || 0;
   const currentApplicants = post.currentApplicants || 0;
   const createdAt = post.created_at || post.createdAt || '';
+  const workSlotCount = Array.isArray(post.work_slots) && post.work_slots.length > 0 ? post.work_slots.length : 1;
 
   return {
     id: post.id,
     title: post.title,
     content: post.description,
     date: date,
+    workSlotCount,
     time: time,
     need: need,
     place: place,
@@ -200,6 +202,7 @@ export default function PostPage() {
     toText: '',
     placeText: '',
     categories: [],
+    searchTerm: '',
   });
   const [posts, setPosts] = useState<Post[]>([]);
   const [profiles, setProfiles] = useState<Array<Record<string, unknown>>>([]);
@@ -367,6 +370,22 @@ export default function PostPage() {
 
     return jobPostings
       .filter((job) => {
+        if (filters.searchTerm?.trim()) {
+          const q = filters.searchTerm.trim().toLowerCase();
+          const title = (job.title ?? '').toLowerCase();
+          const content = (job.content ?? '').toLowerCase();
+          const place = (job.place ?? '').toLowerCase();
+          const categories = (job.categories ?? []).join(' ').toLowerCase();
+
+          const matched =
+            title.includes(q) ||
+            content.includes(q) ||
+            place.includes(q) ||
+            categories.includes(q);
+
+          if (!matched) return false;
+        }
+
         if (filters.status && job.status !== filters.status) return false;
         if (filters.payMin && Number(job.pay ?? 0) < Number(filters.payMin))
           return false;

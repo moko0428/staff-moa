@@ -154,6 +154,36 @@ export async function applyToPostAction(
   }
 }
 
+// Member가 해당 공고에 이미 지원했는지 확인
+export async function checkAppliedToPostAction(
+  postId: number
+): Promise<ActionResult<{ applied: boolean }>> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: { applied: false } };
+    }
+
+    const { data } = await supabase
+      .from('member_schedules')
+      .select('member_schedule_id')
+      .eq('post_id', postId)
+      .eq('member_id', userData.user.id)
+      .maybeSingle();
+
+    return { ok: true, message: '', data: { applied: !!data } };
+  } catch (err) {
+    console.error('[checkAppliedToPostAction] Unexpected error', err);
+    return {
+      ok: false,
+      message: '지원 여부를 확인하는 중 오류가 발생했습니다.',
+      data: { applied: false },
+    };
+  }
+}
+
 // Member의 모든 스케줄 조회 (지원한 공고들)
 export async function getMySchedulesAction(): Promise<
   ActionResult<MemberScheduleWithPost[]>

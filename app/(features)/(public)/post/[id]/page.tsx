@@ -38,6 +38,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useUserStore } from '@/store/useUserStore';
@@ -210,7 +211,7 @@ export default function PostDetailPage({
           setIsFavorite(false);
           window.dispatchEvent(new Event('favorites-updated'));
         } else {
-          alert(result.message || '관심목록 제거에 실패했습니다.');
+          toast.error(result.message || '관심목록 제거에 실패했습니다.');
         }
       } else {
         const result = await addFavoriteAction(post.post_id.toString());
@@ -218,12 +219,12 @@ export default function PostDetailPage({
           setIsFavorite(true);
           window.dispatchEvent(new Event('favorites-updated'));
         } else {
-          alert(result.message || '관심목록 추가에 실패했습니다.');
+          toast.error(result.message || '관심목록 추가에 실패했습니다.');
         }
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
-      alert('관심목록 변경 중 오류가 발생했습니다.');
+      toast.error('관심목록 변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -233,7 +234,7 @@ export default function PostDetailPage({
 
   const handleSubmitApplication = async () => {
     if (!currentUser || !post) {
-      alert('로그인이 필요합니다.');
+      toast.error('로그인이 필요합니다.');
       return;
     }
 
@@ -258,15 +259,15 @@ export default function PostDetailPage({
     try {
       const result = await applyToPostAction(post.post_id, message || undefined);
       if (result.ok) {
-        alert(result.message);
+        toast.success(result.message || '지원이 완료되었습니다.');
         setApplyOpen(false);
         setApplicationMessage('');
       } else {
-        alert(result.message || '지원에 실패했습니다.');
+        toast.error(result.message || '지원에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to apply:', error);
-      alert('지원 중 오류가 발생했습니다.');
+      toast.error('지원 중 오류가 발생했습니다.');
     }
   };
 
@@ -282,7 +283,7 @@ export default function PostDetailPage({
       }
     } else {
       await navigator.clipboard.writeText(window.location.href);
-      alert('링크가 복사되었습니다.');
+      toast.success('링크가 복사되었습니다.');
     }
   };
 
