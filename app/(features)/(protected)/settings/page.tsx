@@ -71,7 +71,7 @@ import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler';
 export default function SettingsPage() {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
-  const { theme } = useTheme();
+  useTheme();
   const [mounted, setMounted] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [userProfile, setUserProfile] = useState<{
@@ -710,7 +710,6 @@ export default function SettingsPage() {
                             <AnimatedThemeToggler
                               className="size-8 p-1 rounded-lg border hover:bg-accent transition-colors"
                               duration={500}
-                              disabled={theme === 'system'}
                             />
                             <div>
                               <Label className="font-medium">다크 모드</Label>

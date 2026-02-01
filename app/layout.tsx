@@ -19,8 +19,8 @@ export default function RootLayout({
       <body className="min-h-screen bg-accent text-foreground">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <main>{children}</main>
