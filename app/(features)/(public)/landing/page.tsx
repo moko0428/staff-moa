@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/app/components/ui/button';
@@ -30,6 +30,7 @@ import {
 } from '@/app/components/ui/avatar';
 import { Marquee } from '@/components/ui/marquee';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
+import { NumberTicker } from '@/components/ui/number-ticker';
 
 // 애니메이션 variants
 const fadeInUp: Variants = {
@@ -221,28 +222,50 @@ export default function LandingPage() {
     fetchStats();
   }, []);
 
-  const statsItems = [
+  type StatItem = {
+    label: string;
+    display: string;
+    icon: ReactNode;
+    tickerValue?: number;
+    suffix?: string;
+    decimalPlaces?: number;
+  };
+
+  const toCountTicker = (count: number): { tickerValue: number; suffix?: string } => {
+    if (count >= 1000) return { tickerValue: Math.floor(count / 1000), suffix: 'K+' };
+    if (count >= 100) return { tickerValue: count, suffix: '+' };
+    return { tickerValue: count };
+  };
+
+  const statsItems: StatItem[] = [
     {
       label: '등록 스탭',
-      value: stats ? formatCount(stats.memberCount) : '-',
+      display: stats ? formatCount(stats.memberCount) : '-',
+      ...(stats ? toCountTicker(stats.memberCount) : {}),
       icon: <User className="size-6" />,
     },
     {
       label: '활성 공고',
-      value: stats ? formatCount(stats.activePostCount) : '-',
+      display: stats ? formatCount(stats.activePostCount) : '-',
+      ...(stats ? toCountTicker(stats.activePostCount) : {}),
       icon: <Briefcase className="size-6" />,
     },
     {
       label: '파트너 업체',
-      value: stats ? formatCount(stats.managerCount) : '-',
+      display: stats ? formatCount(stats.managerCount) : '-',
+      ...(stats ? toCountTicker(stats.managerCount) : {}),
       icon: <Building2 className="size-6" />,
     },
     {
       label: '평균 평점',
-      value:
+      display:
         stats && stats.averageRating !== null
           ? `${stats.averageRating.toFixed(1)}`
           : '-',
+      tickerValue:
+        stats && stats.averageRating !== null ? Number(stats.averageRating.toFixed(1)) : undefined,
+      suffix: undefined,
+      decimalPlaces: 1,
       icon: <Star className="size-6" />,
     },
   ];
@@ -357,7 +380,19 @@ export default function LandingPage() {
                     {s.icon}
                   </div>
                   <p className="text-2xl sm:text-3xl font-bold text-white">
-                    {s.value}
+                    {typeof s.tickerValue === 'number' && Number.isFinite(s.tickerValue) ? (
+                      <>
+                        <NumberTicker
+                          startValue={0}
+                          value={s.tickerValue}
+                          decimalPlaces={s.decimalPlaces ?? 0}
+                          className="text-white"
+                        />
+                        {s.suffix ? <span>{s.suffix}</span> : null}
+                      </>
+                    ) : (
+                      <span>{s.display}</span>
+                    )}
                   </p>
                   <p className="text-sm text-white/80">{s.label}</p>
                 </motion.div>
