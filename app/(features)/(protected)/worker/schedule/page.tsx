@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import * as React from 'react';
 import Hero from '@/app/components/Hero';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -952,7 +953,7 @@ function CalendarView({
 
   const handleAddSchedule = () => {
     if (!selectedDate) {
-      alert('날짜를 먼저 선택해주세요');
+      toast.error('날짜를 먼저 선택해주세요');
       return;
     }
     setIsAddScheduleOpen(true);
@@ -1146,6 +1147,11 @@ interface EarningsSectionProps {
 }
 
 function EarningsSection({ earnings }: EarningsSectionProps) {
+  const formatWon = (value: number) =>
+    new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(
+      Math.round(value || 0),
+    );
+
   return (
     <div className="mt-6 mb-6">
       <Card>
@@ -1164,7 +1170,7 @@ function EarningsSection({ earnings }: EarningsSectionProps) {
                 <h3 className="text-sm font-semibold text-blue-700">이번 주 예상 급여</h3>
               </div>
               <p className="text-2xl font-bold text-blue-900">
-                {earnings.thisWeek.toLocaleString()}원
+                {formatWon(earnings.thisWeek)}원
               </p>
               <p className="text-xs text-blue-600 mt-1">
                 {earnings.thisWeekCount}개 스케줄
@@ -1178,7 +1184,7 @@ function EarningsSection({ earnings }: EarningsSectionProps) {
                 <h3 className="text-sm font-semibold text-green-700">이번 달 예상 급여</h3>
               </div>
               <p className="text-2xl font-bold text-green-900">
-                {earnings.thisMonth.toLocaleString()}원
+                {formatWon(earnings.thisMonth)}원
               </p>
               <p className="text-xs text-green-600 mt-1">
                 {earnings.thisMonthCount}개 스케줄
@@ -1192,7 +1198,7 @@ function EarningsSection({ earnings }: EarningsSectionProps) {
                 <h3 className="text-sm font-semibold text-purple-700">누적 급여 (완료)</h3>
               </div>
               <p className="text-2xl font-bold text-purple-900">
-                {earnings.accumulated.toLocaleString()}원
+                {formatWon(earnings.accumulated)}원
               </p>
               <p className="text-xs text-purple-600 mt-1">
                 {earnings.accumulatedCount}개 스케줄
@@ -1263,25 +1269,25 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
       if (isPersonalSchedule && personalScheduleId) {
         const result = await deletePersonalScheduleAction(personalScheduleId);
         if (result.ok) {
-          alert(result.message);
+          toast.success(result.message);
           onRefresh();
           onClose();
         } else {
-          alert(result.message);
+          toast.error(result.message);
         }
       } else if (schedule.applicationId) {
         const result = await cancelApplicationAction(schedule.applicationId);
         if (result.ok) {
-          alert(result.message);
+          toast.success(result.message);
           onRefresh();
           onClose();
         } else {
-          alert(result.message);
+          toast.error(result.message);
         }
       }
     } catch (error) {
       console.error('Failed to delete schedule:', error);
-      alert('삭제에 실패했습니다.');
+      toast.error('삭제에 실패했습니다.');
     } finally {
       setIsDeleting(false);
     }
@@ -1291,7 +1297,7 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
     if (!personalScheduleId) return;
 
     if (!formData.title || !formData.startTime || !formData.endTime) {
-      alert('제목, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
+      toast.error('제목, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
       return;
     }
 
@@ -1311,15 +1317,15 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
       });
 
       if (result.ok) {
-        alert(result.message);
+        toast.success(result.message);
         onRefresh();
         onClose();
       } else {
-        alert(result.message);
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to update schedule:', error);
-      alert('수정에 실패했습니다.');
+      toast.error('수정에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1615,7 +1621,7 @@ function AddPersonalScheduleModal({
 
     // 유효성 검사
     if (!formData.title || !formData.startTime || !formData.endTime) {
-      alert('제목, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
+      toast.error('제목, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
       return;
     }
 
@@ -1636,14 +1642,14 @@ function AddPersonalScheduleModal({
       });
 
       if (result.ok) {
-        alert(result.message);
+        toast.success(result.message);
         onSuccess();
       } else {
-        alert(result.message);
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to create personal schedule:', error);
-      alert('스케줄 추가에 실패했습니다.');
+      toast.error('스케줄 추가에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
