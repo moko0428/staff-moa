@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useUpload } from '@/hooks/useUpload';
 import { useUserStore } from '@/store/useUserStore';
 import { importExperiencesAction } from '@/app/(features)/(protected)/worker/schedule/actions';
+import { toast } from 'sonner';
 
 type ExperienceItem = User['experiences'] extends Array<infer E> ? E : never;
 
@@ -185,7 +186,7 @@ export const useProfile = () => {
 
         if (profileError) {
           console.error('프로필 저장 실패:', profileError);
-          alert('저장에 실패했습니다.');
+          toast.error('저장에 실패했습니다.');
           return false;
         }
       }
@@ -197,11 +198,11 @@ export const useProfile = () => {
         // metadata 실패는 무시 (profiles가 single source of truth)
       }
 
-      if (successMessage) alert(successMessage);
+      if (successMessage) toast.success(successMessage);
       return true;
     } catch (err) {
       console.error('저장 중 오류:', err);
-      alert('저장에 실패했습니다.');
+      toast.error('저장에 실패했습니다.');
       return false;
     } finally {
       setIsSaving(false);
@@ -260,7 +261,7 @@ export const useProfile = () => {
 
       if (profileError) {
         console.error('프로필 저장 실패:', profileError);
-        alert('프로필 저장에 실패했습니다.');
+        toast.error('프로필 저장에 실패했습니다.');
         return;
       }
 
@@ -293,11 +294,11 @@ export const useProfile = () => {
         data: metadataPayload,
       });
 
-      alert('프로필이 저장되었습니다.');
+      toast.success('프로필이 저장되었습니다.');
       setIsEditing(false);
     } catch (err) {
       console.error('프로필 저장 중 오류:', err);
-      alert('프로필 저장에 실패했습니다.');
+      toast.error('프로필 저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -503,13 +504,13 @@ export const useProfile = () => {
             });
           }
         }
-        alert(result.message);
+        toast.success(result.message);
       } else {
-        alert(result.message || '경력 불러오기에 실패했습니다.');
+        toast.error(result.message || '경력 불러오기에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to load experiences:', error);
-      alert('경력 불러오기 중 오류가 발생했습니다.');
+      toast.error('경력 불러오기 중 오류가 발생했습니다.');
     } finally {
       setIsLoadingExperiences(false);
     }
@@ -536,7 +537,7 @@ export const useProfile = () => {
       await savePartialData({ photo: publicUrl });
     } catch (err) {
       console.error(err);
-      alert('프로필 이미지 업로드에 실패했습니다.');
+      toast.error('프로필 이미지 업로드에 실패했습니다.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -573,10 +574,10 @@ export const useProfile = () => {
         role: 'pending_manager',
       });
       setRole('pending_manager');
-      alert('재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.');
+      toast.success('재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.');
     } catch (err) {
       console.error('재요청 실패', err);
-      alert('재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      toast.error('재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsReRequesting(false);
     }

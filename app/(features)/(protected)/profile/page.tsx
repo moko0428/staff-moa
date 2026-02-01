@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Hero from '@/app/components/Hero';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -40,6 +41,14 @@ import CertificatesSection from './components/CertificatesSection';
 import LanguageSection from './components/LanguageSection';
 import { useUserStore } from '@/store/useUserStore';
 import { useProfile } from './hook/useProfile';
+import {
+  getMyFollowersAction,
+  getMyFollowingAction,
+  getProfileForModalAction,
+  removeMyFollowerAction,
+  removeMyFollowingAction,
+} from './actions';
+import ProfileModal from '@/app/components/profile-modal';
 
 const formatBusinessNumber = (value: string) => {
   const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -101,6 +110,126 @@ export default function ProfilePage() {
   const isPendingManager = effectiveRole === 'pending_manager';
   const isManager = effectiveRole === 'manager';
   const isAdmin = effectiveRole === 'admin';
+
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followers, setFollowers] = useState<
+    Array<{
+      userId: string;
+      name: string | null;
+      avatar: string | null;
+      role: string;
+    }>
+  >([]);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+  const [followerSearch, setFollowerSearch] = useState('');
+
+  const [followingCount, setFollowingCount] = useState<number>(0);
+  const [followings, setFollowings] = useState<
+    Array<{
+      userId: string;
+      name: string | null;
+      avatar: string | null;
+      role: string;
+    }>
+  >([]);
+  const [isLoadingFollowings, setIsLoadingFollowings] = useState(false);
+  const [followingSearch, setFollowingSearch] = useState('');
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileModalUser, setProfileModalUser] = useState<{
+    id: string;
+    name: string | null;
+    email: string | null;
+    photo?: string | null;
+    role: string;
+    introduction?: string | null;
+    attendanceScore?: number | null;
+    followerCount?: number;
+  } | null>(null);
+
+  const openProfileModal = async (userId: string) => {
+    const result = await getProfileForModalAction(userId);
+    if (!result.ok || !result.data) {
+      toast.error(result.message || '프로필을 불러오는데 실패했습니다.');
+      return;
+    }
+    setProfileModalUser(result.data);
+    setIsProfileModalOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      if (!isManager) return;
+      setIsLoadingFollowers(true);
+      try {
+        const result = await getMyFollowersAction();
+        if (result.ok && result.data) {
+          setFollowerCount(result.data.count);
+          setFollowers(result.data.followers);
+        }
+      } finally {
+        setIsLoadingFollowers(false);
+      }
+    };
+
+    fetchFollowers();
+  }, [isManager]);
+
+  useEffect(() => {
+    const fetchFollowings = async () => {
+      if (!isMember) return;
+      setIsLoadingFollowings(true);
+      try {
+        const result = await getMyFollowingAction();
+        if (result.ok && result.data) {
+          setFollowingCount(result.data.count);
+          setFollowings(result.data.followings);
+        }
+      } finally {
+        setIsLoadingFollowings(false);
+      }
+    };
+
+    fetchFollowings();
+  }, [isMember]);
+
+  const filteredFollowers = useMemo(() => {
+    const q = followerSearch.trim().toLowerCase();
+    if (!q) return followers;
+    return followers.filter((f: { name: string | null }) =>
+      (f.name || '').toLowerCase().includes(q)
+    );
+  }, [followers, followerSearch]);
+
+  const filteredFollowings = useMemo(() => {
+    const q = followingSearch.trim().toLowerCase();
+    if (!q) return followings;
+    return followings.filter((f: { name: string | null }) =>
+      (f.name || '').toLowerCase().includes(q)
+    );
+  }, [followings, followingSearch]);
+
+  const handleRemoveFollowing = async (managerId: string) => {
+    if (!confirm('팔로잉을 삭제하시겠습니까?')) return;
+    const result = await removeMyFollowingAction(managerId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    setFollowings((prev) => prev.filter((f) => f.userId !== managerId));
+    setFollowingCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleRemoveFollower = async (followerId: string) => {
+    if (!confirm('팔로워를 삭제하시겠습니까?')) return;
+    const result = await removeMyFollowerAction(followerId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    setFollowers((prev) => prev.filter((f) => f.userId !== followerId));
+    setFollowerCount((prev) => Math.max(0, prev - 1));
+  };
 
   const companyInfoFilled =
     !!currentUser?.companyName?.trim() &&
@@ -325,6 +454,191 @@ export default function ProfilePage() {
 
         {/* 상세 정보 */}
         <div className="lg:col-span-2 space-y-6">
+          {/* 스탭 팔로잉 (기본 정보 위) */}
+          {isMember && (
+            <Card>
+              <CardHeader className="flex items-center justify-between flex-row">
+                <CardTitle>팔로잉</CardTitle>
+                <Badge variant="secondary">
+                  {isLoadingFollowings ? '...' : `${followingCount}명`}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                {isLoadingFollowings ? (
+                  <p className="text-sm text-muted-foreground">
+                    불러오는 중...
+                  </p>
+                ) : followings.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    아직 팔로우한 매니저가 없습니다.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="팔로잉(매니저) 이름 검색"
+                      value={followingSearch}
+                      onChange={(e) => setFollowingSearch(e.target.value)}
+                    />
+
+                    {filteredFollowings.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        검색 결과가 없습니다.
+                      </p>
+                    ) : (
+                      <div
+                        className={
+                          filteredFollowings.length >= 5
+                            ? 'space-y-2 max-h-[360px] overflow-y-auto pr-1'
+                            : 'space-y-2'
+                        }
+                      >
+                        {filteredFollowings.map((f) => (
+                          <div
+                            key={f.userId}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openProfileModal(f.userId)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openProfileModal(f.userId);
+                              }
+                            }}
+                            className="flex items-center justify-between gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent"
+                          >
+                            <div className="min-w-0 flex items-center gap-3">
+                              <Avatar className="size-10">
+                                <AvatarImage src={f.avatar ?? undefined} />
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                  {(f.name || 'U').charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {f.name || '이름 없음'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {f.role === 'manager' ? '매니저' : f.role}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFollowing(f.userId);
+                              }}
+                            >
+                              삭제
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 매니저 팔로워 (기본 정보 위) */}
+          {isManager && (
+            <Card>
+              <CardHeader className="flex items-center justify-between flex-row">
+                <CardTitle>팔로워</CardTitle>
+                <Badge variant="secondary">
+                  {isLoadingFollowers ? '...' : `${followerCount}명`}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                {isLoadingFollowers ? (
+                  <p className="text-sm text-muted-foreground">
+                    불러오는 중...
+                  </p>
+                ) : followers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    아직 팔로워가 없습니다.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="팔로워 이름 검색"
+                      value={followerSearch}
+                      onChange={(e) => setFollowerSearch(e.target.value)}
+                    />
+
+                    {filteredFollowers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        검색 결과가 없습니다.
+                      </p>
+                    ) : (
+                      <div
+                        className={
+                          filteredFollowers.length >= 5
+                            ? 'space-y-2 max-h-[360px] overflow-y-auto pr-1'
+                            : 'space-y-2'
+                        }
+                      >
+                        {filteredFollowers.map((f) => (
+                          <div
+                            key={f.userId}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openProfileModal(f.userId)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openProfileModal(f.userId);
+                              }
+                            }}
+                            className="flex items-center justify-between gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent"
+                          >
+                            <div className="min-w-0 flex items-center gap-3">
+                              <Avatar className="size-10">
+                                <AvatarImage src={f.avatar ?? undefined} />
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                  {(f.name || 'U').charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {f.name || '이름 없음'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {f.role === 'member'
+                                    ? '스탭'
+                                    : f.role === 'manager'
+                                    ? '매니저'
+                                    : f.role === 'admin'
+                                    ? '관리자'
+                                    : f.role}
+                                </p>
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFollower(f.userId);
+                              }}
+                            >
+                              삭제
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* 기본 정보 */}
           <Card>
             <CardHeader>
@@ -755,6 +1069,15 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {profileModalUser && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={profileModalUser}
+          currentUserId={currentUser?.id}
+        />
+      )}
     </div>
   );
 }
