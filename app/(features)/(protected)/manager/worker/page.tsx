@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -37,7 +38,6 @@ import {
   updateWorkerRatingAction,
   updateWorkerNotesAction,
 } from './actions';
-import WorkerCard from '@/app/components/WorkerCard';
 
 import { Textarea } from '@/app/components/ui/textarea';
 import {
@@ -72,6 +72,8 @@ import {
   Info,
   Mail,
   MessageSquare,
+  Calendar,
+  MapPin,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -176,7 +178,60 @@ interface ApplicationWithPost {
   };
 }
 
+// 통합된 워커 타입 (여러 스케줄을 포함)
+interface GroupedWorker {
+  applicantId: string;
+  applicantName: string;
+  applicantPhoto?: string;
+  applicantAttendanceScore?: number;
+  applicantKakaoId?: string;
+  applicantGender?: string;
+  applicantAge?: number;
+  applicantInfo?: ApplicationWithPost['applicantInfo'];
+  workerManagement?: ApplicationWithPost['workerManagement'];
+  schedules: Array<{
+    id: string;
+    postId: number;
+    postTitle: string;
+    postDate: string;
+    postLocation: string;
+    postStatus?: 'recruiting' | 'completed' | 'urgent';
+    appliedAt: string;
+    status: ApplicationStatus;
+  }>;
+}
+
 type TabType = 'all' | 'favorite' | 'blacklist';
+
+const isPastSchedule = (input: {
+  postDate?: string;
+  workSlots?: Array<{ date: string; end_time?: string }>;
+}): boolean => {
+  const now = new Date();
+
+  // work_slots가 있는 경우: 마지막 슬롯의 종료시간 기준
+  if (input.workSlots && input.workSlots.length > 0) {
+    const lastSlot = input.workSlots[input.workSlots.length - 1];
+    const endTime =
+      typeof lastSlot.end_time === 'string' && /^\d{2}:\d{2}$/.test(lastSlot.end_time)
+        ? lastSlot.end_time
+        : '23:59';
+    const lastWorkDateTime = new Date(`${lastSlot.date}T${endTime}:00`);
+    if (!Number.isNaN(lastWorkDateTime.getTime())) {
+      return now > lastWorkDateTime;
+    }
+  }
+
+  // work_date가 있는 경우 (레거시): 당일 23:59 기준
+  if (input.postDate) {
+    const lastWorkDateTime = new Date(`${input.postDate}T23:59:00`);
+    if (!Number.isNaN(lastWorkDateTime.getTime())) {
+      return now > lastWorkDateTime;
+    }
+  }
+
+  return false;
+};
 
 // 데이터 변환 헬퍼 함수
 function convertToApplicationWithPost(
@@ -359,8 +414,8 @@ export default function WorkerManagementPage() {
     return applications;
   }, [isMounted, applications]);
 
-  // 필터링 및 검색
-  const filteredApplications = useMemo(() => {
+  // 그룹화된 워커 목록 (모든 탭에서 사용)
+  const groupedWorkers = useMemo(() => {
     let filtered = managerApplications;
 
     // 탭 필터
@@ -370,8 +425,8 @@ export default function WorkerManagementPage() {
       filtered = filtered.filter((app) => app.workerManagement?.is_blacklisted);
     }
 
-    // 상태 필터
-    if (statusFilter !== 'all') {
+    // 상태 필터 (전체 탭에서만 적용)
+    if (activeTab === 'all' && statusFilter !== 'all') {
       filtered = filtered.filter((app) => app.status === statusFilter);
     }
 
@@ -384,29 +439,84 @@ export default function WorkerManagementPage() {
       );
     }
 
-    // 상태 우선순위: pending > accepted > rejected, 동일 상태는 최신순
-    const priority: Record<ApplicationStatus, number> = {
-      pending: 0,
-      accepted: 1,
-      rejected: 2,
-    };
+    // applicantId 기준으로 그룹화
+    const workerMap = new Map<string, GroupedWorker>();
 
-    return filtered.slice().sort((a, b) => {
-      const pDiff = priority[a.status] - priority[b.status];
-      if (pDiff !== 0) return pDiff;
-      return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
+    filtered.forEach((app) => {
+      const existing = workerMap.get(app.applicantId);
+
+      const scheduleItem = {
+        id: app.id,
+        postId: app.postId,
+        postTitle: app.postTitle,
+        postDate: app.postDate,
+        postLocation: app.postLocation,
+        postStatus: app.postStatus,
+        appliedAt: app.appliedAt,
+        status: app.status,
+      };
+
+      if (existing) {
+        // 이미 있는 워커에 스케줄 추가
+        existing.schedules.push(scheduleItem);
+      } else {
+        // 새 워커 추가
+        workerMap.set(app.applicantId, {
+          applicantId: app.applicantId,
+          applicantName: app.applicantName,
+          applicantPhoto: app.applicantPhoto,
+          applicantAttendanceScore: app.applicantAttendanceScore,
+          applicantKakaoId: app.applicantKakaoId,
+          applicantGender: app.applicantGender,
+          applicantAge: app.applicantAge,
+          applicantInfo: app.applicantInfo,
+          workerManagement: app.workerManagement,
+          schedules: [scheduleItem],
+        });
+      }
     });
-  }, [managerApplications, statusFilter, searchTerm, activeTab]);
+
+    // 스케줄을 최신순으로 정렬
+    workerMap.forEach((worker) => {
+      worker.schedules.sort(
+        (a, b) => {
+          const aDate = a.postDate ? new Date(a.postDate).getTime() : 0;
+          const bDate = b.postDate ? new Date(b.postDate).getTime() : 0;
+          if (aDate !== bDate) return bDate - aDate; // 근무일 최신순
+          return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime(); // 동률이면 지원 최신순
+        },
+      );
+    });
+
+    // 배열로 변환 후 최근 지원 순으로 정렬
+    return Array.from(workerMap.values()).sort((a, b) => {
+      const aLatest = new Date(a.schedules[0]?.appliedAt || 0).getTime();
+      const bLatest = new Date(b.schedules[0]?.appliedAt || 0).getTime();
+      return bLatest - aLatest;
+    });
+  }, [managerApplications, searchTerm, activeTab, statusFilter]);
 
   // 상태별 통계
   const statistics = useMemo(() => {
+    // 과거 스케줄(근무일이 지난 지원)은 통계에서 제외
+    const activeApplications = managerApplications.filter(
+      (app) => !isPastSchedule({ postDate: app.postDate, workSlots: app.workSlots }),
+    );
+
+    const uniqueApplicantCount = new Set(
+      activeApplications
+        .map((app) => app.applicantId)
+        .filter((id): id is string => !!id),
+    ).size;
+
     return {
-      total: managerApplications.length,
-      pending: managerApplications.filter((app) => app.status === 'pending')
+      totalApplications: activeApplications.length,
+      uniqueApplicants: uniqueApplicantCount,
+      pending: activeApplications.filter((app) => app.status === 'pending')
         .length,
-      accepted: managerApplications.filter((app) => app.status === 'accepted')
+      accepted: activeApplications.filter((app) => app.status === 'accepted')
         .length,
-      rejected: managerApplications.filter((app) => app.status === 'rejected')
+      rejected: activeApplications.filter((app) => app.status === 'rejected')
         .length,
     };
   }, [managerApplications]);
@@ -443,13 +553,8 @@ export default function WorkerManagementPage() {
     applicationId: string,
     newStatus: ApplicationStatus,
   ) => {
-    // pending 상태는 처리하지 않음
-    if (newStatus === 'pending') {
-      return;
-    }
-
     try {
-      // 서버 액션 호출
+      // 서버 액션 호출 (pending/accepted/rejected 모두 지원)
       const result = await updateApplicantStatusAction(
         applicationId,
         newStatus,
@@ -471,13 +576,13 @@ export default function WorkerManagementPage() {
           });
         }
 
-        alert(result.message);
+        toast.success(result.message);
       } else {
-        alert(result.message || '상태 변경에 실패했습니다.');
+        toast.error(result.message || '상태 변경에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to update status:', error);
-      alert('상태 변경 중 오류가 발생했습니다.');
+      toast.error('상태 변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -489,16 +594,30 @@ export default function WorkerManagementPage() {
       />
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 sm:gap-4 mb-4 sm:mb-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5 sm:gap-4 mb-4 sm:mb-6">
         <Card>
           <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground leading-tight">지원자 수</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-lg sm:text-2xl font-bold">
-                  {statistics.total}
+                  {statistics.uniqueApplicants}
                 </p>
                 <User className="size-6 sm:size-8 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs text-muted-foreground leading-tight">지원 건수</p>
+              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                <p className="text-lg sm:text-2xl font-bold">
+                  {statistics.totalApplications}
+                </p>
+                <FileText className="size-6 sm:size-8 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -605,40 +724,27 @@ export default function WorkerManagementPage() {
           <p className="text-muted-foreground">로딩 중...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
-          {filteredApplications.length === 0 ? (
-            <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {groupedWorkers.length === 0 ? (
+            <Card className="col-span-full">
               <CardContent className="py-10 sm:py-12 text-center">
                 <User className="size-10 sm:size-12 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
                 <p className="text-sm sm:text-base text-muted-foreground">
                   {searchTerm || statusFilter !== 'all'
                     ? '검색 결과가 없습니다.'
-                    : '지원자가 없습니다.'}
+                    : activeTab === 'favorite'
+                      ? '즐겨찾기한 워커가 없습니다.'
+                      : activeTab === 'blacklist'
+                        ? '블랙리스트에 등록된 워커가 없습니다.'
+                        : '지원자가 없습니다.'}
                 </p>
               </CardContent>
             </Card>
           ) : (
-            filteredApplications.map((application) => (
-              <WorkerCard
-                key={application.id}
-                application={{
-                  id: application.id,
-                  applicantId: application.applicantId,
-                  applicantName: application.applicantName,
-                  postTitle: application.postTitle,
-                  postLocation: application.postLocation,
-                  appliedAt: application.appliedAt,
-                  status: application.status,
-                  applicantAge: application.applicantAge,
-                  applicantGender: application.applicantGender,
-                  applicantKakaoId: application.applicantKakaoId,
-                  applicantAttendanceScore:
-                    application.applicantAttendanceScore,
-                  applicantPhoto: application.applicantPhoto,
-                }}
-                workerManagement={application.workerManagement}
-                onCardClick={() => setSelectedApplication(application)}
-                onStatusChange={handleStatusChange}
+            groupedWorkers.map((worker) => (
+              <GroupedWorkerCard
+                key={worker.applicantId}
+                worker={worker}
                 onToggleFavorite={async (applicantId) => {
                   const result = await toggleFavoriteAction(applicantId);
                   if (result.ok) {
@@ -676,6 +782,11 @@ export default function WorkerManagementPage() {
                     );
                   }
                 }}
+                onScheduleClick={(scheduleId) => {
+                  const app = applications.find((a) => a.id === scheduleId);
+                  if (app) setSelectedApplication(app);
+                }}
+                onStatusChange={handleStatusChange}
               />
             ))
           )}
@@ -731,6 +842,14 @@ function ApplicationDetailModal({
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
+  const isPast = isPastSchedule({
+    postDate: application.postDate,
+    workSlots: application.workSlots,
+  });
+
+  // 과거 스케줄이면 "승인"으로만 노출 + 상태 변경 불가
+  const effectiveStatus: ApplicationStatus = isPast ? 'accepted' : application.status;
+
   const statusBadge = {
     pending: {
       label: '대기중',
@@ -744,7 +863,7 @@ function ApplicationDetailModal({
       label: '거절',
       className: 'bg-red-100 text-red-700 border-red-200',
     },
-  }[application.status];
+  }[effectiveStatus];
 
   // 근무 완료 여부 확인: 모집 완료 + 근무시간 완료
   const isWorkCompleted = () => {
@@ -788,11 +907,11 @@ function ApplicationDetailModal({
         setRating(newRating);
         onDataChange(application.applicantId, { rating: newRating });
       } else {
-        alert(result.message);
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to update rating:', error);
-      alert('평가 저장에 실패했습니다.');
+      toast.error('평가 저장에 실패했습니다.');
     } finally {
       setIsSavingRating(false);
     }
@@ -807,13 +926,13 @@ function ApplicationDetailModal({
       );
       if (result.ok) {
         onDataChange(application.applicantId, { notes });
-        alert(result.message);
+        toast.success(result.message);
       } else {
-        alert(result.message);
+        toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to save notes:', error);
-      alert('메모 저장에 실패했습니다.');
+      toast.error('메모 저장에 실패했습니다.');
     } finally {
       setIsSavingNotes(false);
     }
@@ -903,12 +1022,10 @@ function ApplicationDetailModal({
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="w-16 h-16">
                   <AvatarImage
-                    src={
-                      application.applicantPhoto || '/images/default-avatar.png'
-                    }
+                    src={application.applicantPhoto}
                     alt={application.applicantName}
                   />
-                  <AvatarFallback className="text-xl">
+                  <AvatarFallback className="text-xl bg-primary/10 text-primary font-semibold">
                     {application.applicantName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
@@ -1490,33 +1607,362 @@ function ApplicationDetailModal({
 
         <DialogFooter className="flex justify-between items-center">
           <div className="flex gap-2">
-            {application.status === 'pending' && (
+            {!isPast && (
               <>
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    onStatusChange(application.id, 'accepted');
-                    onClose();
-                  }}
-                >
-                  <CheckCircle2 className="size-4 mr-2" />
-                  승인
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    onStatusChange(application.id, 'rejected');
-                    onClose();
-                  }}
-                >
-                  <XCircle className="size-4 mr-2" />
-                  거절
-                </Button>
+                {application.status === 'pending' && (
+                  <>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        onStatusChange(application.id, 'accepted');
+                        onClose();
+                      }}
+                    >
+                      <CheckCircle2 className="size-4 mr-2" />
+                      승인
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        onStatusChange(application.id, 'rejected');
+                        onClose();
+                      }}
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      거절
+                    </Button>
+                  </>
+                )}
+                {application.status === 'accepted' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        onStatusChange(application.id, 'pending');
+                        onClose();
+                      }}
+                    >
+                      <Clock className="size-4 mr-2" />
+                      대기로 변경
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        onStatusChange(application.id, 'rejected');
+                        onClose();
+                      }}
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      거절로 변경
+                    </Button>
+                  </>
+                )}
+                {application.status === 'rejected' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        onStatusChange(application.id, 'pending');
+                        onClose();
+                      }}
+                    >
+                      <Clock className="size-4 mr-2" />
+                      대기로 변경
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        onStatusChange(application.id, 'accepted');
+                        onClose();
+                      }}
+                    >
+                      <CheckCircle2 className="size-4 mr-2" />
+                      승인으로 변경
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// 그룹화된 워커 카드
+interface GroupedWorkerCardProps {
+  worker: GroupedWorker;
+  onToggleFavorite: (applicantId: string) => void;
+  onToggleBlacklist: (applicantId: string) => void;
+  onScheduleClick: (scheduleId: string) => void;
+  onStatusChange: (scheduleId: string, newStatus: ApplicationStatus) => void;
+}
+
+function GroupedWorkerCard({
+  worker,
+  onToggleFavorite,
+  onToggleBlacklist,
+  onScheduleClick,
+  onStatusChange,
+}: GroupedWorkerCardProps) {
+  const getStatusBadge = (status: ApplicationStatus) => {
+    const badges = {
+      pending: {
+        label: '대기',
+        className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      },
+      accepted: {
+        label: '승인',
+        className: 'bg-green-100 text-green-700 border-green-200',
+      },
+      rejected: {
+        label: '거절',
+        className: 'bg-red-100 text-red-700 border-red-200',
+      },
+    };
+    return badges[status];
+  };
+
+  // 별점 렌더링
+  const renderRating = (rating?: number | null) => {
+    if (!rating) return null;
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={cn(
+              'size-3',
+              star <= rating
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-muted-foreground/30',
+            )}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        {/* 헤더: 워커 정보 */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-12 h-12">
+              <AvatarImage
+                src={worker.applicantPhoto}
+                alt={worker.applicantName}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                {worker.applicantName.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-semibold text-lg">{worker.applicantName}</h3>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {worker.applicantAge && <span>{worker.applicantAge}세</span>}
+                {worker.applicantGender && (
+                  <span>· {worker.applicantGender}</span>
+                )}
+              </div>
+              {worker.workerManagement?.rating &&
+                renderRating(worker.workerManagement.rating)}
+            </div>
+          </div>
+
+          {/* 즐겨찾기/블랙리스트 버튼 */}
+          <div className="flex flex-col gap-1">
+            <Button
+              size="sm"
+              variant={worker.workerManagement?.is_favorite ? 'default' : 'outline'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(worker.applicantId);
+              }}
+              className="h-7 w-7 p-0"
+            >
+              <Star
+                className={cn(
+                  'size-3',
+                  worker.workerManagement?.is_favorite &&
+                    'fill-yellow-400 text-yellow-400',
+                )}
+              />
+            </Button>
+            <Button
+              size="sm"
+              variant={
+                worker.workerManagement?.is_blacklisted ? 'destructive' : 'outline'
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleBlacklist(worker.applicantId);
+              }}
+              className="h-7 w-7 p-0"
+            >
+              <XCircle className="size-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* 근태 점수 */}
+        <div className="flex items-center gap-2 mb-3 text-sm">
+          <Star className="size-4 fill-yellow-400 text-yellow-400" />
+          <span className="text-muted-foreground">근태 점수:</span>
+          <span className="font-medium">
+            {worker.applicantAttendanceScore ?? 50}점
+          </span>
+        </div>
+
+        {/* 메모 */}
+        {worker.workerManagement?.notes && (
+          <div className="mb-3 p-2 bg-muted rounded text-xs text-muted-foreground line-clamp-2">
+            {worker.workerManagement.notes}
+          </div>
+        )}
+
+        {/* 함께한 스케줄 목록 */}
+        <div className="border-t pt-3">
+          <p className="text-sm font-medium mb-2 flex items-center gap-1">
+            <Calendar className="size-4" />
+            지원 내역 ({worker.schedules.length}건)
+          </p>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {worker.schedules.map((schedule) => {
+              const isPast = isPastSchedule({ postDate: schedule.postDate });
+              const statusBadge = getStatusBadge(isPast ? 'accepted' : schedule.status);
+              return (
+                <div
+                  key={schedule.id}
+                  className="p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                >
+                  <div
+                    onClick={() => onScheduleClick(schedule.id)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {schedule.postTitle}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="size-3" />
+                            {schedule.postDate || '날짜 미정'}
+                          </span>
+                          {schedule.postLocation && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="size-3" />
+                              {schedule.postLocation.length > 10
+                                ? `${schedule.postLocation.slice(0, 10)}...`
+                                : schedule.postLocation}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs shrink-0', statusBadge.className)}
+                      >
+                        {statusBadge.label}
+                      </Badge>
+                    </div>
+                  </div>
+                  {/* 상태 변경 버튼 */}
+                  {!isPast && (
+                    <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                    {schedule.status === 'pending' ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-green-600 hover:bg-green-50 hover:text-green-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'accepted');
+                          }}
+                        >
+                          <CheckCircle2 className="size-3 mr-1" />
+                          승인
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'rejected');
+                          }}
+                        >
+                          <XCircle className="size-3 mr-1" />
+                          거절
+                        </Button>
+                      </>
+                    ) : schedule.status === 'accepted' ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'pending');
+                          }}
+                        >
+                          <Clock className="size-3 mr-1" />
+                          대기로
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'rejected');
+                          }}
+                        >
+                          <XCircle className="size-3 mr-1" />
+                          거절로
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'pending');
+                          }}
+                        >
+                          <Clock className="size-3 mr-1" />
+                          대기로
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs text-green-600 hover:bg-green-50 hover:text-green-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStatusChange(schedule.id, 'accepted');
+                          }}
+                        >
+                          <CheckCircle2 className="size-3 mr-1" />
+                          승인으로
+                        </Button>
+                      </>
+                    )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

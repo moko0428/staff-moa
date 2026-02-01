@@ -112,12 +112,10 @@ export default function WorkerCard({
             <div className="flex items-center gap-3 mb-3">
               <Avatar className="w-12 h-12">
                 <AvatarImage
-                  src={
-                    application.applicantPhoto || '/images/default-avatar.png'
-                  }
+                  src={application.applicantPhoto}
                   alt={application.applicantName}
                 />
-                <AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                   {application.applicantName.charAt(0)}
                 </AvatarFallback>
               </Avatar>

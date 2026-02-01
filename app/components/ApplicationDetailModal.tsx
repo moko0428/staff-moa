@@ -125,12 +125,10 @@ export default function ApplicationDetailModal({
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="w-16 h-16">
                   <AvatarImage
-                    src={
-                      application.applicantPhoto || '/images/default-avatar.png'
-                    }
+                    src={application.applicantPhoto}
                     alt={application.applicantName}
                   />
-                  <AvatarFallback className="text-xl">
+                  <AvatarFallback className="text-xl bg-primary/10 text-primary font-semibold">
                     {application.applicantName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>

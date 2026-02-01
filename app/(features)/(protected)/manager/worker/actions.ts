@@ -240,10 +240,10 @@ export async function getApplicantsByPostAction(
   }
 }
 
-// 지원자 상태 변경 (승인/거절)
+// 지원자 상태 변경 (승인/거절/대기로 번복)
 export async function updateApplicantStatusAction(
   memberScheduleId: string,
-  status: 'accepted' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -253,16 +253,18 @@ export async function updateApplicantStatusAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    // 1. member_schedule 정보 조회 (member_id 포함)
+    // 1. member_schedule 정보 조회 (member_id, 현재 status 포함)
     const { data: schedule } = await supabase
       .from('member_schedules')
-      .select('post_id, member_id')
+      .select('post_id, member_id, status')
       .eq('member_schedule_id', memberScheduleId)
       .single();
 
     if (!schedule) {
       return { ok: false, message: '지원 정보를 찾을 수 없습니다.' };
     }
+
+    const previousStatus = schedule.status;
 
     // 2. 해당 공고의 작성자인지 확인 (공고 제목도 가져오기)
     const { data: post } = await supabase
@@ -287,11 +289,29 @@ export async function updateApplicantStatusAction(
     }
 
     // 4. 지원자에게 알림 발송
-    const notificationType = status === 'accepted' ? 'application_accepted' : 'application_rejected';
-    const notificationTitle = status === 'accepted' ? '지원이 승인되었습니다' : '지원이 거절되었습니다';
-    const notificationMessage = status === 'accepted'
-      ? `"${post.title}" 공고에 대한 지원이 승인되었습니다. 스케줄을 확인해주세요.`
-      : `"${post.title}" 공고에 대한 지원이 거절되었습니다.`;
+    let notificationType: 'application_accepted' | 'application_rejected' | 'system';
+    let notificationTitle: string;
+    let notificationMessage: string;
+
+    if (status === 'accepted') {
+      notificationType = 'application_accepted';
+      notificationTitle = '지원이 승인되었습니다';
+      notificationMessage = `"${post.title}" 공고에 대한 지원이 승인되었습니다. 스케줄을 확인해주세요.`;
+    } else if (status === 'rejected') {
+      notificationType = 'application_rejected';
+      notificationTitle = '지원이 거절되었습니다';
+      notificationMessage = `"${post.title}" 공고에 대한 지원이 거절되었습니다.`;
+    } else {
+      // pending으로 변경 (번복)
+      notificationType = 'system';
+      if (previousStatus === 'accepted') {
+        notificationTitle = '지원 승인이 취소되었습니다';
+        notificationMessage = `"${post.title}" 공고에 대한 승인이 취소되어 대기 상태로 변경되었습니다.`;
+      } else {
+        notificationTitle = '지원 상태가 변경되었습니다';
+        notificationMessage = `"${post.title}" 공고에 대한 지원이 다시 검토 중입니다.`;
+      }
+    }
 
     await createNotificationAction({
       userId: schedule.member_id,
@@ -301,7 +321,7 @@ export async function updateApplicantStatusAction(
       link: '/worker/schedule',
     });
 
-    const statusText = status === 'accepted' ? '승인' : '거절';
+    const statusText = status === 'accepted' ? '승인' : status === 'rejected' ? '거절' : '대기로 변경';
     return { ok: true, message: `지원자를 ${statusText}했습니다.` };
   } catch (err) {
     console.error('[updateApplicantStatusAction] Unexpected error', err);
@@ -309,10 +329,10 @@ export async function updateApplicantStatusAction(
   }
 }
 
-// 지원자 일괄 승인/거절
+// 지원자 일괄 승인/거절/대기
 export async function bulkUpdateApplicantsAction(
   memberScheduleIds: string[],
-  status: 'accepted' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
