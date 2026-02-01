@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
 import {
@@ -30,7 +31,54 @@ import {
 import { Marquee } from '@/components/ui/marquee';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 
-// 기능별 아이콘 색상 매핑 (Tailwind는 동적 클래스를 지원하지 않음)
+// 애니메이션 variants
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
+
+const fadeIn: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.6 },
+  },
+};
+
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const staggerItem: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
+
+const scaleOnHover: Variants = {
+  rest: { scale: 1, y: 0 },
+  hover: {
+    scale: 1.02,
+    y: -8,
+    transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
+
+// 기능별 아이콘 색상 매핑
 const featureColorClasses: Record<string, string> = {
   blue: 'bg-gradient-to-b from-blue-500 to-blue-300',
   pink: 'bg-gradient-to-b from-pink-500 to-pink-300',
@@ -200,18 +248,70 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex flex-col bg-gradient-to-b from-primary to-background">
+    <div className="flex flex-col bg-gradient-to-b from-primary to-background overflow-hidden">
+      {/* 플로팅 배경 요소 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl"
+          animate={{
+            y: [0, -20, 0],
+            rotate: [0, 5, -5, 0],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+        <motion.div
+          className="absolute top-40 right-20 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"
+          animate={{
+            y: [0, 20, 0],
+            rotate: [0, -5, 5, 0],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+        <motion.div
+          className="absolute bottom-40 left-1/4 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl"
+          animate={{
+            y: [0, -15, 0],
+            rotate: [0, 3, -3, 0],
+          }}
+          transition={{
+            duration: 7,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      </div>
+
       {/* Hero */}
-      <section className="max-w-3xl mx-auto p-4">
+      <section className="max-w-3xl mx-auto p-4 relative z-10">
         <div className="flex flex-col items-center justify-center pt-6 pb-12">
-          <div className="space-y-12">
-            <div className="flex items-center justify-center gap-2 bg-white/10 rounded-full px-4 py-2 w-fit mx-auto text-center">
+          <motion.div
+            className="space-y-12"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+          >
+            <motion.div
+              variants={fadeInUp}
+              className="flex items-center justify-center gap-2 bg-white/10 rounded-full px-4 py-2 w-fit mx-auto text-center"
+            >
               <Zap className="size-4 text-white" />
               <span className="text-xs font-semibold text-white">
                 신뢰할 수 있는 스탭 구인 플랫폼
               </span>
-            </div>
-            <div className="space-y-4 w-full max-w-xl mx-auto">
+            </motion.div>
+
+            <motion.div
+              variants={fadeInUp}
+              className="space-y-4 w-full max-w-xl mx-auto"
+            >
               <h1 className="text-4xl font-bold leading-tight text-white text-center">
                 스탭 알바, <br />
                 이제 더 쉽고 빠르게
@@ -220,8 +320,12 @@ export default function LandingPage() {
                 맞춤형 공고 검색부터 스케줄 관리, 경력 관리까지
                 <br /> 모든 과정을 한 곳에서 해결하세요.
               </p>
-            </div>
-            <div className="flex flex-wrap gap-3 justify-center">
+            </motion.div>
+
+            <motion.div
+              variants={fadeInUp}
+              className="flex flex-wrap gap-3 justify-center"
+            >
               <Button asChild variant="ghost" size="lg">
                 <Link
                   href="/post"
@@ -235,12 +339,19 @@ export default function LandingPage() {
               <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
                 <Link href="/auth"> 무료로 시작하기</Link>
               </InteractiveHoverButton>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-4">
-              {statsItems.map((s) => (
-                <div
+            </motion.div>
+
+            <motion.div
+              variants={staggerContainer}
+              className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-4"
+            >
+              {statsItems.map((s, idx) => (
+                <motion.div
                   key={s.label}
+                  variants={staggerItem}
+                  custom={idx}
                   className="flex flex-col items-center justify-center gap-3 *:text-white"
+                  whileHover={{ scale: 1.05 }}
                 >
                   <div className="flex items-center justify-center gap-2 bg-white/10 rounded-lg p-4">
                     {s.icon}
@@ -249,137 +360,216 @@ export default function LandingPage() {
                     {s.value}
                   </p>
                   <p className="text-sm text-white/80">{s.label}</p>
-                </div>
+                </motion.div>
               ))}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* 이용 방법 */}
-      <section className="bg-background border-t border-b border-border">
+      <section className="bg-background border-t border-b border-border relative z-10">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-          <SectionBadge
-            title="이용 방법"
-            textColor="text-primary"
-            bgColor="bg-primary/10"
-          />
-          <div className="flex flex-col items-center justify-center gap-2">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+          >
+            <SectionBadge
+              title="이용 방법"
+              textColor="text-primary"
+              bgColor="bg-primary/10"
+            />
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+            className="flex flex-col items-center justify-center gap-2"
+          >
             <h2 className="text-4xl font-bold text-foreground">
               4단계로 간편하게
             </h2>
             <small className="text-sm text-muted-foreground">
               누구나 쉽게 사용할 수 있습니다.
             </small>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={staggerContainer}
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
             {steps.map((step, idx) => (
-              <Card
+              <motion.div
                 key={step.title}
-                className="h-full relative overflow-visible"
+                variants={staggerItem}
+                whileHover="hover"
+                initial="rest"
+                animate="rest"
               >
-                {/* 1~3번 카드 오른쪽 테두리에 화살표 (모바일 숨김) */}
-                {idx < 3 && (
-                  <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
-                    <div className="size-7 rounded-full bg-background border border-border flex items-center justify-center">
-                      <ArrowRight className="size-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                )}
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center  gap-2">
-                    <div className="flex items-center justify-center size-10 bg-primary rounded-lg">
-                      <span className="text-xl font-semibold text-primary-foreground">
-                        {idx + 1}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center size-10 bg-primary/20 text-primary rounded-lg">
-                      {step.icon}
-                    </div>
-                  </div>
-                  <p className="font-bold text-foreground">{step.title}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {step.desc}
-                  </p>
-                </CardContent>
-              </Card>
+                <motion.div variants={scaleOnHover}>
+                  <Card className="h-full relative overflow-visible">
+                    {idx < 3 && (
+                      <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                        <div className="size-7 rounded-full bg-background border border-border flex items-center justify-center">
+                          <ArrowRight className="size-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    )}
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center size-10 bg-primary rounded-lg">
+                          <span className="text-xl font-semibold text-primary-foreground">
+                            {idx + 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center size-10 bg-primary/20 text-primary rounded-lg">
+                          {step.icon}
+                        </div>
+                      </div>
+                      <p className="font-bold text-foreground">{step.title}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {step.desc}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* 주요 기능 */}
-      <section className="bg-background border-t border-b border-border">
+      <section className="bg-background border-t border-b border-border relative z-10">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-          <SectionBadge
-            title="주요 기능"
-            textColor="text-purple-500"
-            bgColor="bg-purple-500/20"
-          />
-          <div className="flex flex-col items-center justify-center gap-2">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+          >
+            <SectionBadge
+              title="주요 기능"
+              textColor="text-purple-500"
+              bgColor="bg-purple-500/20"
+            />
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+            className="flex flex-col items-center justify-center gap-2"
+          >
             <h2 className="text-4xl font-bold text-foreground">
               모든 기능을 한 곳에서
             </h2>
             <small className="text-sm text-muted-foreground">
               역할별 사용자 중심의 편리한 기능을 제공합니다.
             </small>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={staggerContainer}
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
             {features.map((feature) => (
-              <Card
+              <motion.div
                 key={feature.title}
-                className="h-full border-none hover:shadow-lg transition-all duration-300"
+                variants={staggerItem}
+                whileHover="hover"
+                initial="rest"
+                animate="rest"
               >
-                <CardContent className="p-4 space-y-2">
-                  <div
-                    className={`flex items-center justify-center size-10 ${
-                      featureColorClasses[feature.color]
-                    } rounded-lg text-white`}
-                  >
-                    {feature.icon}
-                  </div>
-                  <div className="flex gap-1 items-center">
-                    <p className="font-bold text-foreground">{feature.title}</p>
-                    <p
-                      className={`text-xs leading-relaxed ${
-                        levelColorClasses[feature.level]
-                      } rounded-full px-2 py-1`}
-                    >
-                      {feature.level}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {feature.desc}
-                  </p>
-                </CardContent>
-              </Card>
+                <motion.div variants={scaleOnHover}>
+                  <Card className="h-full border-none shadow-md hover:shadow-xl transition-shadow duration-300">
+                    <CardContent className="p-4 space-y-2">
+                      <div
+                        className={`flex items-center justify-center size-10 ${
+                          featureColorClasses[feature.color]
+                        } rounded-lg text-white`}
+                      >
+                        {feature.icon}
+                      </div>
+                      <div className="flex gap-1 items-center">
+                        <p className="font-bold text-foreground">
+                          {feature.title}
+                        </p>
+                        <p
+                          className={`text-xs leading-relaxed ${
+                            levelColorClasses[feature.level]
+                          } rounded-full px-2 py-1`}
+                        >
+                          {feature.level}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {feature.desc}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      <section className="bg-background border-t border-b border-border overflow-hidden">
+      {/* 사용자 후기 */}
+      <section className="bg-background border-t border-b border-border overflow-hidden relative z-10">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-          <SectionBadge
-            title="사용자 후기"
-            textColor="text-purple-500"
-            bgColor="bg-purple-500/20"
-          />
-          <div className="flex flex-col items-center justify-center gap-2">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+          >
+            <SectionBadge
+              title="사용자 후기"
+              textColor="text-purple-500"
+              bgColor="bg-purple-500/20"
+            />
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            variants={fadeInUp}
+            className="flex flex-col items-center justify-center gap-2"
+          >
             <h2 className="text-4xl font-bold text-foreground">
               실제 사용자들의 이야기
             </h2>
             <small className="text-sm text-muted-foreground">
               많은 분들이 스탭알바와 함께하고 있습니다
             </small>
-          </div>
+          </motion.div>
         </div>
-        <div className="relative">
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          variants={fadeIn}
+          className="relative"
+        >
           <Marquee pauseOnHover className="[--duration:30s]">
             {reviews.map((review, idx) => (
               <Card
                 key={`${review.name}-${idx}`}
-                className="w-80 shrink-0 bg-card"
+                className="w-80 shrink-0 bg-card hover:shadow-lg transition-shadow duration-300"
               >
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-center gap-1">
@@ -419,28 +609,49 @@ export default function LandingPage() {
           </Marquee>
           <div className="pointer-events-none absolute inset-y-0 left-0 w-1/6 bg-gradient-to-r from-background to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-1/6 bg-gradient-to-l from-background to-transparent" />
-        </div>
+        </motion.div>
       </section>
 
       {/* CTA */}
-      <section className="bg-gradient-to-b from-primary/60 to-primary">
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-100px' }}
+        variants={fadeInUp}
+        className="bg-gradient-to-b from-primary/60 to-primary relative z-10"
+      >
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 text-background space-y-4 text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold">
+          <motion.h3
+            variants={fadeInUp}
+            className="text-2xl sm:text-3xl font-bold"
+          >
             지금 바로 시작해보세요
-          </h3>
-          <p className="text-sm sm:text-base text-background/80">
+          </motion.h3>
+          <motion.p
+            variants={fadeInUp}
+            className="text-sm sm:text-base text-background/80"
+          >
             가입 후 공고를 등록하거나 원하는 공고에 지원해보세요.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
+          </motion.p>
+          <motion.div
+            variants={fadeInUp}
+            className="flex flex-wrap gap-3 justify-center"
+          >
             <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
               <Link href="/auth">회원가입</Link>
             </InteractiveHoverButton>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Footer */}
-      <footer className="bg-zinc-900 text-zinc-300">
+      <motion.footer
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true }}
+        variants={fadeIn}
+        className="bg-zinc-900 text-zinc-300 relative z-10"
+      >
         <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
             <Briefcase className="size-4 text-white" />
@@ -450,7 +661,7 @@ export default function LandingPage() {
             © {new Date().getFullYear()} Staff-MOA. All rights reserved.
           </div>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
