@@ -19,6 +19,7 @@ import {
   Clock,
   CreditCard,
   FileText,
+  Link as LinkIcon,
   MapPin,
   Phone,
   Users,
@@ -42,7 +43,10 @@ import {
   removeFavoriteAction,
   checkFavoriteAction,
 } from '@/app/(features)/(protected)/worker/favorit/actions';
-import { applyToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
+import {
+  applyToPostAction,
+  checkAppliedToPostAction,
+} from '@/app/(features)/(protected)/worker/schedule/actions';
 
 export interface JobItem {
   id: number | string;
@@ -57,6 +61,8 @@ export interface JobItem {
   manager?: string;
   managerPhone?: string;
   etc?: string;
+  externalLink?: string | null;
+  applied?: boolean;
   categories: string[];
   qualifications?: string[];
   status: '급구' | '모집' | '모집완료';
@@ -77,6 +83,8 @@ export function JobCard({ item }: JobCardProps) {
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isApplied, setIsApplied] = useState<boolean>(!!item.applied);
+  const [isCheckingApplied, setIsCheckingApplied] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
     {
@@ -134,6 +142,41 @@ export function JobCard({ item }: JobCardProps) {
     
     fetchCurrentUser();
   }, []);
+
+  useEffect(() => {
+    // 부모에서 applied를 넘겨주면 그 값을 우선 사용
+    if (typeof item.applied === 'boolean') {
+      setIsApplied(item.applied);
+    }
+  }, [item.applied]);
+
+  useEffect(() => {
+    // 스탭 + 로그인 상태일 때, 해당 공고 지원 여부 확인 (카드에서 버튼 비활성화 목적)
+    const run = async () => {
+      if (!roleHydrated || !isMember) return;
+      if (!currentUserId) return;
+      if (typeof item.applied === 'boolean') return; // 이미 상위에서 주입됨
+      if (item.status === '모집완료') return;
+
+      const postId =
+        typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
+      if (!postId || Number.isNaN(postId)) return;
+
+      setIsCheckingApplied(true);
+      try {
+        const result = await checkAppliedToPostAction(postId);
+        if (result.ok) {
+          setIsApplied(!!result.data?.applied);
+        }
+      } catch (error) {
+        console.error('Failed to check applied status:', error);
+      } finally {
+        setIsCheckingApplied(false);
+      }
+    };
+
+    run();
+  }, [roleHydrated, isMember, currentUserId, item.id, item.applied, item.status]);
 
   useEffect(() => {
     // 관심 목록 확인 (Supabase에서)
@@ -224,8 +267,16 @@ export function JobCard({ item }: JobCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (item.status === '모집완료') return;
+    if (isApplied) return;
     setApplyOpen(true);
   };
+
+  const externalLinkHref = (() => {
+    const raw = item.externalLink?.trim();
+    if (!raw) return null;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://${raw}`;
+  })();
 
   const handleSubmitApplication = async () => {
     if (!currentUser) {
@@ -273,9 +324,15 @@ export function JobCard({ item }: JobCardProps) {
 
       if (result.ok) {
         alert(result.message);
+        setIsApplied(true);
         setApplyOpen(false);
         setApplicationMessage(''); // 메시지 초기화
       } else {
+        // 이미 지원한 경우, 버튼 비활성화로 UI도 동기화
+        if (result.message?.includes('이미 지원한 공고입니다')) {
+          setIsApplied(true);
+          setApplyOpen(false);
+        }
         alert(result.message || '지원에 실패했습니다.');
       }
     } catch (error) {
@@ -413,6 +470,23 @@ export function JobCard({ item }: JobCardProps) {
             <span>{formatNumberWithComma(item.pay)}원</span>
           </p>
         )}
+        {externalLinkHref && (
+          <p className="col-span-2 md:col-span-4 flex items-center gap-2 text-sm text-foreground">
+            <LinkIcon className="size-4 shrink-0" />
+            <a
+              href={externalLinkHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-w-0 truncate text-blue-600 hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              title={item.externalLink ?? undefined}
+            >
+              {item.externalLink}
+            </a>
+          </p>
+        )}
       </CardContent>
 
       <div className="flex flex-col gap-2 px-6 py-2">
@@ -440,18 +514,23 @@ export function JobCard({ item }: JobCardProps) {
         {isMember && roleHydrated && (
           <Button
             type="button"
-            variant="default"
+            variant={isApplied ? 'secondary' : 'default'}
             size="sm"
-            disabled={item.status === '모집완료'}
+            disabled={item.status === '모집완료' || isApplied || isCheckingApplied}
             aria-label="지원하기"
             title={
               item.status === '모집완료'
                 ? '모집이 완료되어 지원할 수 없습니다'
-                : '지원하기'
+                : isApplied
+                  ? '이미 지원한 공고입니다'
+                  : isCheckingApplied
+                    ? '지원 여부 확인 중...'
+                    : '지원하기'
             }
+            className={cn(isApplied && 'text-muted-foreground')}
             onClick={handleApplyClick}
           >
-            지원하기
+            {isApplied ? '지원완료' : isCheckingApplied ? '확인 중...' : '지원하기'}
           </Button>
         )}
       </CardFooter>

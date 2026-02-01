@@ -41,6 +41,7 @@ type SupabasePost = {
   qualifications?: string | null;
   preferences?: string | null;
   notes?: string | null;
+  external_link?: string | null;
   keywords?: string[] | null;
   author_id: string;
   status: 'recruiting' | 'completed' | 'urgent';
@@ -74,6 +75,7 @@ function supabasePostToPost(supabasePost: SupabasePost): Post & {
   recruit_count?: number;
   created_at?: string;
   qualifications?: string;
+  external_link?: string;
 } {
   const firstSlot = Array.isArray(supabasePost.work_slots)
     ? supabasePost.work_slots[0]
@@ -106,6 +108,7 @@ function supabasePostToPost(supabasePost: SupabasePost): Post & {
     preferences: supabasePost.preferences || undefined,
     createdAt: supabasePost.created_at,
     updatedAt: supabasePost.updated_at,
+    external_link: supabasePost.external_link || undefined,
     // 추가 필드
     work_slots: supabasePost.work_slots?.map(slot => ({
       date: slot.date,
@@ -142,6 +145,7 @@ function postToJobItem(post: Post & {
   recruit_count?: number;
   created_at?: string;
   qualifications?: string;
+  external_link?: string;
 }): JobItem {
   const statusMap: Record<Post['status'], JobItem['status']> = {
     urgent: '급구',
@@ -177,6 +181,7 @@ function postToJobItem(post: Post & {
     manager: managerName,
     managerPhone: managerPhone,
     etc: post.notes || '',
+    externalLink: post.external_link || null,
     categories: post.keywords || [],
     qualifications: post.qualifications ? [post.qualifications] : [],
     status: statusMap[post.status],
