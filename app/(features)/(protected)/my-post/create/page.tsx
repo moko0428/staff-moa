@@ -5,7 +5,6 @@ import {
   useEffect,
   useActionState,
   useTransition,
-  useRef,
   Suspense,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -28,22 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import {
-  Plus,
-  X,
-  Loader2,
-  Clipboard,
-  Check,
-  Eye,
-  Edit,
-  Heading1,
-  Heading2,
-  Heading3,
-  Bold,
-  Italic,
-  Link as LinkIcon,
-  List,
-} from 'lucide-react';
+import { Plus, X, Loader2, Clipboard, Check } from 'lucide-react';
 import { createPostAction, getPostByIdAction } from '../actions';
 import { useUserStore } from '@/store/useUserStore';
 import {
@@ -132,77 +116,6 @@ function CreatePostContent() {
   );
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
-  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
-  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // 마크다운 텍스트 삽입 함수
-  const insertMarkdownText = (
-    before: string,
-    after: string = '',
-    placeholder: string = '',
-  ) => {
-    const textarea = descriptionTextareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = description.substring(start, end);
-    const textToInsert = selectedText || placeholder;
-
-    const newContent =
-      description.substring(0, start) +
-      before +
-      textToInsert +
-      after +
-      description.substring(end);
-
-    setDescription(newContent);
-
-    // 커서 위치 조정
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos =
-        start +
-        before.length +
-        (selectedText ? selectedText.length : placeholder.length);
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  // 마크다운 렌더링 함수
-  const renderMarkdown = (text: string) => {
-    let html = text;
-
-    // 헤더
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-    // 볼드
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-
-    // 이탤릭
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/_(.*?)_/g, '<em>$1</em>');
-
-    // 링크
-    html = html.replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>',
-    );
-
-    // 리스트
-    html = html.replace(/^\* (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/^\+ (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
-
-    // 줄바꿈
-    html = html.replace(/\n/g, '<br />');
-
-    return html;
-  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -411,20 +324,166 @@ function CreatePostContent() {
       parsedTitle = '공고 제목';
     }
 
-    // 설명 추출: 전체 텍스트를 설명으로 (제목 부분 제외)
-    let parsedDescription = fullText.trim();
+    // ===== 섹션 기반 파싱 (지원자격/지원방식/우대사항 등) =====
+    type PasteSection =
+      | 'none'
+      | 'work'
+      | 'equipments'
+      | 'qualifications'
+      | 'preferences'
+      | 'notes';
+
+    const stripPrefix = (line: string) =>
+      line
+        .replace(/^[\s•\-\*\u2022]*/g, '')
+        .replace(/^[✳️‼️⭕️✅☑️]+/g, '')
+        .trim();
+
+    const splitAfterColon = (s: string) => {
+      const idx1 = s.indexOf(':');
+      const idx2 = s.indexOf('：');
+      const idx =
+        idx1 === -1 ? idx2 : idx2 === -1 ? idx1 : Math.min(idx1, idx2);
+      if (idx === -1) return { left: s.trim(), right: '' };
+      return { left: s.slice(0, idx).trim(), right: s.slice(idx + 1).trim() };
+    };
+
+    const isMetaHeaderLine = (clean: string) => {
+      // ✳️ 날짜/시간/장소/급여/담당자 같은 메타 라인은 섹션 텍스트에 포함시키지 않음
+      const metaKeys = [
+        '행사명',
+        '날짜',
+        '시간',
+        '장소',
+        '위치',
+        '근무지',
+        '주소',
+        '급여',
+        '페이',
+        '급여 지급',
+        '지급',
+        '담당자',
+        '연락처',
+        '인원',
+        '모집',
+        '모집인원',
+      ];
+      const { left } = splitAfterColon(clean);
+      return metaKeys.some((k) =>
+        left.replace(/\s/g, '').startsWith(k.replace(/\s/g, '')),
+      );
+    };
+
+    const detectSectionHeader = (rawLine: string): PasteSection => {
+      const clean = stripPrefix(rawLine);
+      const { left } = splitAfterColon(clean);
+      const key = left.replace(/\s/g, '');
+
+      // 지원 방식/방법 (‼️지원방식, 지원방법 등)
+      if (
+        /^(지원(방식|방법|형식|양식)|지원방식|지원방법|지원형식|지원양식|지원안내|문의|안내|기타사항|기타)$/.test(
+          key,
+        )
+      ) {
+        return 'notes';
+      }
+
+      // 지원 자격/자격요건
+      if (
+        /^(지원자격|지원자격요건|지원자격조건|자격요건|자격조건|자격|요건|조건)$/.test(
+          key,
+        )
+      ) {
+        return 'qualifications';
+      }
+
+      // 우대 사항
+      if (/^(우대사항|우대|선호)$/.test(key)) {
+        return 'preferences';
+      }
+
+      // 복장/준비물
+      if (/^(복장|준비물|지참)$/.test(key)) {
+        return 'equipments';
+      }
+
+      // 업무/담당업무
+      if (/^(업무내용|업무|담당업무|담당|업무사항)$/.test(key)) {
+        return 'work';
+      }
+
+      return 'none';
+    };
+
+    const sectionBuckets: Record<Exclude<PasteSection, 'none'>, string[]> = {
+      work: [],
+      equipments: [],
+      qualifications: [],
+      preferences: [],
+      notes: [],
+    };
+
+    let currentSection: PasteSection = 'none';
+
+    for (const rawLine of lines) {
+      const clean = stripPrefix(rawLine);
+      if (!clean) continue;
+
+      // 메타 라인이면 섹션 종료(리셋) + 다음 라인
+      if (isMetaHeaderLine(clean)) {
+        currentSection = 'none';
+        continue;
+      }
+
+      const detected = detectSectionHeader(rawLine);
+      if (detected !== 'none') {
+        currentSection = detected;
+
+        // 헤더 라인 자체에 값이 있으면(예: "지원방식: 문자지원") 우측 값만 저장
+        const { right } = splitAfterColon(stripPrefix(rawLine));
+        if (right) {
+          sectionBuckets[detected].push(right);
+        }
+        continue;
+      }
+
+      // 섹션 내부 내용 수집
+      if (currentSection !== 'none') {
+        // "자격" 섹션 안에서도 '우대' 문구가 섞여 들어오는 케이스가 많아 분리 처리
+        if (
+          currentSection === 'qualifications' &&
+          clean.includes('우대') &&
+          !clean.startsWith('우대')
+        ) {
+          sectionBuckets.preferences.push(clean);
+        } else {
+          sectionBuckets[currentSection].push(clean);
+        }
+      }
+    }
+
+    const parsedQualifications = sectionBuckets.qualifications
+      .join('\n')
+      .trim();
+    const parsedPreferences = sectionBuckets.preferences.join('\n').trim();
+    const parsedNotesFromSections = sectionBuckets.notes.join('\n').trim();
+
+    // 설명(업무 내용): 업무 섹션이 있으면 그걸 우선 사용
+    const parsedWorkSection = sectionBuckets.work.join('\n').trim();
+    let parsedDescription = parsedWorkSection || fullText.trim();
 
     // 날짜/시간 추출: 다양한 형식 지원
     let parsedDate = '';
     let parsedStartTime = '';
     let parsedEndTime = '';
 
-    // 날짜 패턴: 1/17, 1월 17일, 2025-01-17, 17일 등
+    // 날짜 패턴: 1/17, 1월 17일, 2025-01-17, 17일, 일자: 2/2 등
     const datePatterns = [
-      /(\d{1,2})\/(\d{1,2})(?:\([^)]+\))?(?:-(\d{1,2})(?:\([^)]+\))?)?/, // 1/17(토)-18(일)
-      /(\d{1,2})월\s*(\d{1,2})일(?:-(\d{1,2})일)?/, // 1월 17일-18일
+      /일자\s*:\s*(\d{1,2})\/(\d{1,2})(?:\s*\([^)]+\))?/, // 일자: 2/2 (월)
+      /(\d{1,2})\/(\d{1,2})(?:\s*\([^)]+\))?(?:\s*-\s*(\d{1,2})(?:\s*\([^)]+\))?)?/, // 1/17(토)-18(일)
+      /(\d{1,2})월\s*(\d{1,2})일(?:\s*-\s*(\d{1,2})일)?/, // 1월 17일-18일
       /(\d{4})-(\d{1,2})-(\d{1,2})/, // 2025-01-17
-      /(\d{1,2})일(?:-(\d{1,2})일)?/, // 17일-18일
+      /(\d{1,2})일(?:\s*-\s*(\d{1,2})일)?/, // 17일-18일
     ];
 
     for (const pattern of datePatterns) {
@@ -435,7 +494,11 @@ function CreatePostContent() {
         let month = '';
         let day = '';
 
-        if (match[0].includes('/')) {
+        if (pattern.source.includes('일자')) {
+          // 일자: 2/2 형식
+          month = match[1].padStart(2, '0');
+          day = match[2].padStart(2, '0');
+        } else if (match[0].includes('/')) {
           // 1/17 형식
           month = match[1].padStart(2, '0');
           day = match[2].padStart(2, '0');
@@ -464,8 +527,9 @@ function CreatePostContent() {
       }
     }
 
-    // 시간 패턴: 12:00-17:00, 12시-17시, 오후 12시 등
+    // 시간 패턴: 12:00-17:00, 12시-17시, 시간: 08:00 - 10:00 등
     const timePatterns = [
+      /시간\s*:\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/, // 시간: 08:00 - 10:00
       /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/, // 12:00-17:00
       /(\d{1,2})시\s*-\s*(\d{1,2})시/, // 12시-17시
       /오전\s*(\d{1,2}):(\d{2})\s*-\s*오후\s*(\d{1,2}):(\d{2})/,
@@ -488,23 +552,14 @@ function CreatePostContent() {
 
     // 장소 추출: 다양한 키워드와 주소 패턴
     let parsedLocation = '';
-    const locationKeywords = [
-      '장소',
-      '위치',
-      '근무지',
-      '주소',
-      '장소:',
-      '위치:',
-      '🏢',
-    ];
+    const locationKeywords = ['장소', '위치', '근무지', '주소', '🏢'];
 
     for (const keyword of locationKeywords) {
-      const locationLine = lines.find(
-        (line) => line.includes(keyword) || fullText.includes(keyword),
-      );
+      const locationLine = lines.find((line) => line.includes(keyword));
       if (locationLine) {
+        // "위치 : 장소명" 또는 "위치: 장소명" 형식 모두 처리
         const match = locationLine.match(
-          new RegExp(`${keyword.replace('🏢', '')}\\s*:?\\s*(.+)`, 'i'),
+          new RegExp(`${keyword.replace('🏢', '')}\\s*:\\s*(.+)`, 'i'),
         );
         if (match) {
           parsedLocation = match[1].trim();
@@ -585,19 +640,37 @@ function CreatePostContent() {
     else if (fullText.includes('월급')) parsedPayType = 'monthly';
 
     // 금액 추출: 다양한 형식
-    const amountPatterns = [
-      /(\d{1,3}(?:,\d{3})*)\s*원/, // 65,000원
-      /(\d+)\s*원/, // 65000원
-      /시급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
-      /일급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
-      /페이\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
+    // 만원 단위 먼저 체크 (예: 1.3만원 = 13,000원, 10만원 = 100,000원)
+    const manwonPatterns = [
+      /시급\s*:?\s*(\d+(?:\.\d+)?)\s*만\s*원?/, // 시급 1.3만원
+      /일급\s*:?\s*(\d+(?:\.\d+)?)\s*만\s*원?/, // 일급 10만원
+      /(\d+(?:\.\d+)?)\s*만\s*원/, // 1.3만원
     ];
 
-    for (const pattern of amountPatterns) {
+    for (const pattern of manwonPatterns) {
       const match = fullText.match(pattern);
       if (match) {
-        parsedPayAmount = parseInt(match[1].replace(/,/g, ''), 10);
+        parsedPayAmount = Math.round(parseFloat(match[1]) * 10000);
         break;
+      }
+    }
+
+    // 만원 단위로 못 찾았으면 원 단위로 찾기
+    if (parsedPayAmount === 0) {
+      const amountPatterns = [
+        /(\d{1,3}(?:,\d{3})*)\s*원/, // 65,000원
+        /(\d+)\s*원/, // 65000원
+        /시급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
+        /일급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
+        /페이\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
+      ];
+
+      for (const pattern of amountPatterns) {
+        const match = fullText.match(pattern);
+        if (match) {
+          parsedPayAmount = parseInt(match[1].replace(/,/g, ''), 10);
+          break;
+        }
       }
     }
 
@@ -632,8 +705,10 @@ function CreatePostContent() {
 
     // 담당자 이름 추출
     const managerPatterns = [
-      /담당자\s+([가-힣\s]+?)(?:\s+대리|\s+과장|\s+팀장|\s+📞|$)/,
-      /([가-힣]{2,4})\s*(?:대리|과장|팀장|담당)\s*[📞\d-]/,
+      /담당자\s*:\s*([가-힣]+)\s*(?:매니저|대리|과장|팀장)?/, // 담당자: 김하준 매니저
+      /\(담당자\s*:\s*([가-힣]+)\s*(?:매니저|대리|과장|팀장)?\)/, // (담당자: 김하준 매니저)
+      /담당자\s+([가-힣\s]+?)(?:\s+대리|\s+과장|\s+팀장|\s+매니저|\s+📞|$)/,
+      /([가-힣]{2,4})\s*(?:대리|과장|팀장|담당|매니저)\s*[📞\d-]/,
     ];
 
     for (const pattern of managerPatterns) {
@@ -646,7 +721,24 @@ function CreatePostContent() {
 
     // 기타 사항 추출
     let parsedNotes = '';
-    const notesKeywords = ['문자 지원', '지원 방법', '안내', '✉', '문의'];
+    const notesKeywords = [
+      '📩지원방법',
+      '지원방법',
+      '지원 방법',
+      '지원방식',
+      '지원 방식',
+      '지원형식',
+      '지원 형식',
+      '지원양식',
+      '지원 양식',
+      '문자 지원',
+      '문자지원',
+      '안내',
+      '✉',
+      '문의',
+      '‼️지원방식',
+      '‼️지원자격',
+    ];
     for (const keyword of notesKeywords) {
       const notesIndex = lines.findIndex((line) => line.includes(keyword));
       if (notesIndex >= 0) {
@@ -663,13 +755,18 @@ function CreatePostContent() {
       endTime: parsedEndTime,
       location: parsedLocation,
       equipments: parsedEquipments,
+      qualifications: parsedQualifications,
+      preferences: parsedPreferences,
       recruitCount: parsedRecruitCount,
       payAmount: parsedPayAmount,
       payType: parsedPayType,
       taxWithholding: parsedTaxWithholding,
       managerName: parsedManagerName,
       managerPhone: parsedManagerPhone,
-      notes: parsedNotes,
+      notes: [parsedNotesFromSections, parsedNotes]
+        .filter(Boolean)
+        .join('\n')
+        .trim(),
       keyword: keywordFromTitle,
     };
   };
@@ -730,6 +827,16 @@ function CreatePostContent() {
     // 준비물 설정
     if (parsed.equipments) {
       setEquipments(parsed.equipments);
+    }
+
+    // 자격 요건 설정
+    if (parsed.qualifications) {
+      setQualifications(parsed.qualifications);
+    }
+
+    // 우대 사항 설정
+    if (parsed.preferences) {
+      setPreferences(parsed.preferences);
     }
 
     // 담당자 정보 설정
@@ -885,122 +992,17 @@ function CreatePostContent() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="description">
-                  업무 내용 <span className="text-red-500">*</span>
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
-                >
-                  {showMarkdownPreview ? (
-                    <>
-                      <Edit className="size-4 mr-1" />
-                      편집 모드
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="size-4 mr-1" />
-                      미리보기
-                    </>
-                  )}
-                </Button>
-              </div>
-              {!showMarkdownPreview && (
-                <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-muted mb-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('# ', '', '큰 제목')}
-                    title="큰 제목 (H1)"
-                  >
-                    <Heading1 className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('## ', '', '중간 제목')}
-                    title="중간 제목 (H2)"
-                  >
-                    <Heading2 className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('### ', '', '작은 제목')}
-                    title="작은 제목 (H3)"
-                  >
-                    <Heading3 className="size-4" />
-                  </Button>
-                  <div className="w-px h-6 bg-border mx-1" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('**', '**', '굵은 글씨')}
-                    title="굵게"
-                  >
-                    <Bold className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('*', '*', '기울임')}
-                    title="기울임"
-                  >
-                    <Italic className="size-4" />
-                  </Button>
-                  <div className="w-px h-6 bg-border mx-1" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      insertMarkdownText('[', '](https://)', '링크 텍스트')
-                    }
-                    title="링크"
-                  >
-                    <LinkIcon className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => insertMarkdownText('- ', '', '리스트 항목')}
-                    title="리스트"
-                  >
-                    <List className="size-4" />
-                  </Button>
-                </div>
-              )}
-              {!showMarkdownPreview ? (
-                <Textarea
-                  ref={descriptionTextareaRef}
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={10}
-                  className="font-mono text-sm"
-                  placeholder={`예시:
-# 업무 내용
-행사 스탭 모집합니다.
-`}
-                  required
-                />
-              ) : (
-                <div
-                  className="w-full min-h-[300px] px-4 py-3 border rounded-md bg-muted prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html: renderMarkdown(description),
-                  }}
-                />
-              )}
+              <Label htmlFor="description">
+                업무 내용 <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={10}
+                placeholder="업무 내용을 자세히 작성해주세요."
+                required
+              />
               {state.fieldErrors?.description && (
                 <p className="text-sm text-red-500 mt-1">
                   {state.fieldErrors.description}
@@ -1259,6 +1261,9 @@ function CreatePostContent() {
             </div>
             <div>
               <Label>키워드</Label>
+              <small className="text-sm text-muted-foreground">
+                효율적인 매칭을 위해 키워드를 입력해주세요.
+              </small>
               <div className="flex gap-2 mb-2">
                 <Input
                   value={newKeyword}
