@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import { ThemeProvider } from './components/ThemeProvider';
+import { Toaster } from './components/ui/sonner';
 
 export const metadata: Metadata = {
   title: 'Staff MOA',
@@ -23,6 +24,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main>{children}</main>
+          <Toaster />
           <Analytics />
         </ThemeProvider>
       </body>
