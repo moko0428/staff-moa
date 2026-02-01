@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from '@/app/components/ui/card';
 import { Label } from '@/app/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
 import { Switch } from '@/app/components/ui/switch';
 import {
   Accordion,
@@ -28,11 +27,10 @@ import {
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/Separator';
+import { submitReviewAction, getMyReviewAction } from './actions';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import {
-  Moon,
-  Sun,
   Monitor,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -60,14 +58,19 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import Hero from '@/app/components/Hero';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/app/components/ui/avatar';
 import { createClient } from '@/utils/supabase/client';
 import { useMemo } from 'react';
+import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler';
 
 export default function SettingsPage() {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [userProfile, setUserProfile] = useState<{
@@ -104,6 +107,12 @@ export default function SettingsPage() {
   const isAdmin = role === 'admin';
   const isManager = role === 'manager' || role === 'pending_manager';
   const isMember = role === 'member';
+
+  // 리뷰 모달 상태
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewContent, setReviewContent] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   // 다크모드 hydration 방지 및 설정 로드
   useEffect(() => {
@@ -145,15 +154,17 @@ export default function SettingsPage() {
               ? identities[0].provider === 'email'
                 ? '이메일'
                 : identities[0].provider === 'google'
-                  ? 'Google'
-                  : identities[0].provider === 'kakao'
-                    ? '카카오'
-                    : '소셜 로그인'
+                ? 'Google'
+                : identities[0].provider === 'kakao'
+                ? '카카오'
+                : '소셜 로그인'
               : '이메일';
 
           setUserProfile({
-            name: profile?.name || userData.user.user_metadata?.name || '사용자',
-            avatar: profile?.avatar || userData.user.user_metadata?.avatar || null,
+            name:
+              profile?.name || userData.user.user_metadata?.name || '사용자',
+            avatar:
+              profile?.avatar || userData.user.user_metadata?.avatar || null,
             email: profile?.email || userData.user.email || null,
             loginMethod,
           });
@@ -184,6 +195,20 @@ export default function SettingsPage() {
     localStorage.setItem('profileVisibility', JSON.stringify(newVisibility));
   };
 
+  // 기존 리뷰 불러오기
+  useEffect(() => {
+    if (isReviewModalOpen) {
+      const loadMyReview = async () => {
+        const result = await getMyReviewAction();
+        if (result.ok && result.data) {
+          setReviewRating(result.data.rating);
+          setReviewContent(result.data.content);
+        }
+      };
+      loadMyReview();
+    }
+  }, [isReviewModalOpen]);
+
   if (!roleHydrated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -192,12 +217,38 @@ export default function SettingsPage() {
     );
   }
 
+  // 리뷰 제출 핸들러
+  const handleSubmitReview = async () => {
+    if (reviewRating === 0 || !reviewContent.trim()) {
+      alert('별점과 리뷰 내용을 모두 입력해주세요.');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const result = await submitReviewAction({
+        rating: reviewRating,
+        content: reviewContent,
+      });
+
+      if (result.ok) {
+        alert(result.message);
+        setIsReviewModalOpen(false);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      alert('리뷰 제출에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   // 계정 탈퇴 핸들러
   const handleDeleteAccount = async () => {
     if (
-      !confirm(
-        '정말 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-      )
+      !confirm('정말 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')
     ) {
       return;
     }
@@ -651,57 +702,21 @@ export default function SettingsPage() {
                       앱의 색상 테마를 선택하세요
                     </p>
                     {mounted && (
-                      <RadioGroup
-                        value={theme || 'system'}
-                        onValueChange={(value: string) => setTheme(value)}
-                        className="space-y-3"
-                      >
-                        <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <RadioGroupItem value="light" id="light" />
-                          <Label
-                            htmlFor="light"
-                            className="flex-1 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Sun className="size-4" />
+                      <div className="space-y-3">
+                        {/* 테마 토글 버튼 */}
+                        <div className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <AnimatedThemeToggler
+                              className="size-8 p-1 rounded-lg border hover:bg-accent transition-colors"
+                              duration={500}
+                              disabled={theme === 'system'}
+                            />
                             <div>
-                              <div className="font-medium">라이트 모드</div>
-                              <div className="text-xs text-muted-foreground">
-                                밝은 배경의 테마를 사용합니다
-                              </div>
+                              <Label className="font-medium">다크 모드</Label>
                             </div>
-                          </Label>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <RadioGroupItem value="dark" id="dark" />
-                          <Label
-                            htmlFor="dark"
-                            className="flex-1 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Moon className="size-4" />
-                            <div>
-                              <div className="font-medium">다크 모드</div>
-                              <div className="text-xs text-muted-foreground">
-                                어두운 배경의 테마를 사용합니다
-                              </div>
-                            </div>
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <RadioGroupItem value="system" id="system" />
-                          <Label
-                            htmlFor="system"
-                            className="flex-1 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Monitor className="size-4" />
-                            <div>
-                              <div className="font-medium">시스템 설정</div>
-                              <div className="text-xs text-muted-foreground">
-                                시스템 설정을 따릅니다
-                              </div>
-                            </div>
-                          </Label>
-                        </div>
-                      </RadioGroup>
+                      </div>
                     )}
                   </div>
                 </AccordionContent>
@@ -789,6 +804,123 @@ export default function SettingsPage() {
           </Card>
         )}
 
+        {/* 기타 섹션 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MoreHorizontal className="size-5" />
+              기타
+            </CardTitle>
+            <CardDescription>기타 설정 및 기능</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="multiple" className="w-full">
+              <AccordionItem value="review">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="size-4" />
+                    <span className="font-medium">앱 리뷰 작성</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      스탭알바 서비스에 대한 소중한 의견을 남겨주세요. 더 나은
+                      서비스를 제공하는 데 큰 도움이 됩니다.
+                    </p>
+                    <Dialog
+                      open={isReviewModalOpen}
+                      onOpenChange={setIsReviewModalOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <Star className="size-4 mr-2" />
+                          리뷰 작성하기
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>앱 리뷰 작성</DialogTitle>
+                          <DialogDescription>
+                            스탭알바 서비스에 대한 솔직한 리뷰를 남겨주세요.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          {/* 별점 선택 */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">별점</Label>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setReviewRating(star)}
+                                  className="p-1 hover:scale-110 transition-transform"
+                                >
+                                  <Star
+                                    className={`size-8 ${
+                                      star <= reviewRating
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                            {reviewRating > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {reviewRating === 1 && '별로예요'}
+                                {reviewRating === 2 && '그저 그래요'}
+                                {reviewRating === 3 && '보통이에요'}
+                                {reviewRating === 4 && '좋아요'}
+                                {reviewRating === 5 && '아주 좋아요!'}
+                              </p>
+                            )}
+                          </div>
+                          {/* 리뷰 내용 */}
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="review-content"
+                              className="text-sm font-medium"
+                            >
+                              리뷰 내용
+                            </Label>
+                            <Textarea
+                              id="review-content"
+                              placeholder="서비스 이용 경험을 자세히 적어주세요..."
+                              value={reviewContent}
+                              onChange={(e) => setReviewContent(e.target.value)}
+                              rows={4}
+                              className="resize-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsReviewModalOpen(false)}
+                          >
+                            취소
+                          </Button>
+                          <Button
+                            onClick={handleSubmitReview}
+                            disabled={
+                              isSubmittingReview ||
+                              reviewRating === 0 ||
+                              !reviewContent.trim()
+                            }
+                          >
+                            {isSubmittingReview ? '제출 중...' : '리뷰 제출'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
