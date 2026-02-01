@@ -231,8 +231,11 @@ export default function LandingPage() {
     decimalPlaces?: number;
   };
 
-  const toCountTicker = (count: number): { tickerValue: number; suffix?: string } => {
-    if (count >= 1000) return { tickerValue: Math.floor(count / 1000), suffix: 'K+' };
+  const toCountTicker = (
+    count: number
+  ): { tickerValue: number; suffix?: string } => {
+    if (count >= 1000)
+      return { tickerValue: Math.floor(count / 1000), suffix: 'K+' };
     if (count >= 100) return { tickerValue: count, suffix: '+' };
     return { tickerValue: count };
   };
@@ -263,7 +266,9 @@ export default function LandingPage() {
           ? `${stats.averageRating.toFixed(1)}`
           : '-',
       tickerValue:
-        stats && stats.averageRating !== null ? Number(stats.averageRating.toFixed(1)) : undefined,
+        stats && stats.averageRating !== null
+          ? Number(stats.averageRating.toFixed(1))
+          : undefined,
       suffix: undefined,
       decimalPlaces: 1,
       icon: <Star className="size-6" />,
@@ -271,7 +276,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex flex-col bg-gradient-to-b from-primary to-background overflow-hidden">
+    <div className="flex flex-col bg-gradient-to-b from-primary/90 to-background overflow-hidden">
       {/* 플로팅 배경 요소 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <motion.div
@@ -380,7 +385,8 @@ export default function LandingPage() {
                     {s.icon}
                   </div>
                   <p className="text-2xl sm:text-3xl font-bold text-white">
-                    {typeof s.tickerValue === 'number' && Number.isFinite(s.tickerValue) ? (
+                    {typeof s.tickerValue === 'number' &&
+                    Number.isFinite(s.tickerValue) ? (
                       <>
                         <NumberTicker
                           startValue={0}
@@ -598,7 +604,7 @@ export default function LandingPage() {
           whileInView="visible"
           viewport={{ once: true, margin: '-100px' }}
           variants={fadeIn}
-          className="relative"
+          className="relative pb-10"
         >
           <Marquee pauseOnHover className="[--duration:30s]">
             {reviews.map((review, idx) => (
