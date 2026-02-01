@@ -1,0 +1,40 @@
+import { ArrowRight } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+
+export function InteractiveHoverButton({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      className={cn(
+        'group bg-background relative w-auto cursor-pointer overflow-hidden rounded-full border p-2 px-6 text-center font-semibold',
+        className,
+      )}
+      {...props}
+    >
+      {/* hover 배경 채움(Primary) - dot과 분리 */}
+      <div
+        aria-hidden="true"
+        className="absolute left-6 top-1/2 z-0 size-2 -translate-y-1/2 rounded-full bg-primary transition-all duration-300 group-hover:scale-[100.8]"
+      />
+
+      <div className="relative z-10 flex items-center gap-2">
+        {/* dot은 항상 white (hover 배경과 분리되어 영향 없음) */}
+        <div
+          aria-hidden="true"
+          className="h-2 w-2 rounded-full bg-white transition-all duration-300 group-hover:opacity-0 group-hover:scale-0"
+        />
+        <span className="inline-block transition-all duration-300 group-hover:translate-x-12 group-hover:opacity-0">
+          {children}
+        </span>
+      </div>
+      <div className="text-primary-foreground absolute top-0 z-10 flex h-full w-full translate-x-12 items-center justify-center gap-2 opacity-0 transition-all duration-300 group-hover:-translate-x-5 group-hover:opacity-100">
+        <span>{children}</span>
+        <ArrowRight />
+      </div>
+    </button>
+  );
+}

@@ -12,19 +12,133 @@ import {
   Search,
   ArrowRight,
   User,
+  Star,
+  Calendar,
+  Users,
+  Shield,
+  Target,
+  Gem,
+  CircleCheckBig,
 } from 'lucide-react';
 import { getLandingStatsAction, type LandingStats } from './actions';
+import SectionBadge from './components/section-badge';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/app/components/ui/avatar';
+import { Marquee } from '@/components/ui/marquee';
+import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
+
+// 기능별 아이콘 색상 매핑 (Tailwind는 동적 클래스를 지원하지 않음)
+const featureColorClasses: Record<string, string> = {
+  blue: 'bg-gradient-to-b from-blue-500 to-blue-300',
+  pink: 'bg-gradient-to-b from-pink-500 to-pink-300',
+  green: 'bg-gradient-to-b from-green-500 to-green-300',
+  orange: 'bg-gradient-to-b from-orange-500 to-orange-300',
+  purple: 'bg-gradient-to-b from-purple-500 to-purple-300',
+};
+
+// 역할별 배지 색상 매핑
+const levelColorClasses: Record<string, string> = {
+  스탭: 'text-blue-500 bg-blue-500/10',
+  매니저: 'text-green-500 bg-green-500/10',
+  전체: 'text-purple-500 bg-purple-500/10',
+};
 
 const steps = [
-  { title: '회원가입', desc: '이메일로 간단히 가입하고 역할을 선택하세요.' },
-  { title: '프로필 작성', desc: '경력, 서류, 어학/자격증 정보를 입력하세요.' },
   {
-    title: '공고 탐색/등록',
-    desc: '스탭은 공고를 지원, 매니저는 공고를 등록합니다.',
+    title: '회원가입',
+    desc: '알바생 또는 매니저로 간편하게 가입하세요',
+    icon: <Users className="size-6" />,
   },
   {
-    title: '매칭 및 관리',
-    desc: '지원자 관리, 스케줄 관리, 관심 목록으로 효율적으로 운영하세요.',
+    title: '공고 탐색',
+    desc: '다양한 필터로 원하는 조건의 스탭 공고를 찾아보세요.',
+    icon: <Search className="size-6" />,
+  },
+  {
+    title: '지원 및 매칭',
+    desc: '마음에 드는 공고에 지원하고 빠른 응답을 받으세요.',
+    icon: <CircleCheckBig className="size-6" />,
+  },
+  {
+    title: '근무 및 평가',
+    desc: '성실하게 근무하고 좋은 평가를 쌓아가세요.',
+    icon: <Gem className="size-6" />,
+  },
+];
+
+const reviews = [
+  {
+    rating: 5,
+    content:
+      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
+    name: '김철수',
+    role: '스탭',
+    avatar: 'https://github.com/shadcn.png',
+  },
+  {
+    rating: 4,
+    content:
+      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
+    name: '이영희',
+    role: '스탭',
+    avatar: 'https://github.com/shadcn.png',
+  },
+  {
+    rating: 3,
+    content:
+      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
+    name: '박영희',
+    role: '매니저',
+    avatar: 'https://github.com/shadcn.png',
+  },
+  {
+    rating: 2,
+    content:
+      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
+    name: '최영희',
+    role: '매니저',
+    avatar: 'https://github.com/shadcn.png',
+  },
+];
+
+const features = [
+  {
+    icon: <Search className="size-6" />,
+    title: '맞춤 공고 검색',
+    level: '스탭',
+    desc: '지역, 급여, 날짜별로 원하는 조건의 스탭 알바를 쉽게 찾아보세요.',
+    color: 'blue',
+  },
+  {
+    icon: <Calendar className="size-6" />,
+    title: '스케줄 관리',
+    level: '스탭',
+    desc: '내 근무 일정을 한눈에 확인하고 급여 정산 현황을 실시간으로 추적하세요',
+    color: 'pink',
+  },
+  {
+    icon: <Users className="size-6" />,
+    title: '지원자 관리',
+    level: '매니저',
+    desc: '공고별 지원자를 효율적으로 관리하고 근태 점수를 부여하세요',
+    color: 'green',
+  },
+  {
+    icon: <Target className="size-6" />,
+    title: '근태 평가 시스템',
+    desc: '스탭의 출결과 근무 태도를 평가하여 신뢰도 높은 인력풀을 구축하세요',
+    level: '매니저',
+    color: 'orange',
+  },
+  {
+    icon: <Shield className="size-6" />,
+    title: '안전한 신고 시스템',
+    level: '전체',
+    desc: '부적절한 공고나 행위를 신고하여 건전한 플랫폼 환경을 만들어갑니다',
+    color: 'purple',
   },
 ];
 
@@ -75,6 +189,14 @@ export default function LandingPage() {
       value: stats ? formatCount(stats.managerCount) : '-',
       icon: <Building2 className="size-6" />,
     },
+    {
+      label: '평균 평점',
+      value:
+        stats && stats.averageRating !== null
+          ? `${stats.averageRating.toFixed(1)}`
+          : '-',
+      icon: <Star className="size-6" />,
+    },
   ];
 
   return (
@@ -109,17 +231,12 @@ export default function LandingPage() {
                   <span className="text-white">공고 둘러보기</span>
                 </Link>
               </Button>
-              <Button variant="outline" asChild size="lg">
-                <Link
-                  href="/auth"
-                  className="border border-white/50 rounded-full px-4 py-2 hover:bg-white/10"
-                >
-                  <span className="text-foreground">무료로 시작하기</span>
-                  <ArrowRight className="size-4 text-foreground" />
-                </Link>
-              </Button>
+
+              <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
+                <Link href="/auth"> 무료로 시작하기</Link>
+              </InteractiveHoverButton>
             </div>
-            <div className="grid grid-cols-3 gap-8 pt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-4">
               {statsItems.map((s) => (
                 <div
                   key={s.label}
@@ -142,14 +259,44 @@ export default function LandingPage() {
       {/* 이용 방법 */}
       <section className="bg-background border-t border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
-          <h2 className="text-2xl font-bold text-foreground">이용 방법</h2>
+          <SectionBadge
+            title="이용 방법"
+            textColor="text-primary"
+            bgColor="bg-primary/10"
+          />
+          <div className="flex flex-col items-center justify-center gap-2">
+            <h2 className="text-4xl font-bold text-foreground">
+              4단계로 간편하게
+            </h2>
+            <small className="text-sm text-muted-foreground">
+              누구나 쉽게 사용할 수 있습니다.
+            </small>
+          </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, idx) => (
-              <Card key={step.title} className="h-full">
+              <Card
+                key={step.title}
+                className="h-full relative overflow-visible"
+              >
+                {/* 1~3번 카드 오른쪽 테두리에 화살표 (모바일 숨김) */}
+                {idx < 3 && (
+                  <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                    <div className="size-7 rounded-full bg-background border border-border flex items-center justify-center">
+                      <ArrowRight className="size-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                )}
                 <CardContent className="p-4 space-y-2">
-                  <p className="text-xs font-semibold text-primary">
-                    STEP {idx + 1}
-                  </p>
+                  <div className="flex items-center  gap-2">
+                    <div className="flex items-center justify-center size-10 bg-primary rounded-lg">
+                      <span className="text-xl font-semibold text-primary-foreground">
+                        {idx + 1}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center size-10 bg-primary/20 text-primary rounded-lg">
+                      {step.icon}
+                    </div>
+                  </div>
                   <p className="font-bold text-foreground">{step.title}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.desc}
@@ -161,60 +308,133 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 파트너 섹션 */}
-      <section className="bg-muted border-t border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-4">
-          <div className="flex items-center gap-2">
-            <Building2 className="text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">
-              {stats ? `${stats.managerCount}+` : ''} 파트너 업체와 함께합니다
+      {/* 주요 기능 */}
+      <section className="bg-background border-t border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
+          <SectionBadge
+            title="주요 기능"
+            textColor="text-purple-500"
+            bgColor="bg-purple-500/20"
+          />
+          <div className="flex flex-col items-center justify-center gap-2">
+            <h2 className="text-4xl font-bold text-foreground">
+              모든 기능을 한 곳에서
             </h2>
+            <small className="text-sm text-muted-foreground">
+              역할별 사용자 중심의 편리한 기능을 제공합니다.
+            </small>
           </div>
-          <p className="text-sm text-muted-foreground">
-            이벤트, 박람회, 프로모션, 오프라인 채널 등 다양한 도메인의
-            파트너사들이 스탭알바를 통해 스탭을 모집하고 있습니다.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 text-sm text-foreground">
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
-              대형 유통/리테일
-            </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
-              IT/스타트업
-            </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
-              이벤트/프로모션
-            </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
-              스포츠/행사
-            </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-center">
-              F&B/외식
-            </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((feature) => (
+              <Card
+                key={feature.title}
+                className="h-full border-none hover:shadow-lg transition-all duration-300"
+              >
+                <CardContent className="p-4 space-y-2">
+                  <div
+                    className={`flex items-center justify-center size-10 ${
+                      featureColorClasses[feature.color]
+                    } rounded-lg text-white`}
+                  >
+                    {feature.icon}
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    <p className="font-bold text-foreground">{feature.title}</p>
+                    <p
+                      className={`text-xs leading-relaxed ${
+                        levelColorClasses[feature.level]
+                      } rounded-full px-2 py-1`}
+                    >
+                      {feature.level}
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {feature.desc}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
+      <section className="bg-background border-t border-b border-border overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 space-y-6">
+          <SectionBadge
+            title="사용자 후기"
+            textColor="text-purple-500"
+            bgColor="bg-purple-500/20"
+          />
+          <div className="flex flex-col items-center justify-center gap-2">
+            <h2 className="text-4xl font-bold text-foreground">
+              실제 사용자들의 이야기
+            </h2>
+            <small className="text-sm text-muted-foreground">
+              많은 분들이 스탭알바와 함께하고 있습니다
+            </small>
+          </div>
+        </div>
+        <div className="relative">
+          <Marquee pauseOnHover className="[--duration:30s]">
+            {reviews.map((review, idx) => (
+              <Card
+                key={`${review.name}-${idx}`}
+                className="w-80 shrink-0 bg-card"
+              >
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`size-4 ${
+                          i < review.rating
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-muted-foreground/30'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed line-clamp-3">
+                    &ldquo;{review.content}&rdquo;
+                  </p>
+                  <div className="flex items-center gap-3 pt-2 border-t">
+                    <Avatar className="size-10">
+                      <AvatarImage src={review.avatar ?? undefined} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {review.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {review.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {review.role}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </Marquee>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/6 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/6 bg-gradient-to-l from-background to-transparent" />
+        </div>
+      </section>
+
       {/* CTA */}
-      <section className="bg-blue-600">
-        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 text-white space-y-4 text-center">
+      <section className="bg-gradient-to-b from-primary/60 to-primary">
+        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-14 text-background space-y-4 text-center">
           <h3 className="text-2xl sm:text-3xl font-bold">
             지금 바로 시작해보세요
           </h3>
-          <p className="text-sm sm:text-base text-white/80">
+          <p className="text-sm sm:text-base text-background/80">
             가입 후 공고를 등록하거나 원하는 공고에 지원해보세요.
           </p>
-          <div className="flex justify-center gap-3">
-            <Button size="lg" asChild variant="secondary">
-              <Link href="/auth/join">회원가입</Link>
-            </Button>
-            <Button
-              size="lg"
-              asChild
-              variant="outline"
-              className="bg-white text-blue-700"
-            >
-              <Link href="/post-list">공고 보러가기</Link>
-            </Button>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
+              <Link href="/auth">회원가입</Link>
+            </InteractiveHoverButton>
           </div>
         </div>
       </section>
