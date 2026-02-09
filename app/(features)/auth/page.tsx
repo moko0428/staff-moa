@@ -19,7 +19,7 @@ export default function AuthPage() {
           </p>
         </section>
         <section className="flex flex-col gap-4 w-full *:text-sm *:h-12 *:font-normal">
-          <Button className="bg-yellow-300 hover:bg-yellow-400 text-black">
+          {/* <Button className="bg-yellow-300 hover:bg-yellow-400 text-black">
             카카오 계정으로 계속하기
           </Button>
           <Button className="bg-white border-2 border-border text-black hover:bg-muted">
@@ -27,7 +27,10 @@ export default function AuthPage() {
           </Button>
           <Button className="bg-white border-2 border-border text-black hover:bg-muted">
             구글 계정으로 계속하기
-          </Button>
+          </Button> */}
+          <div className="text-sm text-muted-foreground text-center">
+            소셜 계정 로그인 공사중!
+          </div>
           <Button variant="default" asChild className="hover:bg-primary/90">
             <Link href="/auth/login">이메일로 계속하기</Link>
           </Button>
