@@ -36,6 +36,7 @@ import {
   Heart,
   Share2,
   Building2,
+  Flag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -49,6 +50,8 @@ import {
   checkFavoriteAction,
 } from '@/app/(features)/(protected)/worker/favorit/actions';
 import { applyToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
+import { checkReportAction } from '@/app/(features)/(protected)/admin/report-actions';
+import ReportModal from '@/app/components/ReportModal';
 import { User } from '@/types/mockData';
 
 type WorkSlot = {
@@ -118,6 +121,8 @@ export default function PostDetailPage({
     certificates: true,
     languages: true,
   });
+  const [reportOpen, setReportOpen] = useState(false);
+  const [hasReported, setHasReported] = useState(false);
 
   // 공고 데이터 로드
   useEffect(() => {
@@ -200,6 +205,23 @@ export default function PostDetailPage({
       checkFavorite();
     }
   }, [currentUserId, post, roleHydrated, isMember]);
+
+  // 신고 여부 확인
+  useEffect(() => {
+    if (currentUserId && roleHydrated && post) {
+      const checkReport = async () => {
+        try {
+          const result = await checkReportAction(post.post_id);
+          if (result.ok) {
+            setHasReported(result.data || false);
+          }
+        } catch (error) {
+          console.error('Failed to check report:', error);
+        }
+      };
+      checkReport();
+    }
+  }, [currentUserId, post, roleHydrated]);
 
   const toggleFavorite = async () => {
     if (!isMember || !currentUserId || !roleHydrated || !post) return;
@@ -384,6 +406,28 @@ export default function PostDetailPage({
           <Button variant="ghost" size="icon" onClick={handleShare}>
             <Share2 className="size-5 text-muted-foreground" />
           </Button>
+          {roleHydrated && currentUserId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setReportOpen(true)}
+              disabled={hasReported}
+              className={cn(
+                'hover:bg-destructive/10',
+                hasReported && 'opacity-50 cursor-not-allowed'
+              )}
+              title={hasReported ? '이미 신고한 게시물입니다' : '게시물 신고'}
+            >
+              <Flag
+                className={cn(
+                  'size-5',
+                  hasReported
+                    ? 'fill-destructive text-destructive'
+                    : 'text-muted-foreground hover:text-destructive'
+                )}
+              />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -759,6 +803,17 @@ export default function PostDetailPage({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 신고 모달 */}
+      {post && (
+        <ReportModal
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          postId={post.post_id}
+          postTitle={post.title}
+          onReported={() => setHasReported(true)}
+        />
+      )}
     </div>
   );
 }

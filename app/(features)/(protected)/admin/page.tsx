@@ -32,6 +32,7 @@ import {
   Loader2,
   Check,
   X,
+  Star,
 } from 'lucide-react';
 import Link from 'next/link';
 import Hero from '@/app/components/Hero';
@@ -53,23 +54,25 @@ import {
   type AdminMemberItem,
   type AdminPostItem,
 } from './admin-data-actions';
+import {
+  getReportedPostsAction,
+  updateReportStatusAction,
+  deleteReportedPostAction,
+} from './report-actions';
+import {
+  REPORT_REASON_LABELS,
+  type ReportedPostSummary,
+} from './report-constants';
+import {
+  fetchAppReviewsAction,
+  fetchReviewStatsAction,
+  deleteAppReviewAction,
+  toggleReviewFeaturedAction,
+  type AppReview,
+  type ReviewStats,
+} from './review-actions';
 
-type AdminTab = 'members' | 'posts' | 'reports' | 'manager-approval';
-
-interface PostReportInfo {
-  post: AdminPostItem;
-  reportCount: number;
-  reasons: string[];
-}
-
-// 간단한 신고 Mock 데이터 (게시글 신고 수/사유를 위한 예시)
-const REPORT_REASONS = [
-  '부적절한 내용(욕설/비하)이 포함되어 있어요.',
-  '허위 정보 또는 과장된 내용이 의심돼요.',
-  '동일/유사한 공고가 반복 게시된 스팸으로 보여요.',
-  '임금·근무 조건이 실제와 다르거나 명확하지 않아요.',
-  '기타 커뮤니티 가이드라인을 위반한 것 같아요.',
-];
+type AdminTab = 'members' | 'posts' | 'reports' | 'reviews' | 'manager-approval';
 
 interface PendingManager {
   id: string;
@@ -95,6 +98,11 @@ export default function AdminPage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [pendingManagers, setPendingManagers] = useState<PendingManager[]>([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
+  const [reportedPosts, setReportedPosts] = useState<ReportedPostSummary[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [reviews, setReviews] = useState<AppReview[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   const fetchMembers = useCallback(async () => {
     setLoadingMembers(true);
@@ -132,6 +140,52 @@ export default function AdminPage() {
     fetchPosts();
   }, [fetchPosts]);
 
+  const fetchReports = useCallback(async () => {
+    setLoadingReports(true);
+    try {
+      const result = await getReportedPostsAction();
+      if (result.ok && result.data) {
+        setReportedPosts(result.data);
+      } else {
+        console.error('Failed to load reports:', result.message);
+        setReportedPosts([]);
+      }
+    } catch (err) {
+      console.error('Failed to load reports', err);
+      setReportedPosts([]);
+    } finally {
+      setLoadingReports(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const fetchReviews = useCallback(async () => {
+    setLoadingReviews(true);
+    try {
+      const [reviewsResult, statsResult] = await Promise.all([
+        fetchAppReviewsAction(),
+        fetchReviewStatsAction(),
+      ]);
+      if (reviewsResult.ok && reviewsResult.data) {
+        setReviews(reviewsResult.data);
+      }
+      if (statsResult.ok && statsResult.data) {
+        setReviewStats(statsResult.data);
+      }
+    } catch (err) {
+      console.error('Failed to load reviews', err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
   const [bannedUserIds, setBannedUserIds] = useState<string[]>([]);
   const [deletedPostIds, setDeletedPostIds] = useState<string[]>([]);
   const [handledReportPostIds, setHandledReportPostIds] = useState<string[]>(
@@ -151,6 +205,8 @@ export default function AdminPage() {
   >('all');
   const [reportSearch, setReportSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [reviewRatingFilter, setReviewRatingFilter] = useState<'all' | '1' | '2' | '3' | '4' | '5'>('all');
 
   const visiblePosts = useMemo(
     () => posts.filter((post) => !deletedPostIds.includes(post.id)),
@@ -197,26 +253,34 @@ export default function AdminPage() {
     [visiblePosts, postSearch, postStatusFilter]
   );
 
-  const sortedReports = useMemo(() => {
-    // Mock report data from real posts (임시 데이터 - 실제로는 reports 테이블에서 가져와야 함)
-    const mockReports: PostReportInfo[] = posts.slice(0, 6).map((post, index) => ({
-      post,
-      reportCount: (index + 1) * 3,
-      reasons: [REPORT_REASONS[index % REPORT_REASONS.length]],
-    }));
-
-    return mockReports
-      .filter((item) => !handledReportPostIds.includes(item.post.id))
+  const filteredReportedPosts = useMemo(() => {
+    return reportedPosts
+      .filter((item) => !handledReportPostIds.includes(item.post_id.toString()))
       .filter((item) => {
         if (!reportSearch) return true;
         const keyword = reportSearch.toLowerCase();
         return (
-          item.post.title.toLowerCase().includes(keyword) ||
-          item.post.location.toLowerCase().includes(keyword)
+          item.post_title.toLowerCase().includes(keyword) ||
+          item.post_location.toLowerCase().includes(keyword) ||
+          item.post_author_name.toLowerCase().includes(keyword)
         );
       })
-      .sort((a, b) => b.reportCount - a.reportCount);
-  }, [posts, handledReportPostIds, reportSearch]);
+      .sort((a, b) => b.report_count - a.report_count);
+  }, [reportedPosts, handledReportPostIds, reportSearch]);
+
+  const filteredReviews = useMemo(() => {
+    return reviews
+      .filter((review) => {
+        const matchSearch =
+          !reviewSearch ||
+          (review.user_name?.toLowerCase().includes(reviewSearch.toLowerCase()) ?? false) ||
+          review.content.toLowerCase().includes(reviewSearch.toLowerCase());
+        const matchRating =
+          reviewRatingFilter === 'all' || review.rating === parseInt(reviewRatingFilter);
+        return matchSearch && matchRating;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [reviews, reviewSearch, reviewRatingFilter]);
 
   const fetchPendingManagers = useCallback(async () => {
     setLoadingManagers(true);
@@ -276,6 +340,86 @@ export default function AdminPage() {
     }
   };
 
+  const handleReportDelete = async (postId: number) => {
+    try {
+      const result = await deleteReportedPostAction(postId);
+      if (result.ok) {
+        toast.success(result.message);
+        setHandledReportPostIds((prev) =>
+          prev.includes(postId.toString()) ? prev : [...prev, postId.toString()]
+        );
+        setReportedPosts((prev) => prev.filter((r) => r.post_id !== postId));
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err) {
+      console.error('Failed to delete reported post', err);
+      toast.error('게시물 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleReportDismiss = async (postId: number) => {
+    try {
+      const result = await updateReportStatusAction(postId, 'dismissed');
+      if (result.ok) {
+        toast.success('신고가 기각되었습니다.');
+        setHandledReportPostIds((prev) =>
+          prev.includes(postId.toString()) ? prev : [...prev, postId.toString()]
+        );
+        setReportedPosts((prev) => prev.filter((r) => r.post_id !== postId));
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err) {
+      console.error('Failed to dismiss report', err);
+      toast.error('신고 기각에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const result = await deleteAppReviewAction(reviewId);
+      if (result.ok) {
+        toast.success(result.message);
+        setReviews((prev) => prev.filter((r) => r.review_id !== reviewId));
+        // 통계 다시 로드
+        const statsResult = await fetchReviewStatsAction();
+        if (statsResult.ok && statsResult.data) {
+          setReviewStats(statsResult.data);
+        }
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err) {
+      console.error('Failed to delete review', err);
+      toast.error('리뷰 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleToggleFeatured = async (reviewId: string, currentFeatured: boolean) => {
+    try {
+      const result = await toggleReviewFeaturedAction(reviewId, !currentFeatured);
+      if (result.ok) {
+        toast.success(result.message);
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.review_id === reviewId ? { ...r, is_featured: !currentFeatured } : r
+          )
+        );
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err) {
+      console.error('Failed to toggle featured', err);
+      toast.error('리뷰 상태 변경에 실패했습니다.');
+    }
+  };
+
+  const featuredCount = useMemo(
+    () => reviews.filter((r) => r.is_featured).length,
+    [reviews]
+  );
+
   const [selectedPost, setSelectedPost] = useState<AdminPostItem | null>(null);
 
   return (
@@ -307,6 +451,13 @@ export default function AdminPage() {
           onClick={() => setActiveTab('reports')}
         >
           신고 관리
+        </Button>
+        <Button
+          variant={activeTab === 'reviews' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('reviews')}
+        >
+          리뷰 관리
         </Button>
         <Button
           variant={activeTab === 'manager-approval' ? 'default' : 'outline'}
@@ -549,11 +700,11 @@ export default function AdminPage() {
               <div className="flex items-center justify-between gap-2">
                 <span>신고 관리</span>
                 <span className="text-sm text-muted-foreground">
-                  신고 많은 순 정렬 · 총 {sortedReports.length}건
+                  신고 많은 순 정렬 · 총 {filteredReportedPosts.length}건
                 </span>
               </div>
               <Input
-                placeholder="제목 또는 지역으로 검색"
+                placeholder="제목, 지역 또는 작성자로 검색"
                 value={reportSearch}
                 onChange={(e) => setReportSearch(e.target.value)}
                 className="h-9 text-sm"
@@ -561,67 +712,226 @@ export default function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {sortedReports.map(({ post, reportCount, reasons }) => (
-              <div
-                key={post.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border px-4 py-3"
-              >
-                <Link
-                  href={`/post/${post.id}`}
-                  className="flex-1 cursor-pointer hover:bg-muted rounded-md -mx-2 px-2 py-1 transition-colors"
+            {loadingReports ? (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                불러오는 중...
+              </div>
+            ) : filteredReportedPosts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                처리 대기 중인 신고가 없습니다.
+              </p>
+            ) : (
+              filteredReportedPosts.map((report) => (
+                <div
+                  key={report.post_id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border px-4 py-3"
                 >
+                  <Link
+                    href={`/post/${report.post_id}`}
+                    className="flex-1 cursor-pointer hover:bg-muted rounded-md -mx-2 px-2 py-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm line-clamp-1">
+                        {report.post_title}
+                      </span>
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] px-1.5 py-0.5"
+                      >
+                        신고 {report.report_count}건
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {report.post_location}
+                    </p>
+                    <p className="text-xs text-red-500 mt-0.5 line-clamp-2">
+                      신고 사유:{' '}
+                      {report.reasons
+                        .map((reason) => REPORT_REASON_LABELS[reason])
+                        .join(', ')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      작성자: {report.post_author_name}
+                    </p>
+                  </Link>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm line-clamp-1">
-                      {post.title}
-                    </span>
-                    <Badge
+                    <Button
                       variant="destructive"
-                      className="text-[10px] px-1.5 py-0.5"
+                      size="sm"
+                      onClick={() => handleReportDelete(report.post_id)}
                     >
-                      신고 {reportCount}건
-                    </Badge>
+                      <Trash2 className="size-4" />
+                      <span className="text-xs">처리(삭제)</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReportDismiss(report.post_id)}
+                    >
+                      <XCircle className="size-4" />
+                      <span className="text-xs">기각</span>
+                    </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {post.location} · {post.workDate}
-                  </p>
-                  <p className="text-xs text-red-500 mt-0.5 line-clamp-2">
-                    신고 사유: {reasons.join(', ')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    작성자: {post.authorName}
-                  </p>
-                </Link>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'reviews' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <span>리뷰 관리</span>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      setHandledReportPostIds((prev) =>
-                        prev.includes(post.id) ? prev : [...prev, post.id]
-                      );
-                      setDeletedPostIds((prev) =>
-                        prev.includes(post.id) ? prev : [...prev, post.id]
-                      );
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                    <span className="text-xs">처리(삭제)</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setHandledReportPostIds((prev) =>
-                        prev.includes(post.id) ? prev : [...prev, post.id]
-                      )
-                    }
-                  >
-                    <XCircle className="size-4" />
-                    <span className="text-xs">기각</span>
-                  </Button>
+                  <Badge variant="outline" className="text-xs">
+                    랜딩 노출: {featuredCount}/10
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    총 {filteredReviews.length}건
+                  </span>
                 </div>
               </div>
-            ))}
+              {/* 통계 요약 */}
+              {reviewStats && reviewStats.totalCount > 0 && (
+                <div className="flex flex-wrap items-center gap-4 p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Star className="size-5 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold text-lg">{reviewStats.averageRating}</span>
+                    <span className="text-sm text-muted-foreground">/ 5.0</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <span key={rating} className="flex items-center gap-0.5">
+                        {rating}
+                        <Star className="size-3 fill-yellow-400 text-yellow-400" />
+                        <span className="mr-2">({reviewStats.ratingCounts[rating] || 0})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <Input
+                  placeholder="사용자 이름 또는 내용으로 검색"
+                  value={reviewSearch}
+                  onChange={(e) => setReviewSearch(e.target.value)}
+                  className="h-9 text-sm"
+                />
+                <Select
+                  value={reviewRatingFilter}
+                  onValueChange={(value) =>
+                    setReviewRatingFilter(value as 'all' | '1' | '2' | '3' | '4' | '5')
+                  }
+                >
+                  <SelectTrigger className="h-9 w-full sm:w-40 text-xs">
+                    <SelectValue placeholder="별점 필터" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="5">5점</SelectItem>
+                    <SelectItem value="4">4점</SelectItem>
+                    <SelectItem value="3">3점</SelectItem>
+                    <SelectItem value="2">2점</SelectItem>
+                    <SelectItem value="1">1점</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingReviews ? (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                불러오는 중...
+              </div>
+            ) : filteredReviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {reviews.length === 0 ? '등록된 리뷰가 없습니다.' : '조건에 맞는 리뷰가 없습니다.'}
+              </p>
+            ) : (
+              filteredReviews.map((review) => (
+                <div
+                  key={review.review_id}
+                  className={`flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-lg border px-4 py-3 ${
+                    review.is_featured ? 'bg-primary/5 border-primary/30' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3 flex-1">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={review.user_avatar ?? undefined}
+                        alt={review.user_name ?? '사용자'}
+                      />
+                      <AvatarFallback>{review.user_name?.at(0) ?? '?'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-medium text-sm">{review.user_name ?? '알 수 없음'}</span>
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`size-3 ${
+                                star <= review.rating
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-muted-foreground/30'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        {review.is_featured && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0.5">
+                            랜딩 노출
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-3">
+                        {review.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(review.created_at).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={review.is_featured ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleToggleFeatured(review.review_id, review.is_featured)}
+                      disabled={!review.is_featured && featuredCount >= 10}
+                      title={
+                        !review.is_featured && featuredCount >= 10
+                          ? '최대 10개까지만 노출 가능합니다'
+                          : review.is_featured
+                          ? '랜딩 페이지에서 제외'
+                          : '랜딩 페이지에 노출'
+                      }
+                    >
+                      <Eye className="size-4" />
+                      <span className="text-xs">{review.is_featured ? '노출중' : '노출'}</span>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteReview(review.review_id)}
+                    >
+                      <Trash2 className="size-4" />
+                      <span className="text-xs">삭제</span>
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       )}

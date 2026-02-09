@@ -21,7 +21,7 @@ import {
   Gem,
   CircleCheckBig,
 } from 'lucide-react';
-import { getLandingStatsAction, type LandingStats } from './actions';
+import { getLandingStatsAction, getTopReviewsAction, type LandingStats, type LandingReview } from './actions';
 import SectionBadge from './components/section-badge';
 import {
   Avatar,
@@ -118,41 +118,6 @@ const steps = [
   },
 ];
 
-const reviews = [
-  {
-    rating: 5,
-    content:
-      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
-    name: '김철수',
-    role: '스탭',
-    avatar: 'https://github.com/shadcn.png',
-  },
-  {
-    rating: 4,
-    content:
-      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
-    name: '이영희',
-    role: '스탭',
-    avatar: 'https://github.com/shadcn.png',
-  },
-  {
-    rating: 3,
-    content:
-      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
-    name: '박영희',
-    role: '매니저',
-    avatar: 'https://github.com/shadcn.png',
-  },
-  {
-    rating: 2,
-    content:
-      '스탭알바는 정말 편리합니다. 공고를 찾기가 너무 쉽고, 스케줄 관리도 잘 되어 있어요.',
-    name: '최영희',
-    role: '매니저',
-    avatar: 'https://github.com/shadcn.png',
-  },
-];
-
 const features = [
   {
     icon: <Search className="size-6" />,
@@ -201,9 +166,23 @@ const formatCount = (count: number): string => {
   return String(count);
 };
 
+// 이름 마스킹 함수 (가운데 글자를 O로 변경)
+const maskName = (name: string | null): string => {
+  if (!name) return '익명';
+  const trimmed = name.trim();
+  if (trimmed.length <= 1) return trimmed;
+  if (trimmed.length === 2) return trimmed[0] + 'O';
+  // 3글자 이상: 첫글자 + O(가운데 모두) + 마지막 글자
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  const middleCount = trimmed.length - 2;
+  return first + 'O'.repeat(middleCount) + last;
+};
+
 export default function LandingPage() {
   const router = useRouter();
   const [stats, setStats] = useState<LandingStats | null>(null);
+  const [topReviews, setTopReviews] = useState<LandingReview[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -213,13 +192,19 @@ export default function LandingPage() {
   }, [router]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      const result = await getLandingStatsAction();
-      if (result.ok && result.data) {
-        setStats(result.data);
+    const fetchData = async () => {
+      const [statsResult, reviewsResult] = await Promise.all([
+        getLandingStatsAction(),
+        getTopReviewsAction(),
+      ]);
+      if (statsResult.ok && statsResult.data) {
+        setStats(statsResult.data);
+      }
+      if (reviewsResult.ok && reviewsResult.data) {
+        setTopReviews(reviewsResult.data);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
 
   type StatItem = {
@@ -606,48 +591,59 @@ export default function LandingPage() {
           variants={fadeIn}
           className="relative pb-10"
         >
-          <Marquee pauseOnHover className="[--duration:30s]">
-            {reviews.map((review, idx) => (
-              <Card
-                key={`${review.name}-${idx}`}
-                className="w-80 shrink-0 bg-card hover:shadow-lg transition-shadow duration-300"
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`size-4 ${
-                          i < review.rating
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-muted-foreground/30'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-sm text-foreground leading-relaxed line-clamp-3">
-                    &ldquo;{review.content}&rdquo;
-                  </p>
-                  <div className="flex items-center gap-3 pt-2 border-t">
-                    <Avatar className="size-10">
-                      <AvatarImage src={review.avatar ?? undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                        {review.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {review.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {review.role}
-                      </p>
-                    </div>
-                  </div>
+          {topReviews.length === 0 ? (
+            <div className="max-w-6xl mx-auto px-4 pb-10">
+              <Card className="bg-card">
+                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                  아직 노출 중인 후기가 없습니다. (관리자 대시보드에서 후기를 선택할 수 있어요)
                 </CardContent>
               </Card>
-            ))}
-          </Marquee>
+            </div>
+          ) : (
+            <Marquee pauseOnHover className="[--duration:30s]">
+              {topReviews.map((review, idx) => {
+                const maskedName = maskName(review.user_name);
+                return (
+                  <Card
+                    key={review.review_id ?? `review-${idx}`}
+                    className="w-80 shrink-0 bg-card hover:shadow-lg transition-shadow duration-300"
+                  >
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`size-4 ${
+                              i < review.rating
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-muted-foreground/30'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed line-clamp-3">
+                        &ldquo;{review.content}&rdquo;
+                      </p>
+                      <div className="flex items-center gap-3 pt-2 border-t">
+                        <Avatar className="size-10">
+                          <AvatarImage src={review.user_avatar ?? undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {maskedName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {maskedName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">사용자</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Marquee>
+          )}
           <div className="pointer-events-none absolute inset-y-0 left-0 w-1/6 bg-gradient-to-r from-background to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-1/6 bg-gradient-to-l from-background to-transparent" />
         </motion.div>

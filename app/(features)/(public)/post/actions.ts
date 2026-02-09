@@ -87,16 +87,70 @@ async function updatePostStatusIfPast(
   }
 }
 
+// 신고 5회 이상인 게시물 ID 조회
+async function getHiddenPostIds(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<number[]> {
+  try {
+    // post_reports 테이블에서 pending/reviewed 상태의 신고를 그룹화하여 5회 이상인 것 조회
+    const { data, error } = await supabase
+      .from('post_reports')
+      .select('post_id')
+      .in('status', ['pending', 'reviewed']);
+
+    if (error) {
+      console.error('[getHiddenPostIds] Error:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // 게시물별 신고 횟수 카운트
+    const reportCounts = new Map<number, number>();
+    for (const report of data) {
+      const count = reportCounts.get(report.post_id) || 0;
+      reportCounts.set(report.post_id, count + 1);
+    }
+
+    // 5회 이상인 게시물 ID 반환
+    const hiddenPostIds: number[] = [];
+    for (const [postId, count] of reportCounts) {
+      if (count >= 5) {
+        hiddenPostIds.push(postId);
+      }
+    }
+
+    return hiddenPostIds;
+  } catch (err) {
+    console.error('[getHiddenPostIds] Unexpected error:', err);
+    return [];
+  }
+}
+
 // 모든 공고 가져오기 (공개 페이지용)
 export async function getAllPostsAction(): Promise<
   ActionResult<Array<Record<string, unknown>>>
 > {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+
+    // 신고 5회 이상인 게시물 ID 조회
+    const hiddenPostIds = await getHiddenPostIds(supabase);
+
+    // 게시물 조회
+    let query = supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false });
+
+    // 신고 5회 이상인 게시물 제외
+    if (hiddenPostIds.length > 0) {
+      query = query.not('post_id', 'in', `(${hiddenPostIds.join(',')})`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getAllPostsAction] Supabase select error', error);
@@ -190,12 +244,45 @@ export async function getAllProfilesAction(): Promise<
   }
 }
 
+// 특정 게시물의 신고 횟수 조회
+async function getPostReportCount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  postId: string | number
+): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('post_reports')
+      .select('report_id')
+      .eq('post_id', postId)
+      .in('status', ['pending', 'reviewed']);
+
+    if (error) {
+      console.error('[getPostReportCount] Error:', error);
+      return 0;
+    }
+
+    return data?.length || 0;
+  } catch {
+    return 0;
+  }
+}
+
 // 공개 공고 상세 조회 (ID로)
 export async function getPublicPostByIdAction(
   postId: string
 ): Promise<ActionResult<Record<string, unknown>>> {
   try {
     const supabase = await createClient();
+
+    // 신고 횟수 확인
+    const reportCount = await getPostReportCount(supabase, postId);
+    if (reportCount >= 5) {
+      return {
+        ok: false,
+        message: '신고가 누적되어 숨겨진 공고입니다.',
+      };
+    }
+
     const { data, error } = await supabase
       .from('posts')
       .select('*')
