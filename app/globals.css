@@ -138,6 +138,17 @@
   }
 }
 
+@layer utilities {
+  /* 스크롤바는 숨기되 스크롤은 유지 */
+  .scroll-none {
+    -ms-overflow-style: none; /* IE/Edge legacy */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scroll-none::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+}
+
 ::view-transition-old(root), ::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;

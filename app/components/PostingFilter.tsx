@@ -8,7 +8,7 @@ import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Separator } from './Separator';
 
 export type Filters = {
@@ -44,6 +44,38 @@ export default function PostingFilter({
 }: FilterBarProps) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const keywordScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const handleKeywordWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = keywordScrollRef.current;
+      if (!el) return;
+
+      // 가로로 넘칠 때만 동작
+      if (el.scrollWidth <= el.clientWidth) return;
+
+      // 트랙패드/마우스 모두 대응: 기본은 세로 휠(ΔY)을 가로 스크롤로 사용
+      const rawDelta =
+        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+
+      const multiplier =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientWidth : 1;
+      const delta = rawDelta * multiplier;
+
+      const maxLeft = el.scrollWidth - el.clientWidth;
+      const nextLeft = el.scrollLeft + delta;
+
+      // 아직 좌/우로 스크롤 가능한 경우에만 페이지 스크롤을 막고 가로 이동
+      const canScrollHorizontally =
+        (delta > 0 && el.scrollLeft < maxLeft) || (delta < 0 && el.scrollLeft > 0);
+
+      if (!canScrollHorizontally) return;
+
+      e.preventDefault();
+      el.scrollLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+    },
+    []
+  );
 
   const toggleCategory = (c: string) => {
     const exists = filters.categories.includes(c);
@@ -176,8 +208,12 @@ export default function PostingFilter({
           <FilterIcon className="size-5" />
         </button>
       </div>
-      <div className="flex flex-col gap-1 overflow-x-scroll scroll-none max-w-full max-h-[3.5rem]">
-        <div className="flex gap-2 p-2 w-full scroll-none">
+      <div
+        ref={keywordScrollRef}
+        onWheel={handleKeywordWheel}
+        className="flex flex-col gap-1 overflow-x-auto overflow-y-hidden scroll-none max-w-full"
+      >
+        <div className="flex flex-nowrap gap-2 p-2 w-full scroll-none">
           {/* 전체 버튼 - 맨 왼쪽 */}
           <button
             type="button"

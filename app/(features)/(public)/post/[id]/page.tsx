@@ -19,8 +19,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/app/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/app/components/ui/avatar';
 import {
   ArrowLeft,
   Calendar,
@@ -52,7 +57,9 @@ import {
 import { applyToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
 import { checkReportAction } from '@/app/(features)/(protected)/admin/report-actions';
 import ReportModal from '@/app/components/ReportModal';
+import ProfileModal from '@/app/components/profile-modal';
 import { User } from '@/types/mockData';
+import Link from 'next/link';
 
 type WorkSlot = {
   date: string;
@@ -114,15 +121,31 @@ export default function PostDetailPage({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [applicationMessage, setApplicationMessage] = useState('');
-  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({
-    personal: true,
-    experiences: true,
-    documents: true,
-    certificates: true,
-    languages: true,
-  });
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
+    {
+      personal: true,
+      experiences: true,
+      documents: true,
+      certificates: true,
+      languages: true,
+    }
+  );
   const [reportOpen, setReportOpen] = useState(false);
   const [hasReported, setHasReported] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [profileModalUser, setProfileModalUser] = useState<{
+    id: string;
+    name: string | null;
+    email: string | null;
+    photo?: string | null;
+    role: string;
+    introduction?: string | null;
+    attendanceScore?: number | null;
+    followerCount?: number;
+    companyName?: string | null;
+    companyVerifyStatus?: string | null;
+  } | null>(null);
 
   // 공고 데이터 로드
   useEffect(() => {
@@ -268,8 +291,13 @@ export default function PostDetailPage({
       selectedInfo.push(`경력(${currentUser.experiences.length}개)`);
     if (selectedFields.documents && currentUser.documents)
       selectedInfo.push('서류');
-    if (selectedFields.certificates && currentUser.documents?.certificates?.length)
-      selectedInfo.push(`자격증(${currentUser.documents.certificates.length}개)`);
+    if (
+      selectedFields.certificates &&
+      currentUser.documents?.certificates?.length
+    )
+      selectedInfo.push(
+        `자격증(${currentUser.documents.certificates.length}개)`
+      );
     if (selectedFields.languages && currentUser.documents?.language?.length)
       selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
 
@@ -279,7 +307,10 @@ export default function PostDetailPage({
     }
 
     try {
-      const result = await applyToPostAction(post.post_id, message || undefined);
+      const result = await applyToPostAction(
+        post.post_id,
+        message || undefined
+      );
       if (result.ok) {
         toast.success(result.message || '지원이 완료되었습니다.');
         setApplyOpen(false);
@@ -309,6 +340,73 @@ export default function PostDetailPage({
     }
   };
 
+  const openAuthorProfileModal = async () => {
+    if (!post?.author_id) return;
+
+    // 먼저 포스트에 포함된 최소 정보로 모달을 즉시 오픈
+    setProfileModalUser({
+      id: post.author_id,
+      name: post.author_name || post.manager_name || null,
+      email: null,
+      photo: post.author_avatar || null,
+      role: 'manager',
+      introduction: null,
+      attendanceScore: null,
+      followerCount: 0,
+      companyName: post.company_name || null,
+      companyVerifyStatus: null,
+    });
+    setProfileModalOpen(true);
+
+    // 백그라운드로 프로필 상세 로드 (RLS/권한에 따라 실패할 수 있음)
+    try {
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(
+          'user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status'
+        )
+        .eq('user_id', post.author_id)
+        .single();
+
+      if (error || !data) return;
+
+      setProfileModalUser((prev) => {
+        if (!prev || prev.id !== post.author_id) return prev;
+        return {
+          ...prev,
+          id: data.user_id as string,
+          name: (data.name as string | null) ?? prev.name ?? null,
+          email: (data.email as string | null) ?? null,
+          photo: (data.avatar as string | null) ?? prev.photo ?? null,
+          role: (data.role as string) ?? prev.role,
+          introduction: (data.bio as string | null) ?? null,
+          attendanceScore: (data.attendance_score as number | null) ?? null,
+          companyName:
+            (data.company_name as string | null) ?? prev.companyName ?? null,
+          companyVerifyStatus:
+            (data.company_verify_status as string | null) ??
+            prev.companyVerifyStatus ??
+            null,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to fetch author profile:', error);
+    }
+  };
+
+  const handleAuthorProfileClick = async () => {
+    // 비로그인 사용자는 로그인 유도 모달
+    if (!currentUserId) {
+      setLoginPromptOpen(true);
+      return;
+    }
+
+    await openAuthorProfileModal();
+  };
+
   const formatNumberWithComma = (value: string | number | undefined) => {
     if (!value) return '0';
     const numeric = typeof value === 'string' ? Number(value) : value;
@@ -334,11 +432,20 @@ export default function PostDetailPage({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'urgent':
-        return { label: '급구', className: 'bg-red-100 text-red-700 border-red-200' };
+        return {
+          label: '급구',
+          className: 'bg-red-100 text-red-700 border-red-200',
+        };
       case 'completed':
-        return { label: '모집완료', className: 'bg-muted text-muted-foreground border-border' };
+        return {
+          label: '모집완료',
+          className: 'bg-muted text-muted-foreground border-border',
+        };
       default:
-        return { label: '모집중', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+        return {
+          label: '모집중',
+          className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        };
     }
   };
 
@@ -371,8 +478,10 @@ export default function PostDetailPage({
   const statusBadge = getStatusBadge(post.status);
   const firstSlot = post.work_slots?.[0];
   const workDate = firstSlot?.date || post.work_date;
-  const workTimeStart = firstSlot?.start_time || firstSlot?.start || post.work_time_start;
-  const workTimeEnd = firstSlot?.end_time || firstSlot?.end || post.work_time_end;
+  const workTimeStart =
+    firstSlot?.start_time || firstSlot?.start || post.work_time_start;
+  const workTimeEnd =
+    firstSlot?.end_time || firstSlot?.end || post.work_time_end;
   const workLocation = firstSlot?.location || post.location;
   const payAmount = firstSlot?.pay_amount || post.pay_amount;
   const payType = firstSlot?.pay_type || post.pay_type;
@@ -435,7 +544,10 @@ export default function PostDetailPage({
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className={cn('text-sm', statusBadge.className)}>
+            <Badge
+              variant="outline"
+              className={cn('text-sm', statusBadge.className)}
+            >
               {statusBadge.label}
             </Badge>
             {post.keywords?.map((keyword) => (
@@ -447,23 +559,39 @@ export default function PostDetailPage({
           <CardTitle className="text-2xl">{post.title}</CardTitle>
           {/* 작성자 정보 */}
           <div className="flex items-center gap-3 mt-4 pt-4 border-t">
-            <Avatar className="w-10 h-10">
-              <AvatarImage src={post.author_avatar} alt={post.author_name} />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                {post.author_name?.charAt(0) || 'M'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium text-sm">{post.author_name || post.manager_name}</p>
-              {post.company_name && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Building2 className="size-3" />
-                  {post.company_name}
-                </p>
+            <button
+              type="button"
+              onClick={handleAuthorProfileClick}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-1 py-1 -ml-1 transition-colors',
+                'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
               )}
-            </div>
+              aria-label="작성자 프로필 보기"
+            >
+              <Avatar className="w-10 h-10">
+                <AvatarImage src={post.author_avatar} alt={post.author_name} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {post.author_name?.charAt(0) || 'M'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                <p className="font-medium text-sm">
+                  {post.author_name || post.manager_name}
+                </p>
+                {post.company_name && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Building2 className="size-3" />
+                    {post.company_name}
+                  </p>
+                )}
+              </div>
+            </button>
             <p className="ml-auto text-xs text-muted-foreground">
-              {post.created_at && format(parseISO(post.created_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
+              작성일자:{' '}
+              {post.created_at &&
+                format(parseISO(post.created_at), 'yyyy.MM.dd HH:mm', {
+                  locale: ko,
+                })}
             </p>
           </div>
         </CardHeader>
@@ -485,8 +613,13 @@ export default function PostDetailPage({
                     <p className="text-sm text-muted-foreground">근무일</p>
                     <p className="font-medium">
                       {post.work_slots && post.work_slots.length > 1
-                        ? `${format(parseISO(post.work_slots[0].date), 'yyyy.MM.dd')} 외 ${post.work_slots.length - 1}일`
-                        : format(parseISO(workDate), 'yyyy년 MM월 dd일 (E)', { locale: ko })}
+                        ? `${format(
+                            parseISO(post.work_slots[0].date),
+                            'yyyy.MM.dd'
+                          )} 외 ${post.work_slots.length - 1}일`
+                        : format(parseISO(workDate), 'yyyy년 MM월 dd일 (E)', {
+                            locale: ko,
+                          })}
                     </p>
                   </div>
                 </div>
@@ -496,7 +629,9 @@ export default function PostDetailPage({
                   <Clock className="size-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="text-sm text-muted-foreground">근무 시간</p>
-                    <p className="font-medium">{workTimeStart} - {workTimeEnd}</p>
+                    <p className="font-medium">
+                      {workTimeStart} - {workTimeEnd}
+                    </p>
                   </div>
                 </div>
               )}
@@ -515,9 +650,12 @@ export default function PostDetailPage({
                   <div>
                     <p className="text-sm text-muted-foreground">급여</p>
                     <p className="font-medium text-primary">
-                      {getPayTypeLabel(payType)} {formatNumberWithComma(payAmount)}원
+                      {getPayTypeLabel(payType)}{' '}
+                      {formatNumberWithComma(payAmount)}원
                       {firstSlot?.tax_withholding && (
-                        <span className="text-xs text-muted-foreground ml-1">(3.3% 공제)</span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          (3.3% 공제)
+                        </span>
                       )}
                     </p>
                   </div>
@@ -540,10 +678,13 @@ export default function PostDetailPage({
                   >
                     <div className="flex items-center gap-4">
                       <span className="text-sm font-medium">
-                        {format(parseISO(slot.date), 'MM.dd (E)', { locale: ko })}
+                        {format(parseISO(slot.date), 'MM.dd (E)', {
+                          locale: ko,
+                        })}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {slot.start_time || slot.start} - {slot.end_time || slot.end}
+                        {slot.start_time || slot.start} -{' '}
+                        {slot.end_time || slot.end}
                       </span>
                     </div>
                     <span className="text-sm font-medium text-primary">
@@ -570,7 +711,9 @@ export default function PostDetailPage({
                     <BriefcaseBusiness className="size-4" />
                     준비물
                   </p>
-                  <p className="text-sm text-muted-foreground ml-6">{post.equipments}</p>
+                  <p className="text-sm text-muted-foreground ml-6">
+                    {post.equipments}
+                  </p>
                 </div>
               )}
               {post.qualifications && (
@@ -579,7 +722,9 @@ export default function PostDetailPage({
                     <Check className="size-4" />
                     자격 요건
                   </p>
-                  <p className="text-sm text-muted-foreground ml-6">{post.qualifications}</p>
+                  <p className="text-sm text-muted-foreground ml-6">
+                    {post.qualifications}
+                  </p>
                 </div>
               )}
               {post.preferences && (
@@ -588,7 +733,9 @@ export default function PostDetailPage({
                     <FileText className="size-4" />
                     우대 사항
                   </p>
-                  <p className="text-sm text-muted-foreground ml-6">{post.preferences}</p>
+                  <p className="text-sm text-muted-foreground ml-6">
+                    {post.preferences}
+                  </p>
                 </div>
               )}
               {post.notes && (
@@ -597,7 +744,9 @@ export default function PostDetailPage({
                     <FileText className="size-4" />
                     기타 사항
                   </p>
-                  <p className="text-sm text-muted-foreground ml-6">{post.notes}</p>
+                  <p className="text-sm text-muted-foreground ml-6">
+                    {post.notes}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -626,7 +775,8 @@ export default function PostDetailPage({
                   className="bg-primary h-2 rounded-full transition-all"
                   style={{
                     width: `${Math.min(
-                      ((post.currentApplicants || 0) / post.recruit_count) * 100,
+                      ((post.currentApplicants || 0) / post.recruit_count) *
+                        100,
                       100
                     )}%`,
                   }}
@@ -676,16 +826,16 @@ export default function PostDetailPage({
 
           {post.status === 'completed' && (
             <div className="p-4 bg-muted rounded-lg text-center">
-              <p className="text-muted-foreground font-medium">모집이 완료되었습니다</p>
+              <p className="text-muted-foreground font-medium">
+                모집이 완료되었습니다
+              </p>
             </div>
           )}
 
           {!isMember && roleHydrated && (
-            <div className="p-4 bg-blue-50 rounded-lg text-center">
-              <p className="text-blue-600 text-sm">
-                지원하려면 회원으로 로그인해주세요
-              </p>
-            </div>
+            <Button variant="default" className="w-full" asChild>
+              <Link href="/auth">지원하려면 회원으로 로그인해주세요</Link>
+            </Button>
           )}
         </div>
       </div>
@@ -694,7 +844,9 @@ export default function PostDetailPage({
       <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-base">{post.title}에 지원하기</DialogTitle>
+            <DialogTitle className="text-base">
+              {post.title}에 지원하기
+            </DialogTitle>
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
@@ -711,17 +863,18 @@ export default function PostDetailPage({
                     onCheckedChange={() => handleToggleField('personal')}
                   />
                 </div>
-                {currentUser.experiences && currentUser.experiences.length > 0 && (
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <p className="font-medium">경력</p>
+                {currentUser.experiences &&
+                  currentUser.experiences.length > 0 && (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">경력</p>
+                      </div>
+                      <Switch
+                        checked={selectedFields.experiences}
+                        onCheckedChange={() => handleToggleField('experiences')}
+                      />
                     </div>
-                    <Switch
-                      checked={selectedFields.experiences}
-                      onCheckedChange={() => handleToggleField('experiences')}
-                    />
-                  </div>
-                )}
+                  )}
                 {currentUser.documents &&
                   Object.values(currentUser.documents).some(Boolean) && (
                     <div className="flex items-center justify-between gap-4">
@@ -742,7 +895,9 @@ export default function PostDetailPage({
                       </div>
                       <Switch
                         checked={selectedFields.certificates}
-                        onCheckedChange={() => handleToggleField('certificates')}
+                        onCheckedChange={() =>
+                          handleToggleField('certificates')
+                        }
                       />
                     </div>
                   )}
@@ -761,7 +916,10 @@ export default function PostDetailPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="application-message" className="text-sm font-medium">
+                <Label
+                  htmlFor="application-message"
+                  className="text-sm font-medium"
+                >
                   지원 메시지 (선택)
                 </Label>
                 <Textarea
@@ -814,6 +972,33 @@ export default function PostDetailPage({
           onReported={() => setHasReported(true)}
         />
       )}
+
+      {/* 프로필 모달 */}
+      {profileModalUser && (
+        <ProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          user={profileModalUser}
+          currentUserId={currentUserId ?? undefined}
+        />
+      )}
+
+      {/* 로그인 유도 모달 */}
+      <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">로그인이 필요합니다</DialogTitle>
+            <DialogDescription className="text-sm">
+              작성자 프로필을 보려면 로그인해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center gap-2 pt-2">
+            <Button type="button" onClick={() => router.push('/auth')}>
+              로그인하기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
