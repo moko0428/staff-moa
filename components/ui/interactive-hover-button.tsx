@@ -22,11 +22,6 @@ export function InteractiveHoverButton({
       />
 
       <div className="relative z-10 flex items-center gap-2">
-        {/* dot은 항상 white (hover 배경과 분리되어 영향 없음) */}
-        <div
-          aria-hidden="true"
-          className="h-2 w-2 rounded-full bg-white transition-all duration-300 group-hover:opacity-0 group-hover:scale-0"
-        />
         <span className="inline-block transition-all duration-300 group-hover:translate-x-12 group-hover:opacity-0">
           {children}
         </span>
