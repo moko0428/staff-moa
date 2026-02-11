@@ -796,7 +796,65 @@ export default function SchedulePage() {
     <div className="relative h-[calc(100vh-100px)] overflow-hidden">
       <div
         ref={calendarAreaRef}
-        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4"
+        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-pan-y"
+        onClickCapture={(e) => {
+          if (Date.now() < swipeStateRef.current.blockClickUntil) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onPointerDown={(e) => {
+          swipeStateRef.current.isDown = true;
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+          swipeStateRef.current.startX = e.clientX;
+          swipeStateRef.current.startY = e.clientY;
+        }}
+        onPointerMove={(e) => {
+          if (!swipeStateRef.current.isDown) return;
+          const dx = e.clientX - swipeStateRef.current.startX;
+          const dy = e.clientY - swipeStateRef.current.startY;
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+            swipeStateRef.current.isSwiping = true;
+            if (!swipeStateRef.current.hasPointerCapture) {
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(
+                  e.pointerId
+                );
+                swipeStateRef.current.hasPointerCapture = true;
+              } catch {
+                // ignore
+              }
+            }
+            e.preventDefault();
+          }
+        }}
+        onPointerUp={(e) => {
+          if (!swipeStateRef.current.isDown) return;
+          swipeStateRef.current.isDown = false;
+          const dx = e.clientX - swipeStateRef.current.startX;
+          const dy = e.clientY - swipeStateRef.current.startY;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+            swipeStateRef.current.blockClickUntil = Date.now() + 250;
+            navigateBySwipe(dx < 0 ? 'next' : 'prev');
+          }
+          try {
+            if (swipeStateRef.current.hasPointerCapture) {
+              (e.currentTarget as HTMLElement).releasePointerCapture(
+                e.pointerId
+              );
+            }
+          } catch {
+            // ignore
+          }
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+        }}
+        onPointerCancel={() => {
+          swipeStateRef.current.isDown = false;
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+        }}
       >
         {/* 상단: 이번주 + 오늘/추가 + 뷰 토글 */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -839,73 +897,7 @@ export default function SchedulePage() {
 
         {/* 날짜 섹션: 7일 버튼 + 1주 이동 */}
         <div className="mb-4">
-          <div
-            className="overflow-x-auto scroll-none select-none cursor-grab active:cursor-grabbing"
-            style={{ touchAction: 'pan-y' }}
-            onClickCapture={(e) => {
-              if (Date.now() < swipeStateRef.current.blockClickUntil) {
-                e.preventDefault();
-                e.stopPropagation();
-              }
-            }}
-            onPointerDown={(e) => {
-              swipeStateRef.current.isDown = true;
-              swipeStateRef.current.isSwiping = false;
-              swipeStateRef.current.hasPointerCapture = false;
-              swipeStateRef.current.startX = e.clientX;
-              swipeStateRef.current.startY = e.clientY;
-            }}
-            onPointerMove={(e) => {
-              if (!swipeStateRef.current.isDown) return;
-              const dx = e.clientX - swipeStateRef.current.startX;
-              const dy = e.clientY - swipeStateRef.current.startY;
-              // 가로 스와이프가 명확할 때만 기본 동작 방지
-              if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
-                swipeStateRef.current.isSwiping = true;
-                if (!swipeStateRef.current.hasPointerCapture) {
-                  try {
-                    (e.currentTarget as HTMLElement).setPointerCapture(
-                      e.pointerId
-                    );
-                    swipeStateRef.current.hasPointerCapture = true;
-                  } catch {
-                    // ignore
-                  }
-                }
-                e.preventDefault();
-              }
-            }}
-            onPointerUp={(e) => {
-              if (!swipeStateRef.current.isDown) return;
-              swipeStateRef.current.isDown = false;
-
-              const dx = e.clientX - swipeStateRef.current.startX;
-              const dy = e.clientY - swipeStateRef.current.startY;
-
-              // 수평 스와이프만 인정
-              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-                swipeStateRef.current.blockClickUntil = Date.now() + 250;
-                navigateBySwipe(dx < 0 ? 'next' : 'prev');
-              }
-
-              try {
-                if (swipeStateRef.current.hasPointerCapture) {
-                  (e.currentTarget as HTMLElement).releasePointerCapture(
-                    e.pointerId
-                  );
-                }
-              } catch {
-                // ignore
-              }
-              swipeStateRef.current.isSwiping = false;
-              swipeStateRef.current.hasPointerCapture = false;
-            }}
-            onPointerCancel={() => {
-              swipeStateRef.current.isDown = false;
-              swipeStateRef.current.isSwiping = false;
-              swipeStateRef.current.hasPointerCapture = false;
-            }}
-          >
+          <div>
             <div className="flex flex-col items-center justify-center gap-1 min-w-max px-1">
               <div className="flex items-center justify-center gap-2">
                 {['일', '월', '화', '수', '목', '금', '토'].map((label) => (
