@@ -15,7 +15,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
+} from '@/app/components/ui/accordion';
 import {
   Dialog,
   DialogContent,
