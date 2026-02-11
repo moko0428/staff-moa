@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import Script from 'next/script';
@@ -34,7 +35,9 @@ export default function RootLayout({
             gtag('config', '${GA_ID}');
           `}
         </Script>
-        <GoogleAnalyticsRouteTracker gaId={GA_ID} />
+        <Suspense fallback={null}>
+          <GoogleAnalyticsRouteTracker gaId={GA_ID} />
+        </Suspense>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

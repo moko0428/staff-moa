@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createBulkNotificationsAction } from '@/app/(features)/(protected)/notification/actions';
 
 type WorkSlot = {
+  work_type?: 'single' | 'range' | 'multi';
   date: string; // YYYY-MM-DD
   start: string; // HH:MM
   end: string; // HH:MM
@@ -12,9 +13,12 @@ type WorkSlot = {
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pay_amount: number;
   tax_withholding: boolean;
+  meal_included?: boolean;
+  meal_amount?: number;
 };
 
 const workSlotSchema = z.object({
+  work_type: z.enum(['single', 'range', 'multi']).optional().default('single'),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.'),
@@ -26,6 +30,8 @@ const workSlotSchema = z.object({
   pay_type: z.enum(['hourly', 'daily', 'weekly', 'monthly']),
   pay_amount: z.number().positive('급여는 0보다 커야 합니다.'),
   tax_withholding: z.boolean(),
+  meal_included: z.boolean().optional().default(false),
+  meal_amount: z.number().min(0, '식대 금액은 0 이상이어야 합니다.').optional().default(0),
 });
 
 const createPostSchema = z.object({
@@ -304,11 +310,14 @@ export async function createPostAction(
 
     // work_slots를 스키마 형식으로 변환 (start_time, end_time 사용)
     const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
+    work_type: slot.work_type ?? 'single',
       date: slot.date,
       start_time: slot.start,
       end_time: slot.end,
       pay_amount: slot.pay_amount,
       // location, pay_type, tax_withholding은 work_slots에 포함하지 않고 테이블 레벨에서 관리
+    meal_included: slot.meal_included ?? false,
+    meal_amount: slot.meal_amount ?? 0,
     }));
 
     const { data, error } = await supabase

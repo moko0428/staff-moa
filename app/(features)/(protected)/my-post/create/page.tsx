@@ -13,6 +13,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
+import { Calendar } from '@/app/components/ui/calendar';
 import {
   Card,
   CardContent,
@@ -38,8 +39,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
+import type { DateRange } from 'react-day-picker';
+import { eachDayOfInterval, format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+type WorkType = 'single' | 'range' | 'multi';
 
 type WorkSlot = {
+  work_type: WorkType;
   date: string; // YYYY-MM-DD
   start: string; // HH:MM
   end: string; // HH:MM
@@ -47,6 +54,8 @@ type WorkSlot = {
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pay_amount: number;
   tax_withholding: boolean;
+  meal_included: boolean;
+  meal_amount: number; // 식대 금액 (원)
 };
 
 type ActionResult<T = void> = {
@@ -92,6 +101,7 @@ function CreatePostContent() {
   const [description, setDescription] = useState('');
   const [workSlots, setWorkSlots] = useState<WorkSlot[]>([
     {
+      work_type: 'single',
       date: '',
       start: '',
       end: '',
@@ -99,8 +109,22 @@ function CreatePostContent() {
       pay_type: 'hourly',
       pay_amount: 0,
       tax_withholding: false,
+      meal_included: false,
+      meal_amount: 0,
     },
   ]);
+  const [workType, setWorkType] = useState<WorkType>('single');
+  const [selectedSingleDate, setSelectedSingleDate] = useState<Date | undefined>(
+    undefined,
+  );
+  const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(
+    undefined,
+  );
+  const [multiDraftDate, setMultiDraftDate] = useState<Date | undefined>(
+    undefined,
+  );
+  const [multiDraftStart, setMultiDraftStart] = useState('');
+  const [multiDraftEnd, setMultiDraftEnd] = useState('');
   const [recruitCount, setRecruitCount] = useState(1);
   const [managerName, setManagerName] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
@@ -116,6 +140,143 @@ function CreatePostContent() {
   );
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
+
+  const normalizeDates = (dates: string[]) => {
+    const unique = Array.from(new Set(dates.filter(Boolean)));
+    unique.sort();
+    return unique;
+  };
+
+  const getBaseSlot = (prevSlots: WorkSlot[]) => {
+    const base = prevSlots[0];
+    return (
+      base ?? {
+        work_type: 'single' as const,
+        date: '',
+        start: '',
+        end: '',
+        location: '',
+        pay_type: 'hourly' as const,
+        pay_amount: 0,
+        tax_withholding: false,
+        meal_included: false,
+        meal_amount: 0,
+      }
+    );
+  };
+
+  const setSlotsFromDates = (nextWorkType: WorkType, dates: string[]) => {
+    const nextDates = normalizeDates(dates);
+    setWorkSlots((prev) => {
+      const base = getBaseSlot(prev);
+      const common = {
+        start: base.start,
+        end: base.end,
+        location: base.location,
+        pay_type: base.pay_type,
+        pay_amount: base.pay_amount,
+        tax_withholding: base.tax_withholding,
+        meal_included: base.meal_included,
+        meal_amount: base.meal_amount,
+      };
+
+      if (nextDates.length === 0) {
+        return [
+          {
+            ...base,
+            ...common,
+            work_type: nextWorkType,
+            date: '',
+          },
+        ];
+      }
+
+      return nextDates.map((d) => ({
+        ...base,
+        ...common,
+        work_type: nextWorkType,
+        date: d,
+      }));
+    });
+  };
+
+  const updateMultiSlotTime = (
+    date: string,
+    patch: Partial<Pick<WorkSlot, 'start' | 'end'>>,
+  ) => {
+    setWorkSlots((prev) =>
+      prev.map((s) => (s.date === date ? { ...s, ...patch } : s)),
+    );
+  };
+
+  const upsertMultiSlot = (slot: Pick<WorkSlot, 'date' | 'start' | 'end'>) => {
+    setWorkSlots((prev) => {
+      const base = getBaseSlot(prev);
+      const common = {
+        location: base.location,
+        pay_type: base.pay_type,
+        pay_amount: base.pay_amount,
+        tax_withholding: base.tax_withholding,
+        meal_included: base.meal_included,
+        meal_amount: base.meal_amount,
+      };
+
+      const exists = prev.some((s) => s.date === slot.date);
+      const next = exists
+        ? prev.map((s) =>
+            s.date === slot.date
+              ? { ...s, ...slot, work_type: 'multi' as const }
+              : s,
+          )
+        : [
+            ...prev,
+            {
+              ...base,
+              ...common,
+              work_type: 'multi' as const,
+              date: slot.date,
+              start: slot.start,
+              end: slot.end,
+            },
+          ];
+
+      // 날짜 오름차순 정렬
+      return next.slice().sort((a, b) => a.date.localeCompare(b.date));
+    });
+  };
+
+  const removeMultiSlot = (date: string) => {
+    setWorkSlots((prev) => {
+      const next = prev.filter((s) => s.date !== date);
+      return next.length > 0
+        ? next
+        : [
+            {
+              ...getBaseSlot(prev),
+              work_type: 'multi',
+              date: '',
+            },
+          ];
+    });
+  };
+
+  const patchCommonFields = (
+    patch: Partial<
+      Pick<
+        WorkSlot,
+        | 'start'
+        | 'end'
+        | 'location'
+        | 'pay_type'
+        | 'pay_amount'
+        | 'tax_withholding'
+        | 'meal_included'
+        | 'meal_amount'
+      >
+    >,
+  ) => {
+    setWorkSlots((prev) => prev.map((s) => ({ ...s, ...patch })));
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -168,6 +329,7 @@ function CreatePostContent() {
             const slots = (
               post.work_slots as Array<Record<string, unknown>>
             ).map((slot) => ({
+              work_type: (slot.work_type as WorkType) || ('single' as WorkType),
               date: (slot.date as string) || '',
               start: ((slot.start_time || slot.start) as string) || '',
               end: ((slot.end_time || slot.end) as string) || '',
@@ -180,12 +342,71 @@ function CreatePostContent() {
                 slot.tax_withholding !== undefined
                   ? (slot.tax_withholding as boolean)
                   : (post.tax_withholding as boolean) || false,
+              meal_included:
+                slot.meal_included !== undefined
+                  ? (slot.meal_included as boolean)
+                  : false,
+              meal_amount:
+                slot.meal_amount !== undefined ? Number(slot.meal_amount) : 0,
             }));
             setWorkSlots(slots);
+
+            // work_type 추론/동기화
+            const rawDates = slots.map((s) => s.date).filter(Boolean).sort();
+            const inferredWorkType: WorkType = (() => {
+              const fromSlot = slots[0]?.work_type;
+              if (fromSlot === 'range' || fromSlot === 'multi' || fromSlot === 'single') {
+                return fromSlot;
+              }
+              if (rawDates.length <= 1) return 'single';
+              // 연속된 날짜면 range, 아니면 multi
+              const asDates = rawDates
+                .map((d) => new Date(d))
+                .sort((a, b) => a.getTime() - b.getTime());
+              let consecutive = true;
+              for (let i = 1; i < asDates.length; i++) {
+                const prev = asDates[i - 1]!;
+                const cur = asDates[i]!;
+                const diffDays = Math.round((cur.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000));
+                if (diffDays !== 1) {
+                  consecutive = false;
+                  break;
+                }
+              }
+              return consecutive ? 'range' : 'multi';
+            })();
+
+            setWorkType(inferredWorkType);
+            if (rawDates.length === 1) {
+              const d = new Date(rawDates[0]!);
+              setSelectedSingleDate(d);
+              setSelectedRange(undefined);
+              setMultiDraftDate(undefined);
+              setMultiDraftStart(slots[0]?.start ?? '');
+              setMultiDraftEnd(slots[0]?.end ?? '');
+            } else if (rawDates.length > 1) {
+              if (inferredWorkType === 'range') {
+                setSelectedRange({
+                  from: new Date(rawDates[0]!),
+                  to: new Date(rawDates[rawDates.length - 1]!),
+                });
+                setSelectedSingleDate(undefined);
+                setMultiDraftDate(undefined);
+                setMultiDraftStart(slots[0]?.start ?? '');
+                setMultiDraftEnd(slots[0]?.end ?? '');
+              } else {
+                setSelectedSingleDate(undefined);
+                setSelectedRange(undefined);
+                setMultiDraftDate(undefined);
+                setMultiDraftStart(slots[0]?.start ?? '');
+                setMultiDraftEnd(slots[0]?.end ?? '');
+              }
+            }
           } else if (post.work_date) {
             // 레거시 데이터 지원
             setWorkSlots([
               {
+                work_type: 'single',
                 date: (post.work_date as string) || '',
                 start: (post.work_time_start as string) || '',
                 end: (post.work_time_end as string) || '',
@@ -193,8 +414,16 @@ function CreatePostContent() {
                 pay_type: (post.pay_type || 'hourly') as WorkSlot['pay_type'],
                 pay_amount: Number(post.pay_amount) || 0,
                 tax_withholding: (post.tax_withholding as boolean) || false,
+                meal_included: false,
+                meal_amount: 0,
               },
             ]);
+            setWorkType('single');
+            setSelectedSingleDate(new Date(post.work_date as string));
+            setSelectedRange(undefined);
+            setMultiDraftDate(undefined);
+            setMultiDraftStart((post.work_time_start as string) || '');
+            setMultiDraftEnd((post.work_time_end as string) || '');
           }
         }
       } catch (err) {
@@ -236,37 +465,6 @@ function CreatePostContent() {
       </div>
     );
   }
-
-  const handleAddWorkSlot = () => {
-    setWorkSlots([
-      ...workSlots,
-      {
-        date: '',
-        start: '',
-        end: '',
-        location: workSlots[0]?.location || '',
-        pay_type: workSlots[0]?.pay_type || 'hourly',
-        pay_amount: workSlots[0]?.pay_amount || 0,
-        tax_withholding: workSlots[0]?.tax_withholding || false,
-      },
-    ]);
-  };
-
-  const handleRemoveWorkSlot = (index: number) => {
-    if (workSlots.length > 1) {
-      setWorkSlots(workSlots.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleWorkSlotChange = (
-    index: number,
-    field: keyof WorkSlot,
-    value: string | number | boolean,
-  ) => {
-    const updated = [...workSlots];
-    updated[index] = { ...updated[index], [field]: value };
-    setWorkSlots(updated);
-  };
 
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
@@ -795,6 +993,7 @@ function CreatePostContent() {
     if (parsed.date && parsed.startTime && parsed.endTime && parsed.location) {
       setWorkSlots([
         {
+          work_type: 'single',
           date: parsed.date,
           start: parsed.startTime,
           end: parsed.endTime,
@@ -802,12 +1001,21 @@ function CreatePostContent() {
           pay_type: parsed.payType,
           pay_amount: parsed.payAmount || 0,
           tax_withholding: parsed.taxWithholding,
+          meal_included: false,
+          meal_amount: 0,
         },
       ]);
+      setWorkType('single');
+      setSelectedSingleDate(new Date(parsed.date));
+      setSelectedRange(undefined);
+      setMultiDraftDate(undefined);
+      setMultiDraftStart(parsed.startTime);
+      setMultiDraftEnd(parsed.endTime);
     } else if (parsed.location) {
       // 날짜/시간이 없어도 장소만 있으면 work_slots에 장소 설정
       setWorkSlots([
         {
+          work_type: 'single',
           date: parsed.date || '',
           start: parsed.startTime || '09:00',
           end: parsed.endTime || '18:00',
@@ -815,8 +1023,16 @@ function CreatePostContent() {
           pay_type: parsed.payType,
           pay_amount: parsed.payAmount || 0,
           tax_withholding: parsed.taxWithholding,
+          meal_included: false,
+          meal_amount: 0,
         },
       ]);
+      setWorkType('single');
+      setSelectedSingleDate(parsed.date ? new Date(parsed.date) : undefined);
+      setSelectedRange(undefined);
+      setMultiDraftDate(undefined);
+      setMultiDraftStart(parsed.startTime || '09:00');
+      setMultiDraftEnd(parsed.endTime || '18:00');
     }
 
     // 모집인원 설정
@@ -1029,148 +1245,427 @@ function CreatePostContent() {
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>날짜/시간/급여 정보</CardTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddWorkSlot}
-            >
-              <Plus className="size-4 mr-2" />
-              추가
-            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {workSlots.map((slot, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">슬롯 {index + 1}</span>
-                  {workSlots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveWorkSlot(index)}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  )}
+            {/* 근무 타입 선택 */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={workType === 'single' ? 'default' : 'outline'}
+                onClick={() => {
+                  setWorkType('single');
+                  setSelectedRange(undefined);
+                  setMultiDraftDate(undefined);
+                  // 기존 첫 슬롯 날짜를 유지하거나 비워두기
+                  const first = workSlots[0]?.date;
+                  const d = first ? new Date(first) : undefined;
+                  setSelectedSingleDate(d);
+                  setSlotsFromDates('single', first ? [first] : []);
+                }}
+              >
+                하루
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={workType === 'range' ? 'default' : 'outline'}
+                onClick={() => {
+                  setWorkType('range');
+                  setSelectedSingleDate(undefined);
+                  setMultiDraftDate(undefined);
+                  const dates = workSlots.map((s) => s.date).filter(Boolean).sort();
+                  if (dates.length >= 2) {
+                    setSelectedRange({ from: new Date(dates[0]!), to: new Date(dates[dates.length - 1]!) });
+                    setSlotsFromDates('range', dates);
+                  } else {
+                    setSelectedRange(undefined);
+                    setSlotsFromDates('range', dates);
+                  }
+                }}
+              >
+                기간
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={workType === 'multi' ? 'default' : 'outline'}
+                onClick={() => {
+                  setWorkType('multi');
+                  setSelectedSingleDate(undefined);
+                  setSelectedRange(undefined);
+                  const dates = workSlots.map((s) => s.date).filter(Boolean).sort();
+                  // 여러 날짜는 날짜별 시간 입력을 지원하므로 기존 슬롯을 유지하고 work_type만 변경
+                  setWorkSlots((prev) =>
+                    prev.map((s) => ({ ...s, work_type: 'multi' as const })),
+                  );
+                  // 드래프트 시간은 첫 슬롯 기준으로 초기화
+                  setMultiDraftStart(workSlots[0]?.start || '09:00');
+                  setMultiDraftEnd(workSlots[0]?.end || '18:00');
+                  setMultiDraftDate(
+                    dates[0] ? new Date(dates[0]) : undefined,
+                  );
+                }}
+              >
+                여러 날짜
+              </Button>
+              <span className="text-xs text-muted-foreground ml-1">
+                {workType === 'single'
+                  ? '하루만 선택'
+                  : workType === 'range'
+                    ? '시작일~종료일 선택'
+                    : '여러 날짜 선택'}
+              </span>
+            </div>
+
+            {/* 날짜 선택 UI */}
+            <div className="rounded-lg border p-3">
+              {workType === 'single' && (
+                <Calendar
+                  mode="single"
+                  selected={selectedSingleDate}
+                  onSelect={(d) => {
+                    setSelectedSingleDate(d);
+                    const ds = d ? format(d, 'yyyy-MM-dd') : '';
+                    setSlotsFromDates('single', ds ? [ds] : []);
+                  }}
+                />
+              )}
+              {workType === 'range' && (
+                <Calendar
+                  mode="range"
+                  selected={selectedRange}
+                  onSelect={(range) => {
+                    setSelectedRange(range);
+                    const from = range?.from;
+                    const to = range?.to ?? range?.from;
+                    if (!from || !to) {
+                      const ds = from ? format(from, 'yyyy-MM-dd') : '';
+                      setSlotsFromDates('range', ds ? [ds] : []);
+                      return;
+                    }
+                    const days = eachDayOfInterval({ start: from, end: to }).map((x) =>
+                      format(x, 'yyyy-MM-dd'),
+                    );
+                    setSlotsFromDates('range', days);
+                  }}
+                />
+              )}
+              {workType === 'multi' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">날짜 선택</Label>
+                      <Calendar
+                        mode="single"
+                        selected={multiDraftDate}
+                        onSelect={(d) => setMultiDraftDate(d)}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium">시간 선택</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">
+                              시작
+                            </Label>
+                            <Input
+                              type="time"
+                              value={multiDraftStart}
+                              onChange={(e) => setMultiDraftStart(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">
+                              종료
+                            </Label>
+                            <Input
+                              type="time"
+                              value={multiDraftEnd}
+                              onChange={(e) => setMultiDraftEnd(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        className="w-full"
+                        onClick={() => {
+                          if (!multiDraftDate) return;
+                          if (!multiDraftStart || !multiDraftEnd) return;
+                          const ds = format(multiDraftDate, 'yyyy-MM-dd');
+                          upsertMultiSlot({
+                            date: ds,
+                            start: multiDraftStart,
+                            end: multiDraftEnd,
+                          });
+                        }}
+                        disabled={!multiDraftDate || !multiDraftStart || !multiDraftEnd}
+                      >
+                        <Plus className="size-4 mr-2" />
+                        추가
+                      </Button>
+
+                      <div className="rounded-md border p-3">
+                        <p className="text-sm font-medium mb-2">
+                          추가된 날짜/시간
+                        </p>
+                        {workSlots.filter((s) => s.date).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            아직 추가된 날짜가 없습니다.
+                          </p>
+                        ) : (
+                          <div
+                            className={cn(
+                              'space-y-2',
+                              workSlots.filter((s) => s.date).length >= 2 &&
+                                'max-h-48 overflow-y-auto pr-1'
+                            )}
+                          >
+                            {workSlots
+                              .filter((s) => s.date)
+                              .slice()
+                              .sort((a, b) => a.date.localeCompare(b.date))
+                              .map((s) => (
+                                <div
+                                  key={s.date}
+                                  className={cn(
+                                    'flex flex-col md:flex-row md:items-center gap-2 rounded-md border p-2',
+                                    'bg-primary/5 border-primary/20'
+                                  )}
+                                >
+                                  <Badge variant="secondary" className="w-fit">
+                                    {s.date}
+                                  </Badge>
+                                  <div className="grid grid-cols-2 gap-2 flex-1">
+                                    <Input
+                                      type="time"
+                                      value={s.start}
+                                      onChange={(e) =>
+                                        updateMultiSlotTime(s.date, {
+                                          start: e.target.value,
+                                        })
+                                      }
+                                    />
+                                    <Input
+                                      type="time"
+                                      value={s.end}
+                                      onChange={(e) =>
+                                        updateMultiSlotTime(s.date, {
+                                          end: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeMultiSlot(s.date)}
+                                    className="self-end md:self-auto"
+                                    title="삭제"
+                                  >
+                                    <X className="size-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label>
-                      날짜 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="date"
-                      value={slot.date}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'date', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      시작 시간 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="time"
-                      value={slot.start}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'start', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      종료 시간 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="time"
-                      value={slot.end}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'end', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      장소 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      value={slot.location}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'location', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      급여 유형 <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={slot.pay_type}
-                      onValueChange={(v) =>
-                        handleWorkSlotChange(
-                          index,
-                          'pay_type',
-                          v as WorkSlot['pay_type'],
-                        )
-                      }
+              )}
+            </div>
+
+            {/* 선택된 날짜 요약 */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                선택 {workSlots.filter((s) => s.date).length}일
+              </Badge>
+              <div className="flex flex-wrap gap-2">
+                {workSlots
+                  .map((s) => s.date)
+                  .filter(Boolean)
+                  .slice(0, 14)
+                  .map((d) => (
+                    <Badge
+                      key={d}
+                      variant="secondary"
+                      className="text-xs flex items-center gap-1"
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hourly">시급</SelectItem>
-                        <SelectItem value="daily">일급</SelectItem>
-                        <SelectItem value="weekly">주급</SelectItem>
-                        <SelectItem value="monthly">월급</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {d}
+                      {workType === 'multi' && (
+                        <button
+                          type="button"
+                          className="ml-1 hover:text-red-600"
+                          onClick={() => removeMultiSlot(d)}
+                          title="삭제"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      )}
+                    </Badge>
+                  ))}
+                {workSlots.filter((s) => s.date).length > 14 && (
+                  <span className="text-xs text-muted-foreground">
+                    외 {workSlots.filter((s) => s.date).length - 14}일
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 공통(정규화) 필드: 시간/장소/급여 */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {workType === 'single' ? '하루 정보' : '공통 정보(선택된 날짜에 일괄 적용)'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {workType !== 'multi' && (
+                  <>
+                    <div>
+                      <Label>
+                        시작 시간 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="time"
+                        value={workSlots[0]?.start ?? ''}
+                        onChange={(e) =>
+                          patchCommonFields({ start: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>
+                        종료 시간 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="time"
+                        value={workSlots[0]?.end ?? ''}
+                        onChange={(e) => patchCommonFields({ end: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="md:col-span-2">
+                  <Label>
+                    장소 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={workSlots[0]?.location ?? ''}
+                    onChange={(e) => patchCommonFields({ location: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>
+                    급여 유형 <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={workSlots[0]?.pay_type ?? 'hourly'}
+                    onValueChange={(v) =>
+                      patchCommonFields({ pay_type: v as WorkSlot['pay_type'] })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hourly">시급</SelectItem>
+                      <SelectItem value="daily">일급</SelectItem>
+                      <SelectItem value="weekly">주급</SelectItem>
+                      <SelectItem value="monthly">월급</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>
+                    급여 금액 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={workSlots[0]?.pay_amount || ''}
+                    onChange={(e) =>
+                      patchCommonFields({ pay_amount: Number(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="tax-withholding"
+                    checked={workSlots[0]?.tax_withholding ?? false}
+                    onChange={(e) =>
+                      patchCommonFields({ tax_withholding: e.target.checked })
+                    }
+                    className="size-4"
+                  />
+                  <Label htmlFor="tax-withholding" className="cursor-pointer">
+                    3.3% 원천징수 공제
+                  </Label>
+                </div>
+
+                <div className="md:col-span-2 rounded-md border p-3">
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="meal-included"
+                        checked={workSlots[0]?.meal_included ?? false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          patchCommonFields({
+                            meal_included: checked,
+                            meal_amount: checked
+                              ? Math.max(0, workSlots[0]?.meal_amount ?? 0)
+                              : 0,
+                          });
+                        }}
+                        className="size-4"
+                      />
+                      <Label htmlFor="meal-included" className="cursor-pointer">
+                        식대 포함
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto">
+                      <Label htmlFor="meal-amount" className="text-sm">
+                        식대 금액(원)
+                      </Label>
+                      <Input
+                        id="meal-amount"
+                        type="number"
+                        min="0"
+                        inputMode="numeric"
+                        className={cn('w-full md:w-44', !(workSlots[0]?.meal_included ?? false) && 'opacity-60')}
+                        value={
+                          (workSlots[0]?.meal_included ?? false)
+                            ? workSlots[0]?.meal_amount ?? 0
+                            : 0
+                        }
+                        onChange={(e) =>
+                          patchCommonFields({
+                            meal_amount: Number(e.target.value) || 0,
+                          })
+                        }
+                        disabled={!(workSlots[0]?.meal_included ?? false)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label>
-                      급여 금액 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={slot.pay_amount || ''}
-                      onChange={(e) =>
-                        handleWorkSlotChange(
-                          index,
-                          'pay_amount',
-                          Number(e.target.value),
-                        )
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="md:col-span-2 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`tax-${index}`}
-                      checked={slot.tax_withholding}
-                      onChange={(e) =>
-                        handleWorkSlotChange(
-                          index,
-                          'tax_withholding',
-                          e.target.checked,
-                        )
-                      }
-                      className="size-4"
-                    />
-                    <Label htmlFor={`tax-${index}`} className="cursor-pointer">
-                      3.3% 원천징수 공제
-                    </Label>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    식대는 선택한 모든 날짜 슬롯에 동일하게 적용됩니다.
+                  </p>
                 </div>
               </div>
-            ))}
+            </div>
             {state.fieldErrors?.['work_slots'] && (
               <p className="text-sm text-red-500">
                 {state.fieldErrors['work_slots']}
