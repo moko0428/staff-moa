@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import * as React from 'react';
-import Hero from '@/app/components/Hero';
 import {
   Card,
   CardContent,
@@ -33,70 +33,32 @@ import {
   Calendar as CalendarIcon,
   ChevronRight,
   ChevronLeft,
+  Plus,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { parseDateString } from '@/lib/dateUtils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Separator } from '@/app/components/Separator';
-import { ScheduleViewToggle } from '@/app/components/ScheduleViewToggle';
 import { ScheduleStatusLegend } from '@/app/components/ScheduleStatusLegend';
+import { BottomSheet } from '@/app/components/mobile/BottomSheet';
+import ScheduleDetailModal from '../components/ScheduleDetailModal';
+import type { ScheduleWithPost } from '../types/scheduleTypes';
 
 type ViewType = 'card' | 'calendar';
-
-type ScheduleStatus = 'upcoming' | 'ongoing' | 'completed';
-
-// 날짜 문자열을 날짜 배열로 변환하는 헬퍼 함수
-// function parseDateString(dateStr: string): string[] {
-//   const trimmed = dateStr.trim();
-
-//   // 기간 스케줄 (시작일~종료일)
-//   if (trimmed.includes('~')) {
-//     const [startStr, endStr] = trimmed.split('~').map((d) => d.trim());
-//     try {
-//       const startDate = parseISO(startStr);
-//       const endDate = parseISO(endStr);
-//       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-//         const dates = eachDayOfInterval({
-//           start: startDate,
-//           end: endDate,
-//         });
-//         return dates.map((date) => format(date, 'yyyy-MM-dd'));
-//       }
-//     } catch {
-//       // 파싱 실패 시 빈 배열 반환
-//     }
-//     return [];
-//   }
-
-//   // 여러 날짜 스케줄 (쉼표로 구분)
-//   if (trimmed.includes(',')) {
-//     return trimmed
-//       .split(',')
-//       .map((d) => d.trim())
-//       .filter((d) => {
-//         try {
-//           const date = parseISO(d);
-//           return !isNaN(date.getTime());
-//         } catch {
-//           return false;
-//         }
-//       });
-//   }
-
-//   // 당일 스케줄
-//   try {
-//     const date = parseISO(trimmed);
-//     if (!isNaN(date.getTime())) {
-//       return [format(date, 'yyyy-MM-dd')];
-//     }
-//   } catch {
-//     // 파싱 실패 시 빈 배열 반환
-//   }
-
-//   return [];
-// }
 
 // 파일 상단에 시간 파싱 헬퍼 함수 추가
 function parseEndTime(
@@ -111,21 +73,6 @@ function parseEndTime(
     };
   }
   return null;
-}
-
-export interface ScheduleWithPost extends Omit<Post, 'status'> {
-  scheduleId?: string;
-  status: ScheduleStatus;
-  participants: Array<{
-    userId: string;
-    userName: string;
-    applicationId: string;
-    avatar?: string;
-    phone?: string;
-    kakaoId?: string;
-    gender?: string;
-    review?: AttendanceReview;
-  }>;
 }
 
 // Supabase Post를 Post 타입으로 변환
@@ -167,14 +114,20 @@ type SupabasePost = {
 };
 
 function supabasePostToPost(supabasePost: SupabasePost): Post {
-  const firstSlot = Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
-    ? supabasePost.work_slots[0]
-    : null;
+  const firstSlot =
+    Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
+      ? supabasePost.work_slots[0]
+      : null;
 
   // work_slots에서 날짜들을 추출하여 date 문자열 생성
   let dateStr = '';
-  if (Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0) {
-    const dates = supabasePost.work_slots.map(slot => slot.date).filter(Boolean);
+  if (
+    Array.isArray(supabasePost.work_slots) &&
+    supabasePost.work_slots.length > 0
+  ) {
+    const dates = supabasePost.work_slots
+      .map((slot) => slot.date)
+      .filter(Boolean);
     if (dates.length === 1) {
       dateStr = dates[0];
     } else if (dates.length > 1) {
@@ -227,31 +180,47 @@ function supabasePostToPost(supabasePost: SupabasePost): Post {
 }
 
 export default function SchedulePage() {
+  const router = useRouter();
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const effectiveRole = role ?? null;
   const isManager = effectiveRole === 'manager';
   const isPendingManager = effectiveRole === 'pending_manager';
-  const [viewType, setViewType] = useState<ViewType>('card');
+  const viewType: ViewType = 'card';
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [bottomSheetHeightPx, setBottomSheetHeightPx] = useState<number>(
+    typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.75) : 0
+  );
   const [selectedSchedule, setSelectedSchedule] =
     useState<ScheduleWithPost | null>(null);
   const [selectedDetailSchedule, setSelectedDetailSchedule] =
     useState<ScheduleWithPost | null>(null); // 추가
+  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
+  const [monthCalendarOpen, setMonthCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   const [reviews, setReviews] = useState<AttendanceReview[]>([]); // TODO: attendance_reviews 테이블이 생성되면 실제 데이터로 교체
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [managerPosts, setManagerPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [applicantsData, setApplicantsData] = useState<Record<string, Array<{
-    userId: string;
-    userName: string;
-    applicationId: string;
-    avatar?: string;
-    phone?: string;
-    kakaoId?: string;
-    gender?: string;
-  }>>>({});
+  const [applicantsData, setApplicantsData] = useState<
+    Record<
+      string,
+      Array<{
+        userId: string;
+        userName: string;
+        applicationId: string;
+        avatar?: string;
+        phone?: string;
+        kakaoId?: string;
+        gender?: string;
+      }>
+    >
+  >({});
 
   // 현재 사용자 ID 가져오기
   useEffect(() => {
@@ -285,15 +254,18 @@ export default function SchedulePage() {
 
           // 각 포스트별 승인된 지원자 가져오기
           const supabase = createClient();
-          const applicantsMap: Record<string, Array<{
-            userId: string;
-            userName: string;
-            applicationId: string;
-            avatar?: string;
-            phone?: string;
-            kakaoId?: string;
-            gender?: string;
-          }>> = {};
+          const applicantsMap: Record<
+            string,
+            Array<{
+              userId: string;
+              userName: string;
+              applicationId: string;
+              avatar?: string;
+              phone?: string;
+              kakaoId?: string;
+              gender?: string;
+            }>
+          > = {};
 
           await Promise.all(
             convertedPosts.map(async (post) => {
@@ -311,7 +283,7 @@ export default function SchedulePage() {
                   .eq('status', 'accepted');
 
                 if (schedules && schedules.length > 0) {
-                  const memberIds = schedules.map(s => s.member_id);
+                  const memberIds = schedules.map((s) => s.member_id);
 
                   // 프로필 정보 조회
                   const { data: profiles } = await supabase
@@ -320,8 +292,10 @@ export default function SchedulePage() {
                     .in('user_id', memberIds);
 
                   if (profiles) {
-                    applicantsMap[post.id] = schedules.map(schedule => {
-                      const profile = profiles.find(p => p.user_id === schedule.member_id);
+                    applicantsMap[post.id] = schedules.map((schedule) => {
+                      const profile = profiles.find(
+                        (p) => p.user_id === schedule.member_id
+                      );
                       return {
                         userId: schedule.member_id,
                         userName: profile?.name || '알 수 없음',
@@ -335,7 +309,10 @@ export default function SchedulePage() {
                   }
                 }
               } catch (error) {
-                console.error(`Failed to fetch applicants for post ${post.id}:`, error);
+                console.error(
+                  `Failed to fetch applicants for post ${post.id}:`,
+                  error
+                );
               }
             })
           );
@@ -518,6 +495,149 @@ export default function SchedulePage() {
     setSelectedSchedule(null);
   };
 
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const focusedDate = selectedDate ?? today;
+  const weekStart = useMemo(
+    () => startOfWeek(focusedDate, { weekStartsOn: 0 }),
+    [focusedDate]
+  );
+
+  const weekDates = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
+
+  // 월(1달) 확장 시: 현재 주를 기준으로 위/아래 주를 펼쳐서 렌더링
+  const monthWeeks = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+    const weeks: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
+  }, [calendarMonth]);
+
+  const currentWeekIndexInMonth = useMemo(() => {
+    const idx = monthWeeks.findIndex((w) =>
+      w.some((d) => isSameDay(d, focusedDate))
+    );
+    return idx >= 0 ? idx : 0;
+  }, [monthWeeks, focusedDate]);
+
+  const expandedAboveWeeks = useMemo(
+    () => monthWeeks.slice(0, currentWeekIndexInMonth),
+    [monthWeeks, currentWeekIndexInMonth]
+  );
+  const expandedBelowWeeks = useMemo(
+    () => monthWeeks.slice(currentWeekIndexInMonth + 1),
+    [monthWeeks, currentWeekIndexInMonth]
+  );
+
+  const currentRowDates = useMemo(() => {
+    if (!monthCalendarOpen) return weekDates;
+    return monthWeeks[currentWeekIndexInMonth] ?? weekDates;
+  }, [monthCalendarOpen, monthWeeks, currentWeekIndexInMonth, weekDates]);
+
+  const goToday = () => {
+    handleDateSelect(today);
+  };
+
+  const calendarAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const aboveWeeksRef = React.useRef<HTMLDivElement | null>(null);
+  const belowWeeksRef = React.useRef<HTMLDivElement | null>(null);
+  const monthCalendarOpenRef = React.useRef(monthCalendarOpen);
+
+  const swipeStateRef = React.useRef<{
+    startX: number;
+    startY: number;
+    isDown: boolean;
+    isSwiping: boolean;
+    hasPointerCapture: boolean;
+    blockClickUntil: number;
+  }>({
+    startX: 0,
+    startY: 0,
+    isDown: false,
+    isSwiping: false,
+    hasPointerCapture: false,
+    blockClickUntil: 0,
+  });
+
+  const navigateBySwipe = (direction: 'prev' | 'next') => {
+    if (monthCalendarOpen) {
+      const next = addMonths(focusedDate, direction === 'next' ? 1 : -1);
+      handleDateSelect(next);
+      setCalendarMonth(next);
+      return;
+    }
+    handleDateSelect(addDays(focusedDate, direction === 'next' ? 7 : -7));
+  };
+
+  const headerMonthLabel = useMemo(() => {
+    const base = monthCalendarOpen ? calendarMonth : focusedDate;
+    return format(base, 'yyyy.MM');
+  }, [monthCalendarOpen, calendarMonth, focusedDate]);
+
+  React.useEffect(() => {
+    monthCalendarOpenRef.current = monthCalendarOpen;
+  }, [monthCalendarOpen]);
+
+  const updateBottomSheetHeight = React.useCallback(() => {
+    const el = calendarAreaRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+
+    // 실제 달력 영역 하단 기준으로 바텀시트 높이 계산
+    // 월간 달력: 달력이 크므로 바텀시트 높이가 작아짐
+    // 주간 달력: 달력이 작으므로 바텀시트가 위로 올라감 (높이가 커짐)
+    const next = Math.max(240, Math.floor(vh - rect.bottom));
+    setBottomSheetHeightPx(next);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = calendarAreaRef.current;
+    if (!el) return;
+
+    updateBottomSheetHeight();
+
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => updateBottomSheetHeight())
+        : null;
+    ro?.observe(el);
+
+    window.addEventListener('resize', updateBottomSheetHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateBottomSheetHeight);
+      ro?.disconnect();
+    };
+  }, [updateBottomSheetHeight]);
+
+  // 월간/주간 전환 시 CSS 트랜지션(300ms) 완료 후 바텀시트 높이 재계산
+  useEffect(() => {
+    const t = window.setTimeout(updateBottomSheetHeight, 320);
+    return () => window.clearTimeout(t);
+  }, [monthCalendarOpen, updateBottomSheetHeight]);
+
+  useEffect(() => {
+    if (selectedDate && !isNaN(selectedDate.getTime())) {
+      setCalendarMonth(selectedDate);
+    }
+  }, [selectedDate]);
+
   // 날짜별 스케줄 그룹화 (기간 스케줄 포함)
   const schedulesByDate = useMemo(() => {
     const grouped: Record<string, ScheduleWithPost[]> = {};
@@ -543,6 +663,38 @@ export default function SchedulePage() {
 
     return grouped;
   }, [categorizedSchedules]);
+
+  const getDateStatusClass = (date: Date): string => {
+    const key = format(date, 'yyyy-MM-dd');
+    const list = schedulesByDate[key] || [];
+    if (list.length === 0) return '';
+
+    const hasOngoing = list.some((s) => s.status === 'ongoing');
+    const hasUpcoming = list.some((s) => s.status === 'upcoming');
+    const hasCompleted = list.some((s) => s.status === 'completed');
+
+    if (hasOngoing)
+      return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100';
+    if (hasUpcoming)
+      return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100';
+    if (hasCompleted)
+      return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100';
+    return '';
+  };
+
+  // 카드뷰: 선택된 날짜(없으면 오늘)에 해당하는 스케줄만 노출
+  const filteredCategorizedSchedules = useMemo(() => {
+    const dateForFilter = selectedDate ?? today;
+    const selectedDateStr = format(dateForFilter, 'yyyy-MM-dd');
+    const match = (s: ScheduleWithPost) =>
+      parseDateString(s.date).includes(selectedDateStr);
+
+    return {
+      upcoming: categorizedSchedules.upcoming.filter(match),
+      ongoing: categorizedSchedules.ongoing.filter(match),
+      completed: categorizedSchedules.completed.filter(match),
+    };
+  }, [categorizedSchedules, selectedDate, today]);
 
   const handleReviewSubmit = (
     postId: string,
@@ -606,7 +758,6 @@ export default function SchedulePage() {
   if (!roleHydrated) {
     return (
       <div className="space-y-4">
-        <Hero title="스케줄 관리" description="매니저 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
@@ -619,7 +770,6 @@ export default function SchedulePage() {
   if (!isManager) {
     return (
       <div className="space-y-4">
-        <Hero title="스케줄 관리" description="매니저 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             {isPendingManager
@@ -635,10 +785,6 @@ export default function SchedulePage() {
   if (!isMounted || isLoading) {
     return (
       <div>
-        <Hero
-          title="스케줄 관리"
-          description="스케줄 정보를 확인하고 근태를 평가하세요"
-        />
         <div className="flex justify-center items-center min-h-[400px]">
           <p className="text-muted-foreground">로딩 중...</p>
         </div>
@@ -647,27 +793,279 @@ export default function SchedulePage() {
   }
 
   return (
-    <div>
-      <Hero
-        title="스케줄 관리"
-        description="스케줄 정보를 확인하고 근태를 평가하세요"
-      />
+    <div className="relative h-[calc(100vh-100px)] overflow-hidden">
+      <div
+        ref={calendarAreaRef}
+        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4"
+      >
+        {/* 상단: 이번주 + 오늘/추가 + 뷰 토글 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" size="sm" onClick={goToday}>
+              오늘
+            </Button>
+            <div className="flex items-center">
+              <p className="text-sm font-medium">
+                스케줄 관리 ({headerMonthLabel})
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant={'ghost'}
+                onClick={() => setMonthCalendarOpen((v) => !v)}
+                aria-expanded={monthCalendarOpen}
+                aria-controls="month-calendar-panel"
+                title="월간(1달) 달력 보기"
+              >
+                {monthCalendarOpen ? (
+                  <ChevronUp className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAddScheduleOpen(true)}
+              title="스케줄 추가"
+              className="text-muted-foreground rounded-full size-8"
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
+        </div>
 
-      {/* 뷰 토글 버튼 */}
-      <ScheduleViewToggle viewType={viewType} onChange={setViewType} />
+        {/* 날짜 섹션: 7일 버튼 + 1주 이동 */}
+        <div className="mb-4">
+          <div
+            className="overflow-x-auto scroll-none select-none cursor-grab active:cursor-grabbing"
+            style={{ touchAction: 'pan-y' }}
+            onClickCapture={(e) => {
+              if (Date.now() < swipeStateRef.current.blockClickUntil) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+            onPointerDown={(e) => {
+              swipeStateRef.current.isDown = true;
+              swipeStateRef.current.isSwiping = false;
+              swipeStateRef.current.hasPointerCapture = false;
+              swipeStateRef.current.startX = e.clientX;
+              swipeStateRef.current.startY = e.clientY;
+            }}
+            onPointerMove={(e) => {
+              if (!swipeStateRef.current.isDown) return;
+              const dx = e.clientX - swipeStateRef.current.startX;
+              const dy = e.clientY - swipeStateRef.current.startY;
+              // 가로 스와이프가 명확할 때만 기본 동작 방지
+              if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+                swipeStateRef.current.isSwiping = true;
+                if (!swipeStateRef.current.hasPointerCapture) {
+                  try {
+                    (e.currentTarget as HTMLElement).setPointerCapture(
+                      e.pointerId
+                    );
+                    swipeStateRef.current.hasPointerCapture = true;
+                  } catch {
+                    // ignore
+                  }
+                }
+                e.preventDefault();
+              }
+            }}
+            onPointerUp={(e) => {
+              if (!swipeStateRef.current.isDown) return;
+              swipeStateRef.current.isDown = false;
+
+              const dx = e.clientX - swipeStateRef.current.startX;
+              const dy = e.clientY - swipeStateRef.current.startY;
+
+              // 수평 스와이프만 인정
+              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+                swipeStateRef.current.blockClickUntil = Date.now() + 250;
+                navigateBySwipe(dx < 0 ? 'next' : 'prev');
+              }
+
+              try {
+                if (swipeStateRef.current.hasPointerCapture) {
+                  (e.currentTarget as HTMLElement).releasePointerCapture(
+                    e.pointerId
+                  );
+                }
+              } catch {
+                // ignore
+              }
+              swipeStateRef.current.isSwiping = false;
+              swipeStateRef.current.hasPointerCapture = false;
+            }}
+            onPointerCancel={() => {
+              swipeStateRef.current.isDown = false;
+              swipeStateRef.current.isSwiping = false;
+              swipeStateRef.current.hasPointerCapture = false;
+            }}
+          >
+            <div className="flex flex-col items-center justify-center gap-1 min-w-max px-1">
+              <div className="flex items-center justify-center gap-2">
+                {['일', '월', '화', '수', '목', '금', '토'].map((label) => (
+                  <span
+                    key={label}
+                    className="w-10 text-center text-xs text-muted-foreground"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+
+              {/* 확장: 현재 주 "위"에 이전 주들 표시 */}
+              <div
+                ref={aboveWeeksRef}
+                id="month-calendar-panel"
+                className={cn(
+                  'overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out',
+                  monthCalendarOpen
+                    ? 'max-h-[600px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                )}
+              >
+                <div className="flex flex-col items-center justify-center gap-2">
+                  {expandedAboveWeeks.map((week, wi) => (
+                    <div
+                      key={`above-${wi}`}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      {week.map((d) => {
+                        const selected = selectedDate
+                          ? isSameDay(d, selectedDate)
+                          : isSameDay(d, today);
+                        const inMonth =
+                          d.getMonth() === calendarMonth.getMonth();
+                        const statusClass =
+                          inMonth && !selected ? getDateStatusClass(d) : '';
+                        return (
+                          <Button
+                            key={d.toISOString()}
+                            type="button"
+                            size="sm"
+                            variant={selected ? 'default' : 'outline'}
+                            className={cn(
+                              'w-10',
+                              !selected && (statusClass || 'bg-background'),
+                              !inMonth && 'opacity-40'
+                            )}
+                            onClick={() => handleDateSelect(d)}
+                            disabled={!inMonth}
+                          >
+                            {d.getDate()}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 항상 표시: 현재 주(중앙) */}
+              <div className="flex items-center justify-center gap-2">
+                {currentRowDates.map((d) => {
+                  const selected = selectedDate
+                    ? isSameDay(d, selectedDate)
+                    : isSameDay(d, today);
+                  const inMonth =
+                    !monthCalendarOpen ||
+                    d.getMonth() === calendarMonth.getMonth();
+                  const statusClass =
+                    !selected && (!monthCalendarOpen || inMonth)
+                      ? getDateStatusClass(d)
+                      : '';
+                  return (
+                    <Button
+                      key={d.toISOString()}
+                      type="button"
+                      size="sm"
+                      variant={selected ? 'default' : 'outline'}
+                      className={cn(
+                        'w-10',
+                        !selected && (statusClass || 'bg-background'),
+                        !inMonth && 'opacity-40'
+                      )}
+                      onClick={() => handleDateSelect(d)}
+                      disabled={monthCalendarOpen && !inMonth}
+                    >
+                      {d.getDate()}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {/* 확장: 현재 주 "아래"에 이후 주들 표시 */}
+              <div
+                ref={belowWeeksRef}
+                className={cn(
+                  'overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out',
+                  monthCalendarOpen
+                    ? 'max-h-[600px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                )}
+              >
+                <div className="flex flex-col items-center justify-center gap-2">
+                  {expandedBelowWeeks.map((week, wi) => (
+                    <div
+                      key={`below-${wi}`}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      {week.map((d) => {
+                        const selected = selectedDate
+                          ? isSameDay(d, selectedDate)
+                          : isSameDay(d, today);
+                        const inMonth =
+                          d.getMonth() === calendarMonth.getMonth();
+                        const statusClass =
+                          inMonth && !selected ? getDateStatusClass(d) : '';
+                        return (
+                          <Button
+                            key={d.toISOString()}
+                            type="button"
+                            size="sm"
+                            variant={selected ? 'default' : 'outline'}
+                            className={cn(
+                              'w-10',
+                              !selected && (statusClass || 'bg-background'),
+                              !inMonth && 'opacity-40'
+                            )}
+                            onClick={() => handleDateSelect(d)}
+                            disabled={!inMonth}
+                          >
+                            {d.getDate()}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {viewType === 'card' ? (
-        <CardView
-          categorizedSchedules={categorizedSchedules}
-          onScheduleClick={handleScheduleClick}
-        />
+        <BottomSheet heightPx={bottomSheetHeightPx}>
+          <CardView
+            categorizedSchedules={filteredCategorizedSchedules}
+            onScheduleClick={handleScheduleClick}
+          />
+        </BottomSheet>
       ) : (
-        <CalendarView
-          schedulesByDate={schedulesByDate}
-          selectedDate={selectedDate}
-          onDateSelect={handleDateSelect}
-          onScheduleClick={handleScheduleClick}
-        />
+        <div className="h-full overflow-y-auto">
+          <CalendarView
+            schedulesByDate={schedulesByDate}
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            onScheduleClick={handleScheduleClick}
+          />
+        </div>
       )}
 
       {/* 근태 평가 모달 */}
@@ -689,6 +1087,39 @@ export default function SchedulePage() {
           onClose={() => setSelectedDetailSchedule(null)}
         />
       )}
+
+      {/* 스케줄 추가 모달 */}
+      <Dialog open={addScheduleOpen} onOpenChange={setAddScheduleOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>스케줄 추가</DialogTitle>
+            <DialogDescription>
+              선택한 날짜에 스케줄을 추가하려면 공고를 작성해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border p-3 text-sm">
+            <p className="text-muted-foreground">선택 날짜</p>
+            <p className="font-medium">
+              {format(focusedDate, 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddScheduleOpen(false)}
+            >
+              닫기
+            </Button>
+            <Button
+              type="button"
+              onClick={() => router.push('/my-post/create')}
+            >
+              공고 작성하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -704,7 +1135,7 @@ interface CardViewProps {
 
 function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
       <ScheduleStatusColumn
         title="예정 스케줄"
         icon={<Clock className="size-5 text-blue-500" />}
@@ -750,13 +1181,13 @@ function ScheduleStatusColumn({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {icon}
-          {title}
+          <span className="text-sm font-medium">{title}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 max-h-[260px] md:max-h-[320px] overflow-y-visible md:overflow-y-auto">
+      <CardContent className="space-y-2">
         <div className="flex gap-3 overflow-x-auto pb-2 md:block md:overflow-x-visible">
           {schedules.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4 w-full">
+            <p className="text-sm text-muted-foreground text-center py-0 w-full">
               스케줄이 없습니다.
             </p>
           ) : (
@@ -793,6 +1224,13 @@ function CalendarView({
   onScheduleClick,
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+
+  // 상단 네비게이션(-/+) 등으로 selectedDate가 바뀌면 달력 월도 함께 이동
+  useEffect(() => {
+    if (selectedDate && !isNaN(selectedDate.getTime())) {
+      setCurrentMonth(selectedDate);
+    }
+  }, [selectedDate]);
 
   // 날짜의 스케줄 상태 확인
   const getDateStatus = (
@@ -1139,13 +1577,23 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
                   if (dates.length === 0) return schedule.date;
 
                   if (dates.length === 1) {
-                    return format(parseISO(dates[0]), 'yyyy.MM.dd (E)', { locale: ko });
+                    return format(parseISO(dates[0]), 'yyyy.MM.dd (E)', {
+                      locale: ko,
+                    });
                   } else if (schedule.date.includes('~')) {
-                    const firstDate = format(parseISO(dates[0]), 'MM.dd', { locale: ko });
-                    const lastDate = format(parseISO(dates[dates.length - 1]), 'MM.dd (E)', { locale: ko });
+                    const firstDate = format(parseISO(dates[0]), 'MM.dd', {
+                      locale: ko,
+                    });
+                    const lastDate = format(
+                      parseISO(dates[dates.length - 1]),
+                      'MM.dd (E)',
+                      { locale: ko }
+                    );
                     return `${firstDate} ~ ${lastDate}`;
                   } else {
-                    return `${format(parseISO(dates[0]), 'MM.dd', { locale: ko })} 외 ${dates.length - 1}일`;
+                    return `${format(parseISO(dates[0]), 'MM.dd', {
+                      locale: ko,
+                    })} 외 ${dates.length - 1}일`;
                   }
                 })()}
               </span>
@@ -1158,7 +1606,9 @@ function ScheduleItem({ schedule, onClick, clickable }: ScheduleItemProps) {
             </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted-foreground">📍</span>
-              <span className="text-xs text-muted-foreground">{schedule.location}</span>
+              <span className="text-xs text-muted-foreground">
+                {schedule.location}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
@@ -1445,287 +1895,4 @@ function AttendanceReviewModal({
   );
 }
 
-// 새로운 스케줄 상세 모달 컴포넌트
-interface ScheduleDetailModalProps {
-  schedule: ScheduleWithPost;
-  onClose: () => void;
-}
-
-function ScheduleDetailModal({ schedule, onClose }: ScheduleDetailModalProps) {
-  // schedule.date를 파싱하여 표시할 날짜 문자열 생성
-  const getScheduleDateDisplay = () => {
-    const dates = parseDateString(schedule.date);
-    if (dates.length === 0) return '';
-
-    if (dates.length === 1) {
-      return format(parseISO(dates[0]), 'yyyy년 MM월 dd일 (E)', { locale: ko });
-    } else if (schedule.date.includes('~')) {
-      const firstDate = format(parseISO(dates[0]), 'yyyy년 MM월 dd일 (E)', {
-        locale: ko,
-      });
-      const lastDate = format(
-        parseISO(dates[dates.length - 1]),
-        'MM월 dd일 (E)',
-        {
-          locale: ko,
-        }
-      );
-      return `${firstDate} ~ ${lastDate}`;
-    } else {
-      return dates
-        .map((d) => format(parseISO(d), 'MM월 dd일 (E)', { locale: ko }))
-        .join(', ');
-    }
-  };
-
-  // 근무 일수 계산 (기간 또는 불연속 날짜 모두 포함)
-  const workDates = parseDateString(schedule.date);
-  const workDaysCount = workDates.length || 1;
-  const totalSalary = workDaysCount * schedule.salary;
-
-  const statusBadge = {
-    upcoming: {
-      label: '예정',
-      className: 'bg-blue-100 text-blue-700 border-blue-200',
-    },
-    ongoing: {
-      label: '진행중',
-      className: 'bg-orange-100 text-orange-700 border-orange-200',
-    },
-    completed: {
-      label: '완료',
-      className: 'bg-green-100 text-green-700 border-green-200',
-    },
-  }[schedule.status];
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn('text-sm', statusBadge.className)}
-            >
-              {statusBadge.label}
-            </Badge>
-            <DialogTitle>{schedule.title}</DialogTitle>
-          </div>
-          <DialogDescription>{getScheduleDateDisplay()}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          {/* 기본 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">기본 정보</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">근무 시간</Label>
-                  <p className="font-semibold">{schedule.time}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">근무 장소</Label>
-                  <p className="font-semibold">{schedule.location}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">급여</Label>
-                  <p className="font-semibold text-primary">
-                    {totalSalary.toLocaleString()}원
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">지급일</Label>
-                  <p className="font-semibold">{schedule.paymentDate}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 모집 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">모집 정보</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">모집 인원</Label>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-lg">
-                    {schedule.currentApplicants}
-                  </span>
-                  <span className="text-muted-foreground">/</span>
-                  <span className="text-muted-foreground">
-                    {schedule.recruitCount}명
-                  </span>
-                </div>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(
-                      (schedule.currentApplicants / schedule.recruitCount) *
-                        100,
-                      100
-                    )}%`,
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 상세 설명 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">상세 설명</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-sm text-muted-foreground">업무 설명</Label>
-                <p className="mt-1 text-sm leading-relaxed">
-                  {schedule.description}
-                </p>
-              </div>
-              {schedule.preparation && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">준비사항</Label>
-                  <p className="mt-1 text-sm leading-relaxed">
-                    {schedule.preparation}
-                  </p>
-                </div>
-              )}
-              {schedule.requirements && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">자격 요건</Label>
-                  <p className="mt-1 text-sm leading-relaxed">
-                    {schedule.requirements}
-                  </p>
-                </div>
-              )}
-              {schedule.preferences && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">우대 사항</Label>
-                  <p className="mt-1 text-sm leading-relaxed">
-                    {schedule.preferences}
-                  </p>
-                </div>
-              )}
-              {schedule.notes && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">기타 사항</Label>
-                  <p className="mt-1 text-sm leading-relaxed">
-                    {schedule.notes}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 참여자 목록 (예정/진행중/완료 공통) */}
-          {schedule.participants && schedule.participants.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="size-4" />
-                  참여자 목록
-                  <Badge variant="secondary" className="ml-auto">
-                    {schedule.participants.length}명
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {schedule.participants.map((p) => {
-                  const isReviewed = !!p.review;
-                  return (
-                    <div
-                      key={p.userId}
-                      className="flex items-start gap-3 p-3 rounded-lg border bg-muted"
-                    >
-                      {/* 아바타 */}
-                      <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
-                        <AvatarImage src={p.avatar} alt={p.userName} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
-                          {p.userName.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {/* 정보 */}
-                      <div className="flex-1 flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-foreground">
-                            {p.userName}
-                          </span>
-                          {isReviewed && (
-                            <Badge variant="outline" className="text-xs">
-                              <Star className="size-3 mr-1 fill-yellow-400 text-yellow-400" />
-                              {p.review?.score}점
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                          {p.phone && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground w-16">전화번호</span>
-                              <a
-                                href={`tel:${p.phone}`}
-                                className="text-primary hover:underline"
-                              >
-                                {p.phone}
-                              </a>
-                            </div>
-                          )}
-                          {p.kakaoId && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground w-16">카카오톡</span>
-                              <span className="text-foreground">{p.kakaoId}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 매니저 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">담당자 정보</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">담당자</Label>
-                <p className="font-semibold">{schedule.managerInfo.name}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">연락처</Label>
-                <p className="font-semibold">{schedule.managerInfo.phone}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 키워드 */}
-          {schedule.keywords && schedule.keywords.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {schedule.keywords.map((keyword, index) => (
-                <Badge key={index} variant="secondary">
-                  {keyword}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            닫기
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// (ScheduleDetailModal 컴포넌트는 ./components/ScheduleDetailModal 로 분리)

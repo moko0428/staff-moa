@@ -147,6 +147,13 @@ export default function PostDetailPage({
     companyVerifyStatus?: string | null;
   } | null>(null);
 
+  // 로그인 상태가 확인되면(로그인 완료) 로그인 유도 모달은 자동 닫기
+  useEffect(() => {
+    if (currentUserId && loginPromptOpen) {
+      setLoginPromptOpen(false);
+    }
+  }, [currentUserId, loginPromptOpen]);
+
   // 공고 데이터 로드
   useEffect(() => {
     const fetchPost = async () => {
@@ -832,7 +839,8 @@ export default function PostDetailPage({
             </div>
           )}
 
-          {!isMember && roleHydrated && (
+          {/* 비로그인 사용자에게만 로그인 유도 */}
+          {!currentUserId && !isMember && roleHydrated && (
             <Button variant="default" className="w-full" asChild>
               <Link href="/auth">지원하려면 회원으로 로그인해주세요</Link>
             </Button>
@@ -992,11 +1000,13 @@ export default function PostDetailPage({
               작성자 프로필을 보려면 로그인해주세요.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center gap-2 pt-2">
-            <Button type="button" onClick={() => router.push('/auth')}>
-              로그인하기
-            </Button>
-          </div>
+          {!currentUserId && (
+            <div className="flex justify-center gap-2 pt-2">
+              <Button type="button" onClick={() => router.push('/auth')}>
+                로그인하기
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

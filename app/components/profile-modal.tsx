@@ -126,19 +126,10 @@ export default function ProfileModal({
           )}
 
           {/* 회사 정보 (매니저인 경우) */}
-          {user.role === 'manager' && (user.companyName || user.companyVerifyStatus) && (
+          {user.role === 'manager' && user.companyName && (
             <div className="w-full mt-1 p-4 bg-muted rounded-lg space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">회사 정보</p>
-                {user.companyVerifyStatus && (
-                  <Badge variant="outline" className="text-xs">
-                    인증: {user.companyVerifyStatus}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {user.companyName || '-'}
-              </p>
+              <p className="text-sm font-medium">회사 정보</p>
+              <p className="text-sm text-muted-foreground">{user.companyName}</p>
             </div>
           )}
 
