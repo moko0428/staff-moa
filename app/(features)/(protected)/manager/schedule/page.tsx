@@ -863,9 +863,6 @@ export default function SchedulePage() {
               오늘
             </Button>
             <div className="flex items-center">
-              <p className="text-sm font-medium">
-                스케줄 관리 ({headerMonthLabel})
-              </p>
               <Button
                 type="button"
                 size="sm"
@@ -874,7 +871,11 @@ export default function SchedulePage() {
                 aria-expanded={monthCalendarOpen}
                 aria-controls="month-calendar-panel"
                 title="월간(1달) 달력 보기"
+                className="px-2"
               >
+                <span className="text-sm font-medium">
+                  스케줄 관리 ({headerMonthLabel})
+                </span>
                 {monthCalendarOpen ? (
                   <ChevronUp className="size-4" />
                 ) : (

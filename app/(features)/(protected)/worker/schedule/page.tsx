@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import * as React from 'react';
-import Hero from '@/app/components/Hero';
 import { toast } from 'sonner';
 import {
   Card,
@@ -12,6 +11,12 @@ import {
   CardTitle,
 } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/app/components/ui/accordion';
 import { Button } from '@/app/components/ui/button';
 import {
   Dialog,
@@ -52,15 +57,26 @@ import {
   Trash2,
   Pencil,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { parseDateString } from '@/lib/dateUtils';
-import { ScheduleViewToggle } from '@/app/components/ScheduleViewToggle';
-import { ScheduleStatusLegend } from '@/app/components/ScheduleStatusLegend';
-
-type ViewType = 'card' | 'calendar';
+import { BottomSheet } from '@/app/components/mobile/BottomSheet';
 
 type ScheduleStatus = 'upcoming' | 'ongoing' | 'completed';
 
@@ -163,15 +179,23 @@ type PostWithApplicationStatus = Post & {
   }>;
 };
 
-function supabasePostToPost(supabasePost: SupabasePost): PostWithApplicationStatus {
-  const firstSlot = Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
-    ? supabasePost.work_slots[0]
-    : null;
+function supabasePostToPost(
+  supabasePost: SupabasePost
+): PostWithApplicationStatus {
+  const firstSlot =
+    Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
+      ? supabasePost.work_slots[0]
+      : null;
 
   // work_slots에서 날짜들을 추출하여 date 문자열 생성
   let dateStr = '';
-  if (Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0) {
-    const dates = supabasePost.work_slots.map(slot => slot.date).filter(Boolean);
+  if (
+    Array.isArray(supabasePost.work_slots) &&
+    supabasePost.work_slots.length > 0
+  ) {
+    const dates = supabasePost.work_slots
+      .map((slot) => slot.date)
+      .filter(Boolean);
     if (dates.length === 1) {
       dateStr = dates[0];
     } else if (dates.length > 1) {
@@ -223,7 +247,7 @@ function supabasePostToPost(supabasePost: SupabasePost): PostWithApplicationStat
     applicationStatus: supabasePost.application_status,
     applicationId: supabasePost.application_id,
     payType: firstSlot?.pay_type || supabasePost.pay_type,
-    workSlots: supabasePost.work_slots?.map(slot => ({
+    workSlots: supabasePost.work_slots?.map((slot) => ({
       date: slot.date,
       start_time: slot.start_time,
       end_time: slot.end_time,
@@ -241,15 +265,28 @@ export default function WorkerSchedulePage() {
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const effectiveRole = role ?? null;
   const isMember = effectiveRole === 'member';
-  const [viewType, setViewType] = useState<ViewType>('card');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
+  const [bottomSheetHeightPx, setBottomSheetHeightPx] = useState<number>(
+    typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.65) : 0
+  );
   const [selectedSchedule, setSelectedSchedule] =
     useState<ScheduleWithPost | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [workerPosts, setWorkerPosts] = useState<PostWithApplicationStatus[]>([]);
-  const [personalSchedules, setPersonalSchedules] = useState<PostWithApplicationStatus[]>([]);
+  const [workerPosts, setWorkerPosts] = useState<PostWithApplicationStatus[]>(
+    []
+  );
+  const [personalSchedules, setPersonalSchedules] = useState<
+    PostWithApplicationStatus[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [monthCalendarOpen, setMonthCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   // 현재 사용자 ID 가져오기
   useEffect(() => {
@@ -295,37 +332,44 @@ export default function WorkerSchedulePage() {
       // 개인 스케줄 가져오기
       const personalResult = await getPersonalSchedulesAction();
       if (personalResult.ok && personalResult.data) {
-        const convertedPersonalSchedules = personalResult.data.map((schedule: Record<string, unknown>) => {
-          const dateStr = schedule.date as string;
-          const startTime = schedule.start_time as string;
-          const endTime = schedule.end_time as string;
+        const convertedPersonalSchedules = personalResult.data.map(
+          (schedule: Record<string, unknown>) => {
+            const dateStr = schedule.date as string;
+            const startTime = schedule.start_time as string;
+            const endTime = schedule.end_time as string;
 
-          return {
-            id: `personal-${schedule.personal_schedule_id as string}`,
-            authorId: schedule.user_id as string,
-            authorName: (schedule.manager_name as string) || '개인 일정',
-            status: 'recruiting' as const,
-            title: schedule.title as string,
-            keywords: [],
-            date: dateStr,
-            location: (schedule.location as string) || '',
-            time: `${startTime} - ${endTime}`,
-            salary: (schedule.pay_amount as number) || 0,
-            paymentDate: '',
-            preparation: '',
-            description: (schedule.description as string) || '',
-            managerInfo: {
-              name: (schedule.manager_name as string) || '',
-              phone: (schedule.manager_phone as string) || '',
-            },
-            recruitCount: 0,
-            currentApplicants: 0,
-            createdAt: schedule.created_at as string,
-            updatedAt: schedule.updated_at as string,
-            applicationStatus: 'accepted' as const,
-            payType: (schedule.pay_type as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily',
-          } as PostWithApplicationStatus;
-        });
+            return {
+              id: `personal-${schedule.personal_schedule_id as string}`,
+              authorId: schedule.user_id as string,
+              authorName: (schedule.manager_name as string) || '개인 일정',
+              status: 'recruiting' as const,
+              title: schedule.title as string,
+              keywords: [],
+              date: dateStr,
+              location: (schedule.location as string) || '',
+              time: `${startTime} - ${endTime}`,
+              salary: (schedule.pay_amount as number) || 0,
+              paymentDate: '',
+              preparation: '',
+              description: (schedule.description as string) || '',
+              managerInfo: {
+                name: (schedule.manager_name as string) || '',
+                phone: (schedule.manager_phone as string) || '',
+              },
+              recruitCount: 0,
+              currentApplicants: 0,
+              createdAt: schedule.created_at as string,
+              updatedAt: schedule.updated_at as string,
+              applicationStatus: 'accepted' as const,
+              payType:
+                (schedule.pay_type as
+                  | 'hourly'
+                  | 'daily'
+                  | 'weekly'
+                  | 'monthly') || 'daily',
+            } as PostWithApplicationStatus;
+          }
+        );
         setPersonalSchedules(convertedPersonalSchedules);
       }
     } catch (error) {
@@ -494,7 +538,13 @@ export default function WorkerSchedulePage() {
     return { upcoming, ongoing, completed, applications };
   }, [workerPosts, personalSchedules, isMounted]);
 
-  // 급여 계산
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // 급여 계산 (선택된 날짜의 달 기준)
   const earningsData = useMemo(() => {
     if (!isMounted) {
       return {
@@ -508,10 +558,11 @@ export default function WorkerSchedulePage() {
     }
 
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // 일요일 시작
-    const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    const baseDate = selectedDate ?? today;
+    const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(baseDate, { weekStartsOn: 0 });
+    const monthStart = startOfMonth(baseDate);
+    const monthEnd = endOfMonth(baseDate);
 
     let thisWeekEarnings = 0;
     let thisMonthEarnings = 0;
@@ -530,7 +581,10 @@ export default function WorkerSchedulePage() {
     const acceptedWorkerSchedules = workerPosts.filter(
       (post) => post.applicationStatus === 'accepted'
     );
-    const allAcceptedSchedules = [...acceptedWorkerSchedules, ...personalSchedules];
+    const allAcceptedSchedules = [
+      ...acceptedWorkerSchedules,
+      ...personalSchedules,
+    ];
 
     allAcceptedSchedules.forEach((post) => {
       const dates = parseDateString(post.date);
@@ -548,12 +602,19 @@ export default function WorkerSchedulePage() {
             const scheduleDate = parseISO(dateStr);
             const dailyPay = salary * workHours;
 
-            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
+            if (
+              isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })
+            ) {
               thisWeekEarnings += dailyPay;
               thisWeekCount++;
             }
 
-            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
+            if (
+              isWithinInterval(scheduleDate, {
+                start: monthStart,
+                end: monthEnd,
+              })
+            ) {
               thisMonthEarnings += dailyPay;
               thisMonthCount++;
             }
@@ -567,12 +628,19 @@ export default function WorkerSchedulePage() {
           try {
             const scheduleDate = parseISO(dateStr);
 
-            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
+            if (
+              isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })
+            ) {
               thisWeekEarnings += salary;
               thisWeekCount++;
             }
 
-            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
+            if (
+              isWithinInterval(scheduleDate, {
+                start: monthStart,
+                end: monthEnd,
+              })
+            ) {
               thisMonthEarnings += salary;
               thisMonthCount++;
             }
@@ -585,7 +653,10 @@ export default function WorkerSchedulePage() {
         const hasWorkThisWeek = dates.some((dateStr) => {
           try {
             const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd });
+            return isWithinInterval(scheduleDate, {
+              start: weekStart,
+              end: weekEnd,
+            });
           } catch {
             return false;
           }
@@ -600,7 +671,10 @@ export default function WorkerSchedulePage() {
         const hasWorkThisMonth = dates.some((dateStr) => {
           try {
             const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd });
+            return isWithinInterval(scheduleDate, {
+              start: monthStart,
+              end: monthEnd,
+            });
           } catch {
             return false;
           }
@@ -616,7 +690,10 @@ export default function WorkerSchedulePage() {
         const hasWorkThisMonth = dates.some((dateStr) => {
           try {
             const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd });
+            return isWithinInterval(scheduleDate, {
+              start: monthStart,
+              end: monthEnd,
+            });
           } catch {
             return false;
           }
@@ -678,7 +755,7 @@ export default function WorkerSchedulePage() {
       thisMonthCount,
       accumulatedCount,
     };
-  }, [workerPosts, personalSchedules, isMounted]);
+  }, [workerPosts, personalSchedules, isMounted, selectedDate, today]);
 
   const handleScheduleClick = (schedule: ScheduleWithPost) => {
     setSelectedSchedule(schedule);
@@ -688,6 +765,138 @@ export default function WorkerSchedulePage() {
     setSelectedDate(date);
     setSelectedSchedule(null);
   };
+
+  const focusedDate = selectedDate ?? today;
+  const weekStart = useMemo(
+    () => startOfWeek(focusedDate, { weekStartsOn: 0 }),
+    [focusedDate]
+  );
+
+  const weekDates = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
+
+  // 월(1달) 확장 시: 현재 주를 기준으로 위/아래 주를 펼쳐서 렌더링
+  const monthWeeks = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+    const weeks: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
+  }, [calendarMonth]);
+
+  const currentWeekIndexInMonth = useMemo(() => {
+    const idx = monthWeeks.findIndex((w) =>
+      w.some((d) => isSameDay(d, focusedDate))
+    );
+    return idx >= 0 ? idx : 0;
+  }, [monthWeeks, focusedDate]);
+
+  const expandedAboveWeeks = useMemo(
+    () => monthWeeks.slice(0, currentWeekIndexInMonth),
+    [monthWeeks, currentWeekIndexInMonth]
+  );
+  const expandedBelowWeeks = useMemo(
+    () => monthWeeks.slice(currentWeekIndexInMonth + 1),
+    [monthWeeks, currentWeekIndexInMonth]
+  );
+
+  const currentRowDates = useMemo(() => {
+    if (!monthCalendarOpen) return weekDates;
+    return monthWeeks[currentWeekIndexInMonth] ?? weekDates;
+  }, [monthCalendarOpen, monthWeeks, currentWeekIndexInMonth, weekDates]);
+
+  useEffect(() => {
+    if (selectedDate && !isNaN(selectedDate.getTime())) {
+      setCalendarMonth(selectedDate);
+    }
+  }, [selectedDate]);
+
+  const swipeStateRef = React.useRef<{
+    startX: number;
+    startY: number;
+    isDown: boolean;
+    isSwiping: boolean;
+    hasPointerCapture: boolean;
+    blockClickUntil: number;
+  }>({
+    startX: 0,
+    startY: 0,
+    isDown: false,
+    isSwiping: false,
+    hasPointerCapture: false,
+    blockClickUntil: 0,
+  });
+
+  const navigateBySwipe = (direction: 'prev' | 'next') => {
+    if (monthCalendarOpen) {
+      const next = addMonths(focusedDate, direction === 'next' ? 1 : -1);
+      handleDateSelect(next);
+      setCalendarMonth(next);
+      return;
+    }
+    handleDateSelect(addDays(focusedDate, direction === 'next' ? 7 : -7));
+  };
+
+  const headerMonthLabel = useMemo(() => {
+    const base = monthCalendarOpen ? calendarMonth : focusedDate;
+    return format(base, 'yyyy.MM');
+  }, [monthCalendarOpen, calendarMonth, focusedDate]);
+
+  const calendarAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const aboveWeeksRef = React.useRef<HTMLDivElement | null>(null);
+  const belowWeeksRef = React.useRef<HTMLDivElement | null>(null);
+  const monthCalendarOpenRef = React.useRef(monthCalendarOpen);
+
+  React.useEffect(() => {
+    monthCalendarOpenRef.current = monthCalendarOpen;
+  }, [monthCalendarOpen]);
+
+  const updateBottomSheetHeight = React.useCallback(() => {
+    const el = calendarAreaRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+
+    const next = Math.max(240, Math.floor(vh - rect.bottom));
+    setBottomSheetHeightPx(next);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = calendarAreaRef.current;
+    if (!el) return;
+
+    updateBottomSheetHeight();
+
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => updateBottomSheetHeight())
+        : null;
+    ro?.observe(el);
+
+    window.addEventListener('resize', updateBottomSheetHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateBottomSheetHeight);
+      ro?.disconnect();
+    };
+  }, [updateBottomSheetHeight]);
+
+  // 달력 토글 시 즉시 + 트랜지션 완료 후 높이 재계산
+  useEffect(() => {
+    updateBottomSheetHeight();
+    // CSS 트랜지션(300ms) 완료 후 최종 높이 보정
+    const t = window.setTimeout(updateBottomSheetHeight, 320);
+    return () => window.clearTimeout(t);
+  }, [monthCalendarOpen, updateBottomSheetHeight]);
 
   // 날짜별 스케줄 그룹화 (기간 스케줄 포함)
   const schedulesByDate = useMemo(() => {
@@ -715,10 +924,42 @@ export default function WorkerSchedulePage() {
     return grouped;
   }, [categorizedSchedules]);
 
+  const getDateStatusClass = (date: Date): string => {
+    const key = format(date, 'yyyy-MM-dd');
+    const list = schedulesByDate[key] || [];
+    if (list.length === 0) return '';
+
+    const hasOngoing = list.some((s) => s.status === 'ongoing');
+    const hasUpcoming = list.some((s) => s.status === 'upcoming');
+    const hasCompleted = list.some((s) => s.status === 'completed');
+
+    if (hasOngoing)
+      return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100';
+    if (hasUpcoming)
+      return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100';
+    if (hasCompleted)
+      return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100';
+    return '';
+  };
+
+  // 선택된 날짜(없으면 오늘)에 해당하는 스케줄만 노출
+  const filteredCategorizedSchedules = useMemo(() => {
+    const dateForFilter = selectedDate ?? today;
+    const selectedDateStr = format(dateForFilter, 'yyyy-MM-dd');
+    const match = (s: ScheduleWithPost) =>
+      parseDateString(s.date).includes(selectedDateStr);
+
+    return {
+      upcoming: categorizedSchedules.upcoming.filter(match),
+      ongoing: categorizedSchedules.ongoing.filter(match),
+      completed: categorizedSchedules.completed.filter(match),
+      applications: categorizedSchedules.applications.filter(match),
+    };
+  }, [categorizedSchedules, selectedDate, today]);
+
   if (!roleHydrated) {
     return (
       <div className="space-y-4">
-        <Hero title="내 스케줄" description="스탭 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
@@ -731,7 +972,6 @@ export default function WorkerSchedulePage() {
   if (!isMember) {
     return (
       <div className="space-y-4">
-        <Hero title="내 스케줄" description="스탭 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             스탭만 접근할 수 있는 페이지입니다.
@@ -745,10 +985,6 @@ export default function WorkerSchedulePage() {
   if (!isMounted || isLoading) {
     return (
       <div>
-        <Hero
-          title="내 스케줄"
-          description="지원한 공고의 스케줄을 확인하세요"
-        />
         <div className="flex justify-center items-center min-h-[400px]">
           <p className="text-muted-foreground">로딩 중...</p>
         </div>
@@ -757,35 +993,270 @@ export default function WorkerSchedulePage() {
   }
 
   return (
-    <div>
-      <Hero
-        title="내 스케줄"
-        description="지원한 공고의 스케줄을 확인하세요"
-      />
-
+    <div className="relative h-[calc(100vh-100px)] overflow-hidden">
       {/* 급여 계산 섹션 */}
       <EarningsSection earnings={earningsData} />
 
-      {/* 뷰 토글 버튼 */}
-      <ScheduleViewToggle viewType={viewType} onChange={setViewType} />
+      {/* 달력 영역 (풀-블리드) */}
+      <div
+        ref={calendarAreaRef}
+        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-pan-y"
+        onClickCapture={(e) => {
+          if (Date.now() < swipeStateRef.current.blockClickUntil) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onPointerDown={(e) => {
+          swipeStateRef.current.isDown = true;
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+          swipeStateRef.current.startX = e.clientX;
+          swipeStateRef.current.startY = e.clientY;
+        }}
+        onPointerMove={(e) => {
+          if (!swipeStateRef.current.isDown) return;
+          const dx = e.clientX - swipeStateRef.current.startX;
+          const dy = e.clientY - swipeStateRef.current.startY;
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+            swipeStateRef.current.isSwiping = true;
+            if (!swipeStateRef.current.hasPointerCapture) {
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                swipeStateRef.current.hasPointerCapture = true;
+              } catch {
+                // ignore
+              }
+            }
+            e.preventDefault();
+          }
+        }}
+        onPointerUp={(e) => {
+          if (!swipeStateRef.current.isDown) return;
+          swipeStateRef.current.isDown = false;
+          const dx = e.clientX - swipeStateRef.current.startX;
+          const dy = e.clientY - swipeStateRef.current.startY;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+            swipeStateRef.current.blockClickUntil = Date.now() + 250;
+            navigateBySwipe(dx < 0 ? 'next' : 'prev');
+          }
+          try {
+            if (swipeStateRef.current.hasPointerCapture) {
+              (e.currentTarget as HTMLElement).releasePointerCapture(
+                e.pointerId
+              );
+            }
+          } catch {
+            // ignore
+          }
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+        }}
+        onPointerCancel={() => {
+          swipeStateRef.current.isDown = false;
+          swipeStateRef.current.isSwiping = false;
+          swipeStateRef.current.hasPointerCapture = false;
+        }}
+      >
+        {/* 상단: 오늘 + 타이틀(월) + 월간 토글 + 추가 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleDateSelect(today)}
+            >
+              오늘
+            </Button>
+            <div className="flex items-center">
+              <Button
+                type="button"
+                size="sm"
+                variant={'ghost'}
+                onClick={() => setMonthCalendarOpen((v) => !v)}
+                aria-expanded={monthCalendarOpen}
+                aria-controls="month-calendar-panel"
+                title="월간(1달) 달력 보기"
+                className="px-2"
+              >
+                <span className="text-sm font-medium">
+                  스케줄 관리 ({headerMonthLabel})
+                </span>
+                {monthCalendarOpen ? (
+                  <ChevronUp className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAddScheduleOpen(true)}
+              title="스케줄 추가"
+              className="text-muted-foreground rounded-full size-8"
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
+        </div>
 
-      {/* 상태 범례 */}
-      <ScheduleStatusLegend />
+        {/* 날짜 섹션: 7일 버튼 + 월간 확장 */}
+        <div className="mb-4">
+          <div>
+            <div className="flex flex-col items-center justify-center gap-1 min-w-max px-1">
+              <div className="flex items-center justify-center gap-2">
+                {['일', '월', '화', '수', '목', '금', '토'].map((label) => (
+                  <span
+                    key={label}
+                    className="w-10 text-center text-xs text-muted-foreground"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
 
-      {viewType === 'card' ? (
+              {/* 확장: 현재 주 "위"에 이전 주들 표시 */}
+              <div
+                ref={aboveWeeksRef}
+                id="month-calendar-panel"
+                className={cn(
+                  'overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out',
+                  monthCalendarOpen
+                    ? 'max-h-[600px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                )}
+              >
+                <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                  {expandedAboveWeeks.map((week, wi) => (
+                    <div
+                      key={`above-${wi}`}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      {week.map((d) => {
+                        const selected = selectedDate
+                          ? isSameDay(d, selectedDate)
+                          : isSameDay(d, today);
+                        const inMonth =
+                          d.getMonth() === calendarMonth.getMonth();
+                        const statusClass =
+                          inMonth && !selected ? getDateStatusClass(d) : '';
+                        return (
+                          <Button
+                            key={d.toISOString()}
+                            type="button"
+                            size="sm"
+                            variant={selected ? 'default' : 'outline'}
+                            className={cn(
+                              'w-10',
+                              !selected && (statusClass || 'bg-background'),
+                              !inMonth && 'opacity-40'
+                            )}
+                            onClick={() => handleDateSelect(d)}
+                            disabled={!inMonth}
+                          >
+                            {d.getDate()}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 항상 표시: 현재 주(중앙) */}
+              <div className="flex items-center justify-center gap-2">
+                {currentRowDates.map((d) => {
+                  const selected = selectedDate
+                    ? isSameDay(d, selectedDate)
+                    : isSameDay(d, today);
+                  const inMonth =
+                    !monthCalendarOpen ||
+                    d.getMonth() === calendarMonth.getMonth();
+                  const statusClass =
+                    !selected && (!monthCalendarOpen || inMonth)
+                      ? getDateStatusClass(d)
+                      : '';
+                  return (
+                    <Button
+                      key={d.toISOString()}
+                      type="button"
+                      size="sm"
+                      variant={selected ? 'default' : 'outline'}
+                      className={cn(
+                        'w-10',
+                        !selected && (statusClass || 'bg-background'),
+                        !inMonth && 'opacity-40'
+                      )}
+                      onClick={() => handleDateSelect(d)}
+                      disabled={monthCalendarOpen && !inMonth}
+                    >
+                      {d.getDate()}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {/* 확장: 현재 주 "아래"에 이후 주들 표시 */}
+              <div
+                ref={belowWeeksRef}
+                className={cn(
+                  'overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out',
+                  monthCalendarOpen
+                    ? 'max-h-[600px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                )}
+              >
+                <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                  {expandedBelowWeeks.map((week, wi) => (
+                    <div
+                      key={`below-${wi}`}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      {week.map((d) => {
+                        const selected = selectedDate
+                          ? isSameDay(d, selectedDate)
+                          : isSameDay(d, today);
+                        const inMonth =
+                          d.getMonth() === calendarMonth.getMonth();
+                        const statusClass =
+                          inMonth && !selected ? getDateStatusClass(d) : '';
+                        return (
+                          <Button
+                            key={d.toISOString()}
+                            type="button"
+                            size="sm"
+                            variant={selected ? 'default' : 'outline'}
+                            className={cn(
+                              'w-10',
+                              !selected && (statusClass || 'bg-background'),
+                              !inMonth && 'opacity-40'
+                            )}
+                            onClick={() => handleDateSelect(d)}
+                            disabled={!inMonth}
+                          >
+                            {d.getDate()}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 바텀시트(카드뷰 목록) */}
+      <BottomSheet heightPx={bottomSheetHeightPx}>
         <CardView
-          categorizedSchedules={categorizedSchedules}
+          categorizedSchedules={filteredCategorizedSchedules}
           onScheduleClick={handleScheduleClick}
         />
-      ) : (
-        <CalendarView
-          schedulesByDate={schedulesByDate}
-          selectedDate={selectedDate}
-          onDateSelect={handleDateSelect}
-          onScheduleClick={handleScheduleClick}
-          onRefresh={fetchData}
-        />
-      )}
+      </BottomSheet>
 
       {/* 스케줄 상세 모달 */}
       {selectedSchedule && (
@@ -795,6 +1266,18 @@ export default function WorkerSchedulePage() {
             setSelectedSchedule(null);
           }}
           onRefresh={fetchData}
+        />
+      )}
+
+      {/* 개인 스케줄 추가 모달(+ 버튼) */}
+      {addScheduleOpen && (
+        <AddPersonalScheduleModal
+          selectedDate={selectedDate ?? today}
+          onClose={() => setAddScheduleOpen(false)}
+          onSuccess={() => {
+            setAddScheduleOpen(false);
+            fetchData();
+          }}
         />
       )}
     </div>
@@ -812,117 +1295,134 @@ interface CardViewProps {
 }
 
 function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
+  const approvedCount =
+    categorizedSchedules.upcoming.length +
+    categorizedSchedules.ongoing.length +
+    categorizedSchedules.completed.length;
+
   return (
-    <div className="space-y-8 mt-6">
-      {/* 승인된 스케줄 (예정/진행중/완료) */}
-      <div>
-        <h2 className="text-xl font-bold mb-4">승인된 스케줄</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 예정 */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Clock className="size-5 text-blue-500" />
-              <h3 className="text-lg font-semibold">예정</h3>
-              <Badge variant="outline" className="ml-auto">
-                {categorizedSchedules.upcoming.length}
-              </Badge>
-            </div>
-            {categorizedSchedules.upcoming.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  예정된 스케줄이 없습니다
-                </CardContent>
-              </Card>
-            ) : (
-              categorizedSchedules.upcoming.map((schedule) => (
-                <ScheduleCard
-                  key={schedule.id}
-                  schedule={schedule}
-                  onClick={() => onScheduleClick(schedule)}
-                />
-              ))
-            )}
+    <Accordion type="multiple" defaultValue={['applications', 'approved']} className="mt-3">
+      {/* 전체 지원 목록 */}
+      <AccordionItem value="applications">
+        <AccordionTrigger className="py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">전체 지원 목록</span>
+            <Badge variant="outline" className="text-xs">
+              {categorizedSchedules.applications.length}
+            </Badge>
           </div>
-
-          {/* 진행중 */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Clock className="size-5 text-orange-500" />
-              <h3 className="text-lg font-semibold">진행중</h3>
-              <Badge variant="outline" className="ml-auto">
-                {categorizedSchedules.ongoing.length}
-              </Badge>
-            </div>
-            {categorizedSchedules.ongoing.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  진행중인 스케줄이 없습니다
-                </CardContent>
-              </Card>
-            ) : (
-              categorizedSchedules.ongoing.map((schedule) => (
-                <ScheduleCard
-                  key={schedule.id}
-                  schedule={schedule}
-                  onClick={() => onScheduleClick(schedule)}
-                />
-              ))
-            )}
-          </div>
-
-          {/* 완료 */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="size-5 text-green-500" />
-              <h3 className="text-lg font-semibold">완료</h3>
-              <Badge variant="outline" className="ml-auto">
-                {categorizedSchedules.completed.length}
-              </Badge>
-            </div>
-            {categorizedSchedules.completed.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  완료된 스케줄이 없습니다
-                </CardContent>
-              </Card>
-            ) : (
-              categorizedSchedules.completed.map((schedule) => (
-                <ScheduleCard
-                  key={schedule.id}
-                  schedule={schedule}
-                  onClick={() => onScheduleClick(schedule)}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 지원 목록 (모든 지원 내역) */}
-      <div>
-        <h2 className="text-xl font-bold mb-4">전체 지원 목록</h2>
-        <div className="space-y-4">
+        </AccordionTrigger>
+        <AccordionContent>
           {categorizedSchedules.applications.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                지원한 공고가 없습니다
-              </CardContent>
-            </Card>
+            <p className="text-sm text-muted-foreground text-center py-4">
+              지원한 공고가 없습니다
+            </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               {categorizedSchedules.applications.map((schedule) => (
                 <ScheduleCard
                   key={schedule.id}
                   schedule={schedule}
                   onClick={() => onScheduleClick(schedule)}
                   showApplicationStatus
+                  compact
                 />
               ))}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </AccordionContent>
+      </AccordionItem>
+
+      {/* 승인된 스케줄 */}
+      <AccordionItem value="approved">
+        <AccordionTrigger className="py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">승인된 스케줄</span>
+            <Badge variant="outline" className="text-xs">
+              {approvedCount}
+            </Badge>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4">
+            {/* 예정 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-blue-500" />
+                <span className="text-sm font-medium">예정</span>
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {categorizedSchedules.upcoming.length}
+                </Badge>
+              </div>
+              {categorizedSchedules.upcoming.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  예정된 스케줄이 없습니다
+                </p>
+              ) : (
+                categorizedSchedules.upcoming.map((schedule) => (
+                  <ScheduleCard
+                    key={schedule.id}
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    compact
+                  />
+                ))
+              )}
+            </div>
+
+            {/* 진행중 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-orange-500" />
+                <span className="text-sm font-medium">진행중</span>
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {categorizedSchedules.ongoing.length}
+                </Badge>
+              </div>
+              {categorizedSchedules.ongoing.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  진행중인 스케줄이 없습니다
+                </p>
+              ) : (
+                categorizedSchedules.ongoing.map((schedule) => (
+                  <ScheduleCard
+                    key={schedule.id}
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    compact
+                  />
+                ))
+              )}
+            </div>
+
+            {/* 완료 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-green-500" />
+                <span className="text-sm font-medium">완료</span>
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {categorizedSchedules.completed.length}
+                </Badge>
+              </div>
+              {categorizedSchedules.completed.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  완료된 스케줄이 없습니다
+                </p>
+              ) : (
+                categorizedSchedules.completed.map((schedule) => (
+                  <ScheduleCard
+                    key={schedule.id}
+                    schedule={schedule}
+                    onClick={() => onScheduleClick(schedule)}
+                    compact
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
 
@@ -934,7 +1434,8 @@ interface CalendarViewProps {
   onRefresh: () => void;
 }
 
-function CalendarView({
+// NOTE: 이전 달력뷰 UI는 현재 미사용(카드뷰/바텀시트로 통일)
+export function CalendarView({
   schedulesByDate,
   selectedDate,
   onDateSelect,
@@ -1047,7 +1548,12 @@ interface ScheduleCardProps {
   showApplicationStatus?: boolean;
 }
 
-function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatus = false }: ScheduleCardProps) {
+function ScheduleCard({
+  schedule,
+  onClick,
+  compact = false,
+  showApplicationStatus = false,
+}: ScheduleCardProps) {
   const statusConfig = {
     upcoming: { label: '예정', className: 'bg-blue-100 text-blue-700' },
     ongoing: { label: '진행중', className: 'bg-orange-100 text-orange-700' },
@@ -1055,21 +1561,45 @@ function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatu
   };
 
   const applicationStatusConfig = {
-    pending: { label: '대기중', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-    accepted: { label: '승인됨', className: 'bg-green-100 text-green-700 border-green-200' },
-    rejected: { label: '거절됨', className: 'bg-red-100 text-red-700 border-red-200' },
+    pending: {
+      label: '대기중',
+      className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    },
+    accepted: {
+      label: '승인됨',
+      className: 'bg-green-100 text-green-700 border-green-200',
+    },
+    rejected: {
+      label: '거절됨',
+      className: 'bg-red-100 text-red-700 border-red-200',
+    },
   };
 
   const payTypeConfig = {
-    hourly: { label: '시급', className: 'bg-purple-100 text-purple-700 border-purple-200' },
-    daily: { label: '일급', className: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
-    weekly: { label: '주급', className: 'bg-pink-100 text-pink-700 border-pink-200' },
-    monthly: { label: '월급', className: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    hourly: {
+      label: '시급',
+      className: 'bg-purple-100 text-purple-700 border-purple-200',
+    },
+    daily: {
+      label: '일급',
+      className: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+    },
+    weekly: {
+      label: '주급',
+      className: 'bg-pink-100 text-pink-700 border-pink-200',
+    },
+    monthly: {
+      label: '월급',
+      className: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    },
   };
 
   const config = statusConfig[schedule.status];
-  const applicationStatus = (schedule as PostWithApplicationStatus).applicationStatus;
-  const appStatusConfig = applicationStatus ? applicationStatusConfig[applicationStatus] : null;
+  const applicationStatus = (schedule as PostWithApplicationStatus)
+    .applicationStatus;
+  const appStatusConfig = applicationStatus
+    ? applicationStatusConfig[applicationStatus]
+    : null;
   const payType = (schedule as PostWithApplicationStatus).payType || 'daily';
   const payTypeLabel = payTypeConfig[payType];
 
@@ -1084,7 +1614,10 @@ function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatu
       <CardHeader className={cn('pb-3', compact && 'pb-2')}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className={cn('font-semibold truncate', compact && 'text-sm')} title={schedule.title}>
+            <h3
+              className={cn('font-semibold truncate', compact && 'text-sm')}
+              title={schedule.title}
+            >
               {schedule.title}
             </h3>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -1094,11 +1627,17 @@ function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatu
                 </Badge>
               )}
               {showApplicationStatus && appStatusConfig && (
-                <Badge variant="outline" className={cn('text-xs', appStatusConfig.className)}>
+                <Badge
+                  variant="outline"
+                  className={cn('text-xs', appStatusConfig.className)}
+                >
                   {appStatusConfig.label}
                 </Badge>
               )}
-              <Badge variant="outline" className={cn('text-xs', payTypeLabel.className)}>
+              <Badge
+                variant="outline"
+                className={cn('text-xs', payTypeLabel.className)}
+              >
                 {payTypeLabel.label}
               </Badge>
             </div>
@@ -1106,7 +1645,9 @@ function ScheduleCard({ schedule, onClick, compact = false, showApplicationStatu
         </div>
       </CardHeader>
       <CardContent className={cn('pt-0', compact && 'pt-0')}>
-        <div className={cn('space-y-2 text-sm', compact && 'space-y-1 text-xs')}>
+        <div
+          className={cn('space-y-2 text-sm', compact && 'space-y-1 text-xs')}
+        >
           <div className="flex items-center gap-2 text-muted-foreground">
             <CalendarIcon className="size-4" />
             <span>{schedule.date}</span>
@@ -1149,77 +1690,39 @@ interface EarningsSectionProps {
 function EarningsSection({ earnings }: EarningsSectionProps) {
   const formatWon = (value: number) =>
     new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(
-      Math.round(value || 0),
+      Math.round(value || 0)
     );
 
   return (
-    <div className="mt-6 mb-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="size-5 text-primary" />
-            급여 계산
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 이번 주 예상 급여 */}
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="size-4 text-blue-600" />
-                <h3 className="text-sm font-semibold text-blue-700">이번 주 예상 급여</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-900">
-                {formatWon(earnings.thisWeek)}원
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                {earnings.thisWeekCount}개 스케줄
-              </p>
-            </div>
-
-            {/* 이번 달 예상 급여 */}
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="size-4 text-green-600" />
-                <h3 className="text-sm font-semibold text-green-700">이번 달 예상 급여</h3>
-              </div>
-              <p className="text-2xl font-bold text-green-900">
-                {formatWon(earnings.thisMonth)}원
-              </p>
-              <p className="text-xs text-green-600 mt-1">
-                {earnings.thisMonthCount}개 스케줄
-              </p>
-            </div>
-
-            {/* 누적 급여 */}
-            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="size-4 text-purple-600" />
-                <h3 className="text-sm font-semibold text-purple-700">누적 급여 (완료)</h3>
-              </div>
-              <p className="text-2xl font-bold text-purple-900">
-                {formatWon(earnings.accumulated)}원
-              </p>
-              <p className="text-xs text-purple-600 mt-1">
-                {earnings.accumulatedCount}개 스케줄
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              💡 <strong>이번 주/달 예상 급여</strong>는 승인된 스케줄을 기준으로 계산됩니다.<br />
-              <strong>누적 급여</strong>는 완료된 스케줄만 포함됩니다.<br />
-              <strong>급여 타입별 계산:</strong> 시급(근무시간×시급), 일급(근무일수×일급), 주급/월급(해당 기간 1회)
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex items-center gap-3 px-1 mb-2 py-2 overflow-x-auto scroll-none bg-background w-full justify-around">
+      <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+        <Wallet className="size-4 text-blue-600" />
+        <span className="text-muted-foreground">주</span>
+        <span className="font-semibold">{formatWon(earnings.thisWeek)}원</span>
+      </div>
+      <div className="h-3 w-px bg-border" />
+      <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+        <TrendingUp className="size-4 text-green-600" />
+        <span className="text-muted-foreground">월</span>
+        <span className="font-semibold">{formatWon(earnings.thisMonth)}원</span>
+      </div>
+      <div className="h-3 w-px bg-border" />
+      <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+        <DollarSign className="size-4 text-purple-600" />
+        <span className="text-muted-foreground">누적</span>
+        <span className="font-semibold">
+          {formatWon(earnings.accumulated)}원
+        </span>
+      </div>
     </div>
   );
 }
 
-function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailModalProps) {
+function ScheduleDetailModal({
+  schedule,
+  onClose,
+  onRefresh,
+}: ScheduleDetailModalProps) {
   const isPersonalSchedule = schedule.id.startsWith('personal-');
   const personalScheduleId = isPersonalSchedule
     ? schedule.id.replace('personal-', '')
@@ -1246,7 +1749,11 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
     startTime: startTime,
     endTime: endTime,
     location: schedule.location || '',
-    payType: ((schedule as PostWithApplicationStatus).payType || 'daily') as 'hourly' | 'daily' | 'weekly' | 'monthly',
+    payType: ((schedule as PostWithApplicationStatus).payType || 'daily') as
+      | 'hourly'
+      | 'daily'
+      | 'weekly'
+      | 'monthly',
     payAmount: schedule.salary?.toString() || '',
     description: schedule.description || '',
     managerName: schedule.managerInfo?.name || '',
@@ -1340,7 +1847,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
               {isEditMode ? (
                 <Input
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   className="text-xl font-semibold"
                   placeholder="제목"
                 />
@@ -1379,7 +1888,10 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                 {config.label}
               </Badge>
               {isPersonalSchedule && (
-                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-purple-50 text-purple-700 border-purple-200"
+                >
                   개인 일정
                 </Badge>
               )}
@@ -1400,7 +1912,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                     id="edit-date"
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
                   />
                 </div>
                 {/* 시간 */}
@@ -1411,7 +1925,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                       id="edit-startTime"
                       type="time"
                       value={formData.startTime}
-                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, startTime: e.target.value })
+                      }
                     />
                   </div>
                   <div>
@@ -1420,7 +1936,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                       id="edit-endTime"
                       type="time"
                       value={formData.endTime}
-                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, endTime: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -1430,7 +1948,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                   <Input
                     id="edit-location"
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, location: e.target.value })
+                    }
                     placeholder="장소"
                   />
                 </div>
@@ -1443,7 +1963,11 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
-                          payType: value as 'hourly' | 'daily' | 'weekly' | 'monthly',
+                          payType: value as
+                            | 'hourly'
+                            | 'daily'
+                            | 'weekly'
+                            | 'monthly',
                         })
                       }
                     >
@@ -1464,7 +1988,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                       id="edit-payAmount"
                       type="number"
                       value={formData.payAmount}
-                      onChange={(e) => setFormData({ ...formData, payAmount: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, payAmount: e.target.value })
+                      }
                       placeholder="급여"
                     />
                   </div>
@@ -1498,7 +2024,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
             {isEditMode ? (
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="업무 내용"
                 className="w-full min-h-[100px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
@@ -1519,7 +2047,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                   <Input
                     id="edit-managerName"
                     value={formData.managerName}
-                    onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, managerName: e.target.value })
+                    }
                     placeholder="담당자 이름"
                   />
                 </div>
@@ -1529,7 +2059,9 @@ function ScheduleDetailModal({ schedule, onClose, onRefresh }: ScheduleDetailMod
                     id="edit-managerPhone"
                     type="tel"
                     value={formData.managerPhone}
-                    onChange={(e) => setFormData({ ...formData, managerPhone: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, managerPhone: e.target.value })
+                    }
                     placeholder="연락처"
                   />
                 </div>
@@ -1661,7 +2193,8 @@ function AddPersonalScheduleModal({
         <DialogHeader>
           <DialogTitle>개인 스케줄 추가</DialogTitle>
           <DialogDescription>
-            {format(selectedDate, 'yyyy년 MM월 dd일 (E)', { locale: ko })} 스케줄을 추가합니다
+            {format(selectedDate, 'yyyy년 MM월 dd일 (E)', { locale: ko })}{' '}
+            스케줄을 추가합니다
           </DialogDescription>
         </DialogHeader>
 
@@ -1674,7 +2207,9 @@ function AddPersonalScheduleModal({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               placeholder="예: 카페 아르바이트"
               required
             />
@@ -1687,7 +2222,9 @@ function AddPersonalScheduleModal({
               id="date"
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, date: e.target.value })
+              }
               required
             />
           </div>
@@ -1702,7 +2239,9 @@ function AddPersonalScheduleModal({
                 id="startTime"
                 type="time"
                 value={formData.startTime}
-                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, startTime: e.target.value })
+                }
                 required
               />
             </div>
@@ -1714,7 +2253,9 @@ function AddPersonalScheduleModal({
                 id="endTime"
                 type="time"
                 value={formData.endTime}
-                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, endTime: e.target.value })
+                }
                 required
               />
             </div>
@@ -1726,7 +2267,9 @@ function AddPersonalScheduleModal({
             <Input
               id="location"
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
               placeholder="예: 강남역 스타벅스"
             />
           </div>
@@ -1761,7 +2304,9 @@ function AddPersonalScheduleModal({
                 id="payAmount"
                 type="number"
                 value={formData.payAmount}
-                onChange={(e) => setFormData({ ...formData, payAmount: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, payAmount: e.target.value })
+                }
                 placeholder="예: 10000"
               />
             </div>
@@ -1773,7 +2318,9 @@ function AddPersonalScheduleModal({
             <textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="업무 내용을 입력하세요"
               className="w-full min-h-[100px] px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
@@ -1786,7 +2333,9 @@ function AddPersonalScheduleModal({
               <Input
                 id="managerName"
                 value={formData.managerName}
-                onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, managerName: e.target.value })
+                }
                 placeholder="예: 김매니저"
               />
             </div>
@@ -1796,7 +2345,9 @@ function AddPersonalScheduleModal({
                 id="managerPhone"
                 type="tel"
                 value={formData.managerPhone}
-                onChange={(e) => setFormData({ ...formData, managerPhone: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, managerPhone: e.target.value })
+                }
                 placeholder="예: 010-1234-5678"
               />
             </div>
