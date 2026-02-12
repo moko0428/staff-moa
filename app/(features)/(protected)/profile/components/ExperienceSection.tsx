@@ -9,7 +9,7 @@ import {
 } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { Briefcase, Calendar as CalendarIcon, MapPin, X } from 'lucide-react';
+import { Briefcase, Calendar as CalendarIcon, MapPin, Trash2 } from 'lucide-react';
 import { User } from '@/types/mockData';
 
 type Props = {
@@ -135,31 +135,39 @@ const ExperienceSection: React.FC<Props> = ({
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm">{exp.title}</h4>
-                    <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="size-3" />
-                        <span>
-                          {new Date(exp.date).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                          })}
-                        </span>
+                    {(exp.date || exp.location) && (
+                      <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                        {exp.date && (
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="size-3" />
+                            <span>
+                              {new Date(exp.date).toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {exp.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="size-3" />
+                            <span>{exp.location}</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="size-3" />
-                        <span>{exp.location}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   {isEditing && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
+                      className="text-muted-foreground hover:text-red-500"
+                      aria-label="경력 삭제"
                       onClick={() => removeExperience(index)}
                     >
-                      <X className="size-4 text-red-500" />
+                      <Trash2 className="size-4" />
                     </Button>
                   )}
                 </div>

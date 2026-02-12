@@ -182,7 +182,9 @@ export default function NotificationPage() {
     const get = (type: Intl.DateTimeFormatPartTypes) =>
       parts.find((p) => p.type === type)?.value ?? '';
 
-    return `${get('year')}년 ${get('month')}월 ${get('day')}일 ${get('hour')}:${get('minute')}`;
+    return `${get('year')}년 ${get('month')}월 ${get('day')}일 ${get(
+      'hour'
+    )}:${get('minute')}`;
   };
 
   const formatNotificationTime = (createdAt: string) => {
@@ -365,7 +367,9 @@ export default function NotificationPage() {
                                 {notification.message}
                               </p>
                               <p className="text-xs text-muted-foreground mt-2">
-                                {formatNotificationTime(notification.created_at)}
+                                {formatNotificationTime(
+                                  notification.created_at
+                                )}
                               </p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
