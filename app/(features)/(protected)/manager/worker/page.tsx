@@ -559,9 +559,9 @@ export default function WorkerManagementPage() {
 
   // 상태별 통계
   const statistics = useMemo(() => {
-    // 과거 스케줄(근무일이 지난 지원)은 통계에서 제외
+    // 활성 공고(recruiting/urgent)에 대한 지원만 통계에 반영
     const activeApplications = managerApplications.filter(
-      (app) => !isPastSchedule({ postDate: app.postDate, workSlots: app.workSlots }),
+      (app) => app.postStatus === 'recruiting' || app.postStatus === 'urgent',
     );
 
     const uniqueApplicantCount = new Set(
