@@ -53,8 +53,9 @@ import {
   addFavoriteAction,
   removeFavoriteAction,
   checkFavoriteAction,
+  getProfileForModalAction,
 } from '@/app/(features)/(protected)/worker/favorit/actions';
-import { applyToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
+import { applyToPostAction, checkAppliedToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
 import { checkReportAction } from '@/app/(features)/(protected)/admin/report-actions';
 import ReportModal from '@/app/components/ReportModal';
 import ProfileModal from '@/app/components/profile-modal';
@@ -130,6 +131,7 @@ export default function PostDetailPage({
       languages: true,
     }
   );
+  const [hasApplied, setHasApplied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [hasReported, setHasReported] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -236,6 +238,23 @@ export default function PostDetailPage({
     }
   }, [currentUserId, post, roleHydrated, isMember]);
 
+  // 지원 여부 확인
+  useEffect(() => {
+    if (currentUserId && roleHydrated && isMember && post) {
+      const checkApplied = async () => {
+        try {
+          const result = await checkAppliedToPostAction(post.post_id);
+          if (result.ok && result.data) {
+            setHasApplied(result.data.applied);
+          }
+        } catch (error) {
+          console.error('Failed to check applied:', error);
+        }
+      };
+      checkApplied();
+    }
+  }, [currentUserId, post, roleHydrated, isMember]);
+
   // 신고 여부 확인
   useEffect(() => {
     if (currentUserId && roleHydrated && post) {
@@ -320,6 +339,7 @@ export default function PostDetailPage({
       );
       if (result.ok) {
         toast.success(result.message || '지원이 완료되었습니다.');
+        setHasApplied(true);
         setApplyOpen(false);
         setApplicationMessage('');
       } else {
@@ -365,38 +385,26 @@ export default function PostDetailPage({
     });
     setProfileModalOpen(true);
 
-    // 백그라운드로 프로필 상세 로드 (RLS/권한에 따라 실패할 수 있음)
+    // 백그라운드로 프로필 상세 로드 (manager_follows 기반 팔로워 수 포함)
     try {
-      const { createClient } = await import('@/utils/supabase/client');
-      const supabase = createClient();
+      const result = await getProfileForModalAction(post.author_id);
+      if (!result.ok || !result.data) return;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          'user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status'
-        )
-        .eq('user_id', post.author_id)
-        .single();
-
-      if (error || !data) return;
-
+      const profileData = result.data;
       setProfileModalUser((prev) => {
         if (!prev || prev.id !== post.author_id) return prev;
         return {
           ...prev,
-          id: data.user_id as string,
-          name: (data.name as string | null) ?? prev.name ?? null,
-          email: (data.email as string | null) ?? null,
-          photo: (data.avatar as string | null) ?? prev.photo ?? null,
-          role: (data.role as string) ?? prev.role,
-          introduction: (data.bio as string | null) ?? null,
-          attendanceScore: (data.attendance_score as number | null) ?? null,
-          companyName:
-            (data.company_name as string | null) ?? prev.companyName ?? null,
-          companyVerifyStatus:
-            (data.company_verify_status as string | null) ??
-            prev.companyVerifyStatus ??
-            null,
+          id: profileData.id,
+          name: profileData.name ?? prev.name ?? null,
+          email: profileData.email ?? null,
+          photo: profileData.photo ?? prev.photo ?? null,
+          role: profileData.role ?? prev.role,
+          introduction: profileData.introduction ?? null,
+          attendanceScore: profileData.attendanceScore ?? null,
+          followerCount: profileData.followerCount,
+          companyName: profileData.companyName ?? prev.companyName ?? null,
+          companyVerifyStatus: profileData.companyVerifyStatus ?? prev.companyVerifyStatus ?? null,
         };
       });
     } catch (error) {
@@ -826,8 +834,9 @@ export default function PostDetailPage({
               className="w-full"
               size="lg"
               onClick={() => setApplyOpen(true)}
+              disabled={hasApplied}
             >
-              지원하기
+              {hasApplied ? '지원 완료' : '지원하기'}
             </Button>
           )}
 

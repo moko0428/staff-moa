@@ -16,6 +16,15 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Badge } from '@/app/components/ui/badge';
 import { Switch } from '@/app/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/app/components/ui/alert-dialog';
 import { Edit, Trash2, Calendar, Users, X, Plus, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -23,7 +32,7 @@ import { format, parseISO } from 'date-fns';
 interface MyPostCardProps {
   post: Post;
   onEdit?: (post: Post) => void;
-  onDelete?: (postId: string) => void;
+  onDelete?: (postId: string, deleteWithSchedules: boolean) => void;
   onStatusToggle?: (postId: string, newStatus: Post['status']) => void;
   onRepost?: (post: Post) => void;
 }
@@ -44,6 +53,8 @@ export default function MyPostCard({
     post.status === 'completed' ? 'recruiting' : post.status,
   );
   const [newKeyword, setNewKeyword] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // post 상태가 변경되면 로컬 상태 업데이트
   useEffect(() => {
@@ -82,9 +93,14 @@ export default function MyPostCard({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('정말 삭제하시겠습니까?')) {
-      onDelete?.(post.id);
-    }
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async (deleteWithSchedules: boolean) => {
+    setIsDeleting(true);
+    await onDelete?.(post.id, deleteWithSchedules);
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
   };
 
   const handleRepost = (e: React.MouseEvent) => {
@@ -602,6 +618,35 @@ export default function MyPostCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>공고 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              스케줄과 함께 삭제하면 지원자의 승인된 스케줄도 모두 삭제됩니다.
+              공고만 삭제하면 승인된 스케줄은 지원자의 개인 스케줄로 보존됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? '삭제 중...' : '공고만 삭제'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleDeleteConfirm(true)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? '삭제 중...' : '스케줄과 함께 삭제'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

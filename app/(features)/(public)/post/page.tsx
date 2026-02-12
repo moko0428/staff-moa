@@ -19,7 +19,6 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
-import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 
@@ -609,20 +608,6 @@ export default function PostPage() {
         allLocations={allLocations}
         allSalaries={allSalaries}
       />
-      {!roleHydrated ? (
-        <Card className="mb-3">
-          <CardContent className="py-3 text-sm text-muted-foreground">
-            역할 정보를 불러오는 중입니다...
-          </CardContent>
-        </Card>
-      ) : isManager ? (
-        <Button variant="default" size="sm" asChild>
-          <Link href="/my-post/create">
-            <Plus className="size-4" />
-            <span className="text-sm font-medium">새 구인 공고 작성</span>
-          </Link>
-        </Button>
-      ) : null}
       {isLoading ? (
         <Card className="mb-3">
           <CardContent className="py-6 text-center">
@@ -641,6 +626,15 @@ export default function PostPage() {
             <JobCard key={item.id} item={item} />
           ))}
         </div>
+      )}
+      {roleHydrated && isManager && (
+        <Button
+          asChild
+          size="icon"
+          className="fixed bottom-6 right-6 z-30 size-14 rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.25)] text-2xl flex items-center justify-center"
+        >
+          <Link href="/my-post/create">+</Link>
+        </Button>
       )}
     </div>
   );

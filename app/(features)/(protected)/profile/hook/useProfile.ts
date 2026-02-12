@@ -77,14 +77,25 @@ export const useProfile = () => {
           if (!value) return undefined;
           if (!Array.isArray(value)) return undefined;
 
-          const typed = value.filter(
-            (item): item is ExperienceItem =>
-              typeof item === 'object' &&
-              item !== null &&
-              typeof (item as { title?: unknown }).title === 'string' &&
-              typeof (item as { date?: unknown }).date === 'string' &&
-              typeof (item as { location?: unknown }).location === 'string'
-          );
+          const typed = value
+            .filter(
+              (item): item is Record<string, unknown> =>
+                typeof item === 'object' && item !== null
+            )
+            .map((item) => ({
+              title:
+                (item.title as string) ||
+                (item.position as string) ||
+                '',
+              date:
+                (item.date as string) ||
+                (item.startDate && item.endDate && item.startDate !== item.endDate
+                  ? `${item.startDate} ~ ${item.endDate}`
+                  : (item.startDate as string)) ||
+                '',
+              location: (item.location as string) || '',
+            }))
+            .filter((item) => item.title && item.date);
 
           return typed.length ? typed : undefined;
         };
@@ -498,9 +509,29 @@ export const useProfile = () => {
             .single();
 
           if (profile) {
+            const rawExp = profile.experiences;
+            const arr = Array.isArray(rawExp)
+              ? (rawExp as Record<string, unknown>[])
+              : [];
+            const normalizedExp: User['experiences'] = arr
+              .filter((item) => typeof item === 'object' && item !== null)
+              .map((item) => ({
+                title:
+                  (item.title as string) ||
+                  (item.position as string) ||
+                  '',
+                date:
+                  (item.date as string) ||
+                  (item.startDate && item.endDate && item.startDate !== item.endDate
+                    ? `${item.startDate} ~ ${item.endDate}`
+                    : (item.startDate as string)) ||
+                  '',
+                location: (item.location as string) || '',
+              }))
+              .filter((item) => item.title && item.date);
             setCurrentUser({
               ...currentUser,
-              experiences: (profile.experiences as User['experiences']) || [],
+              experiences: normalizedExp,
             });
           }
         }
