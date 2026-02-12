@@ -79,6 +79,14 @@ export interface Post {
   notes?: string;
   requirements?: string;
   preferences?: string;
+  workType?: 'single' | 'range' | 'multi';
+  workDatesCount?: number;
+  workSlots?: Array<{
+    date: string;
+    start?: string;
+    end?: string;
+    location?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

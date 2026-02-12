@@ -603,8 +603,7 @@ export async function updatePostAction(
 }
 
 export async function deletePostAction(
-  postId: string,
-  deleteWithSchedules: boolean = true
+  postId: string
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -613,13 +612,12 @@ export async function deletePostAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    // 공고만 삭제 시: 스케줄을 worker의 개인 스케줄로 이전
-    if (!deleteWithSchedules) {
-      // 해당 공고의 모든 member_schedules (거절 제외) + post 데이터 조회
-      const { data: schedules, error: scheduleError } = await supabase
-        .from('member_schedules')
-        .select(
-          `
+    // 공고 삭제 시: 스케줄을 worker의 개인 스케줄로 이전
+    // + 매칭(승인) 지원자에게 공고 삭제 알림 전송
+    const { data: schedules, error: scheduleError } = await supabase
+      .from('member_schedules')
+      .select(
+        `
           member_id,
           status,
           posts (
@@ -636,90 +634,114 @@ export async function deletePostAction(
             work_slots
           )
         `
-        )
-        .eq('post_id', postId)
-        .neq('status', 'rejected');
+      )
+      .eq('post_id', postId)
+      .neq('status', 'rejected');
 
-      if (scheduleError) {
-        console.error('[deletePostAction] Failed to fetch schedules', scheduleError);
-      }
+    if (scheduleError) {
+      console.error('[deletePostAction] Failed to fetch schedules', scheduleError);
+    }
 
-      if (schedules && schedules.length > 0) {
-        const personalSchedules: Array<Record<string, unknown>> = [];
+    if (schedules && schedules.length > 0) {
+      const personalSchedules: Array<Record<string, unknown>> = [];
 
-        for (const schedule of schedules) {
-          const post = Array.isArray(schedule.posts)
-            ? schedule.posts[0]
-            : schedule.posts;
-          if (!post) continue;
+      for (const schedule of schedules) {
+        const post = Array.isArray(schedule.posts)
+          ? schedule.posts[0]
+          : schedule.posts;
+        if (!post) continue;
 
-          // work_slots가 있으면 각 slot별로 개인 스케줄 생성
-          const workSlots = Array.isArray(post.work_slots)
-            ? (post.work_slots as Array<Record<string, unknown>>)
-            : [];
+        // work_slots가 있으면 각 slot별로 개인 스케줄 생성
+        const workSlots = Array.isArray(post.work_slots)
+          ? (post.work_slots as Array<Record<string, unknown>>)
+          : [];
 
-          if (workSlots.length > 0) {
-            for (const slot of workSlots) {
-              const startTime =
-                (slot.start_time as string) ||
-                (slot.start as string) ||
-                post.work_time_start ||
-                '00:00';
-              const endTime =
-                (slot.end_time as string) ||
-                (slot.end as string) ||
-                post.work_time_end ||
-                '23:59';
+        if (workSlots.length > 0) {
+          for (const slot of workSlots) {
+            const startTime =
+              (slot.start_time as string) ||
+              (slot.start as string) ||
+              post.work_time_start ||
+              '00:00';
+            const endTime =
+              (slot.end_time as string) ||
+              (slot.end as string) ||
+              post.work_time_end ||
+              '23:59';
 
-              personalSchedules.push({
-                user_id: schedule.member_id,
-                title: post.title,
-                date: (slot.date as string) || post.work_date,
-                start_time: startTime,
-                end_time: endTime,
-                location:
-                  (slot.location as string) || post.location || null,
-                pay_type:
-                  (slot.pay_type as string) || post.pay_type || 'daily',
-                pay_amount: (slot.pay_amount as number) || post.pay_amount || null,
-                description: post.description || null,
-                manager_name: post.manager_name || null,
-                manager_phone: post.manager_phone || null,
-              });
-            }
-          } else {
             personalSchedules.push({
               user_id: schedule.member_id,
               title: post.title,
-              date: post.work_date,
-              start_time: post.work_time_start || '00:00',
-              end_time: post.work_time_end || '23:59',
-              location: post.location || null,
-              pay_type: post.pay_type || 'daily',
-              pay_amount: post.pay_amount || null,
+              date: (slot.date as string) || post.work_date,
+              start_time: startTime,
+              end_time: endTime,
+              location:
+                (slot.location as string) || post.location || null,
+              pay_type:
+                (slot.pay_type as string) || post.pay_type || 'daily',
+              pay_amount: (slot.pay_amount as number) || post.pay_amount || null,
               description: post.description || null,
               manager_name: post.manager_name || null,
               manager_phone: post.manager_phone || null,
             });
           }
+        } else {
+          personalSchedules.push({
+            user_id: schedule.member_id,
+            title: post.title,
+            date: post.work_date,
+            start_time: post.work_time_start || '00:00',
+            end_time: post.work_time_end || '23:59',
+            location: post.location || null,
+            pay_type: post.pay_type || 'daily',
+            pay_amount: post.pay_amount || null,
+            description: post.description || null,
+            manager_name: post.manager_name || null,
+            manager_phone: post.manager_phone || null,
+          });
         }
+      }
 
-        if (personalSchedules.length > 0) {
-          const { error: insertError } = await supabase
-            .from('personal_schedules')
-            .insert(personalSchedules);
+      if (personalSchedules.length > 0) {
+        const { error: insertError } = await supabase
+          .from('personal_schedules')
+          .insert(personalSchedules);
 
-          if (insertError) {
-            console.error(
-              '[deletePostAction] Failed to migrate schedules',
-              JSON.stringify(insertError)
-            );
-            return {
-              ok: false,
-              message: '스케줄 이전에 실패했습니다. 다시 시도해주세요.',
-            };
-          }
+        if (insertError) {
+          console.error(
+            '[deletePostAction] Failed to migrate schedules',
+            JSON.stringify(insertError)
+          );
+          return {
+            ok: false,
+            message: '스케줄 이전에 실패했습니다. 다시 시도해주세요.',
+          };
         }
+      }
+
+      const acceptedMembers = Array.from(
+        new Set(
+          schedules
+            .filter((s) => s.status === 'accepted')
+            .map((s) => s.member_id)
+            .filter(Boolean),
+        ),
+      );
+      const postTitle = (() => {
+        const first = schedules[0];
+        const p = Array.isArray(first?.posts) ? first?.posts[0] : first?.posts;
+        return p?.title || '삭제된 공고';
+      })();
+      if (acceptedMembers.length > 0) {
+        await createBulkNotificationsAction(
+          acceptedMembers.map((userId) => ({
+            userId,
+            type: 'system',
+            title: '공고가 삭제되었습니다',
+            message: `"${postTitle}" 공고가 삭제되어 더 이상 확인할 수 없습니다.`,
+            link: '/worker/schedule',
+          })),
+        );
       }
     }
 

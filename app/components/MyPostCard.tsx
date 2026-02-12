@@ -32,7 +32,7 @@ import { format, parseISO } from 'date-fns';
 interface MyPostCardProps {
   post: Post;
   onEdit?: (post: Post) => void;
-  onDelete?: (postId: string, deleteWithSchedules: boolean) => void;
+  onDelete?: (postId: string) => void;
   onStatusToggle?: (postId: string, newStatus: Post['status']) => void;
   onRepost?: (post: Post) => void;
 }
@@ -96,9 +96,9 @@ export default function MyPostCard({
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = async (deleteWithSchedules: boolean) => {
+  const handleDeleteConfirm = async () => {
     setIsDeleting(true);
-    await onDelete?.(post.id, deleteWithSchedules);
+    await onDelete?.(post.id);
     setIsDeleting(false);
     setDeleteDialogOpen(false);
   };
@@ -159,6 +159,39 @@ export default function MyPostCard({
     },
   }[post.status];
 
+  const workTypeMeta = {
+    single: { label: '하루', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    range: { label: '기간', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+    multi: { label: '여러 날짜', className: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+  }[(post.workType ?? 'single') as 'single' | 'range' | 'multi'];
+
+  const periodDetail =
+    post.workType === 'range'
+      ? `${post.workDatesCount ?? 1}일 연속`
+      : post.workType === 'multi'
+        ? `${post.workDatesCount ?? 1}회차`
+        : '1일';
+
+  const scheduleDates = Array.from(
+    new Set(
+      (post.workSlots ?? [])
+        .map((slot) => slot.date)
+        .filter((d): d is string => Boolean(d)),
+    ),
+  );
+  const scheduleDatesLabel =
+    scheduleDates.length > 0
+      ? scheduleDates
+          .map((d) => {
+            try {
+              return format(parseISO(d), 'yyyy-MM-dd');
+            } catch {
+              return d;
+            }
+          })
+          .join(', ')
+      : post.date;
+
   return (
     <>
       <Card
@@ -171,6 +204,9 @@ export default function MyPostCard({
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge className={cn('text-xs', statusBadge.className)}>
                   {statusBadge.label}
+                </Badge>
+                <Badge variant="outline" className={cn('text-xs', workTypeMeta.className)}>
+                  {workTypeMeta.label} · {periodDetail}
                 </Badge>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">급구</span>
@@ -204,15 +240,6 @@ export default function MyPostCard({
                   ? `${post.title.slice(0, 24)}...`
                   : post.title}
               </h3>
-              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                <Calendar className="size-4" />
-                <span>
-                  작성일:{' '}
-                  {post.createdAt
-                    ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
-                    : '-'}
-                </span>
-              </div>
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <Users className="size-4 text-muted-foreground" />
                 {post.applicantStats ? (
@@ -242,6 +269,15 @@ export default function MyPostCard({
                     지원 현황: {post.currentApplicants}/{post.recruitCount}명
                   </span>
                 )}
+              </div>
+              <div className="mt-3 pt-2 border-t flex items-center gap-2 text-xs text-muted-foreground">
+                <Calendar className="size-4" />
+                <span>
+                  작성일:{' '}
+                  {post.createdAt
+                    ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
+                    : '-'}
+                </span>
               </div>
             </div>
           </div>
@@ -490,57 +526,81 @@ export default function MyPostCard({
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">날짜:</span>{' '}
-                    <span className="font-medium">{post.date}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">시간:</span>{' '}
-                    <span className="font-medium">{post.time}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">장소:</span>{' '}
-                    <span className="font-medium">{post.location}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">급여:</span>{' '}
+                    <span className="text-muted-foreground">기간 타입:</span>{' '}
                     <span className="font-medium">
-                      {post.salary.toLocaleString()}원
+                      {workTypeMeta.label} ({periodDetail})
                     </span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">모집 인원:</span>{' '}
-                    {post.applicantStats ? (
-                      <div className="inline-flex flex-col gap-1">
-                        <span className="font-medium">
-                          {post.applicantStats.total}명 지원
-                          {post.applicantStats.total > post.recruitCount && (
-                            <span className="text-orange-600 ml-1">
-                              (티오 {post.recruitCount}명 초과)
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex gap-2 text-xs">
-                          <span className="text-yellow-600">
-                            대기 {post.applicantStats.pending}
-                          </span>
-                          <span className="text-green-600">
-                            승인 {post.applicantStats.accepted}
-                          </span>
-                          <span className="text-red-600">
-                            거절 {post.applicantStats.rejected}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
+
+                  {scheduleDatesLabel && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">날짜:</span>{' '}
+                      <span className="font-medium">{scheduleDatesLabel}</span>
+                    </div>
+                  )}
+
+                  {post.time && (
+                    <div>
+                      <span className="text-muted-foreground">시간:</span>{' '}
+                      <span className="font-medium">{post.time}</span>
+                    </div>
+                  )}
+
+                  {post.location && (
+                    <div>
+                      <span className="text-muted-foreground">장소:</span>{' '}
+                      <span className="font-medium">{post.location}</span>
+                    </div>
+                  )}
+
+                  {post.salary > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">급여:</span>{' '}
                       <span className="font-medium">
-                        {post.currentApplicants}/{post.recruitCount}명
+                        {post.salary.toLocaleString()}원
                       </span>
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">지급일:</span>{' '}
-                    <span className="font-medium">{post.paymentDate}</span>
-                  </div>
+                    </div>
+                  )}
+
+                  {post.recruitCount > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">모집 인원:</span>{' '}
+                      {post.applicantStats ? (
+                        <div className="inline-flex flex-col gap-1">
+                          <span className="font-medium">
+                            {post.applicantStats.total}명 지원
+                            {post.applicantStats.total > post.recruitCount && (
+                              <span className="text-orange-600 ml-1">
+                                (티오 {post.recruitCount}명 초과)
+                              </span>
+                            )}
+                          </span>
+                          <div className="flex gap-2 text-xs">
+                            <span className="text-yellow-600">
+                              대기 {post.applicantStats.pending}
+                            </span>
+                            <span className="text-green-600">
+                              승인 {post.applicantStats.accepted}
+                            </span>
+                            <span className="text-red-600">
+                              거절 {post.applicantStats.rejected}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-medium">
+                          {post.currentApplicants}/{post.recruitCount}명
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {post.paymentDate && (
+                    <div>
+                      <span className="text-muted-foreground">지급일:</span>{' '}
+                      <span className="font-medium">{post.paymentDate}</span>
+                    </div>
+                  )}
                 </div>
 
                 {post.preparation && (
@@ -571,23 +631,35 @@ export default function MyPostCard({
                   </div>
                 )}
 
-                <div>
-                  <span className="text-muted-foreground">키워드:</span>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {post.keywords.map((keyword) => (
-                      <Badge key={keyword} variant="outline">
-                        {keyword}
-                      </Badge>
-                    ))}
+                {post.keywords.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">키워드:</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {post.keywords.map((keyword) => (
+                        <Badge key={keyword} variant="outline">
+                          {keyword}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <span className="text-muted-foreground">담당자:</span>{' '}
-                  <span className="font-medium">{post.managerInfo.name}</span>
-                  <span className="text-muted-foreground ml-4">연락처:</span>{' '}
-                  <span className="font-medium">{post.managerInfo.phone}</span>
-                </div>
+                {(post.managerInfo.name || post.managerInfo.phone) && (
+                  <div>
+                    {post.managerInfo.name && (
+                      <>
+                        <span className="text-muted-foreground">담당자:</span>{' '}
+                        <span className="font-medium">{post.managerInfo.name}</span>
+                      </>
+                    )}
+                    {post.managerInfo.phone && (
+                      <>
+                        <span className="text-muted-foreground ml-4">연락처:</span>{' '}
+                        <span className="font-medium">{post.managerInfo.phone}</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -624,25 +696,17 @@ export default function MyPostCard({
           <AlertDialogHeader>
             <AlertDialogTitle>공고 삭제</AlertDialogTitle>
             <AlertDialogDescription>
-              스케줄과 함께 삭제하면 지원자의 승인된 스케줄도 모두 삭제됩니다.
-              공고만 삭제하면 승인된 스케줄은 지원자의 개인 스케줄로 보존됩니다.
+              공고를 삭제하면 해당 공고는 목록에서 제거됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
             <Button
-              variant="outline"
-              onClick={() => handleDeleteConfirm(false)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? '삭제 중...' : '공고만 삭제'}
-            </Button>
-            <Button
               variant="destructive"
-              onClick={() => handleDeleteConfirm(true)}
+              onClick={handleDeleteConfirm}
               disabled={isDeleting}
             >
-              {isDeleting ? '삭제 중...' : '스케줄과 함께 삭제'}
+              {isDeleting ? '삭제 중...' : '공고 삭제'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
