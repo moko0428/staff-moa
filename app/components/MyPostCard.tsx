@@ -56,6 +56,23 @@ export default function MyPostCard({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const formatKstDateTime = (input: string | Date) => {
+    const date = typeof input === 'string' ? parseISO(input) : input;
+    if (Number.isNaN(date.getTime())) return '-';
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value ?? '';
+    return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
+  };
+
   // post 상태가 변경되면 로컬 상태 업데이트
   useEffect(() => {
     setIsUrgent(post.status === 'urgent');
@@ -274,9 +291,7 @@ export default function MyPostCard({
                 <Calendar className="size-4" />
                 <span>
                   작성일:{' '}
-                  {post.createdAt
-                    ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
-                    : '-'}
+                  {post.createdAt ? formatKstDateTime(post.createdAt) : '-'}
                 </span>
               </div>
             </div>
@@ -513,9 +528,7 @@ export default function MyPostCard({
                   </Badge>
                   <span className="text-sm text-muted-foreground">
                     작성일:{' '}
-                    {post.createdAt
-                      ? format(parseISO(post.createdAt), 'yyyy-MM-dd HH:mm')
-                      : '-'}
+                    {post.createdAt ? formatKstDateTime(post.createdAt) : '-'}
                   </span>
                 </div>
 

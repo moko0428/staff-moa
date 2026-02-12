@@ -151,6 +151,23 @@ export default function PostDetailPage({
     companyVerifyStatus?: string | null;
   } | null>(null);
 
+  const formatKstDateTime = (input: string | Date) => {
+    const date = typeof input === 'string' ? parseISO(input) : input;
+    if (Number.isNaN(date.getTime())) return '-';
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value ?? '';
+    return `${get('year')}.${get('month')}.${get('day')} ${get('hour')}:${get('minute')}`;
+  };
+
   // 로그인 상태가 확인되면(로그인 완료) 로그인 유도 모달은 자동 닫기
   useEffect(() => {
     if (currentUserId && loginPromptOpen) {
@@ -630,10 +647,7 @@ export default function PostDetailPage({
             </button>
             <p className="ml-auto text-xs text-muted-foreground">
               작성일자:{' '}
-              {post.created_at &&
-                format(parseISO(post.created_at), 'yyyy.MM.dd HH:mm', {
-                  locale: ko,
-                })}
+              {post.created_at ? formatKstDateTime(post.created_at) : '-'}
             </p>
           </div>
         </CardHeader>

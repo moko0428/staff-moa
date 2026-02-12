@@ -19,10 +19,11 @@ import {
   Briefcase,
   AlertCircle,
   Info,
+  Square,
+  SquareCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { parseISO } from 'date-fns';
 import Link from 'next/link';
 import {
   getNotificationsAction,
@@ -71,6 +72,8 @@ const notificationTypeConfig = {
 export default function NotificationPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -125,7 +128,84 @@ export default function NotificationPage() {
     }
   };
 
+  const handleToggleSelectMode = () => {
+    setIsSelectMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setSelectedIds(notifications.map((n) => n.notification_id));
+      } else {
+        setSelectedIds([]);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelected = (notificationId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(notificationId)
+        ? prev.filter((id) => id !== notificationId)
+        : [...prev, notificationId]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+
+    const targets = [...selectedIds];
+    const results = await Promise.all(
+      targets.map((id) => deleteNotificationAction(id))
+    );
+    const deletedIds = targets.filter((_, idx) => results[idx]?.ok);
+
+    if (deletedIds.length > 0) {
+      setNotifications((prev) =>
+        prev.filter((n) => !deletedIds.includes(n.notification_id))
+      );
+      setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+      dispatchNotificationUpdate();
+    }
+  };
+
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const formatKoreanDateTime = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === type)?.value ?? '';
+
+    return `${get('year')}년 ${get('month')}월 ${get('day')}일 ${get('hour')}:${get('minute')}`;
+  };
+
+  const formatNotificationTime = (createdAt: string) => {
+    const created = parseISO(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+
+    if (Number.isNaN(created.getTime()) || diffMs < 0) {
+      return formatKoreanDateTime(created);
+    }
+
+    const minuteMs = 60 * 1000;
+    const hourMs = 60 * minuteMs;
+    const dayMs = 24 * hourMs;
+    const monthMs = 30 * dayMs;
+
+    if (diffMs < minuteMs) return '방금 전';
+    if (diffMs < hourMs) return `${Math.floor(diffMs / minuteMs)}분 전`;
+    if (diffMs < dayMs) return `${Math.floor(diffMs / hourMs)}시간 전`;
+    if (diffMs < monthMs) return `${Math.floor(diffMs / dayMs)}일 전`;
+
+    return formatKoreanDateTime(created);
+  };
 
   if (isLoading) {
     return (
@@ -150,22 +230,49 @@ export default function NotificationPage() {
                 <Bell className="size-5" />
                 알림 목록
                 {unreadCount > 0 && (
-                  <Badge className="bg-red-500 text-white">
-                    {unreadCount}
-                  </Badge>
+                  <Badge className="bg-red-500 text-white">{unreadCount}</Badge>
                 )}
               </CardTitle>
-              {unreadCount > 0 && (
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleMarkAllAsRead}
+                    className="flex items-center gap-1"
+                  >
+                    <CheckCheck className="size-4" />
+                    모두 읽음
+                  </Button>
+                )}
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={handleMarkAllAsRead}
+                  variant={isSelectMode ? 'default' : 'outline'}
+                  onClick={handleToggleSelectMode}
                   className="flex items-center gap-1"
                 >
-                  <CheckCheck className="size-4" />
-                  모두 읽음
+                  {isSelectMode ? (
+                    <SquareCheck className="size-4" />
+                  ) : (
+                    <>
+                      <Square className="size-4" />
+                      선택
+                    </>
+                  )}
                 </Button>
-              )}
+                {isSelectMode && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleDeleteSelected}
+                    disabled={selectedIds.length === 0}
+                    className="flex items-center gap-1"
+                  >
+                    <Trash2 className="size-4" />
+                    {selectedIds.length}
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="max-h-[calc(100vh-280px)] overflow-y-auto">
@@ -191,6 +298,19 @@ export default function NotificationPage() {
                       )}
                     >
                       <div className="flex items-start gap-3">
+                        {isSelectMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(
+                              notification.notification_id
+                            )}
+                            onChange={() =>
+                              handleToggleSelected(notification.notification_id)
+                            }
+                            className="mt-1 size-4"
+                            aria-label="알림 선택"
+                          />
+                        )}
                         <div
                           className={cn(
                             'p-2 rounded-full',
@@ -200,7 +320,9 @@ export default function NotificationPage() {
                           <IconComponent
                             className={cn(
                               'size-4',
-                              notification.is_read ? 'text-muted-foreground' : config.iconClassName
+                              notification.is_read
+                                ? 'text-muted-foreground'
+                                : config.iconClassName
                             )}
                           />
                         </div>
@@ -226,7 +348,8 @@ export default function NotificationPage() {
                               <h3
                                 className={cn(
                                   'font-semibold text-sm',
-                                  notification.is_read && 'text-muted-foreground'
+                                  notification.is_read &&
+                                    'text-muted-foreground'
                                 )}
                               >
                                 {notification.title}
@@ -242,11 +365,7 @@ export default function NotificationPage() {
                                 {notification.message}
                               </p>
                               <p className="text-xs text-muted-foreground mt-2">
-                                {format(
-                                  parseISO(notification.created_at),
-                                  'yyyy년 MM월 dd일 HH:mm',
-                                  { locale: ko }
-                                )}
+                                {formatNotificationTime(notification.created_at)}
                               </p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
@@ -257,7 +376,9 @@ export default function NotificationPage() {
                                   asChild
                                   onClick={() => {
                                     if (!notification.is_read) {
-                                      handleMarkAsRead(notification.notification_id);
+                                      handleMarkAsRead(
+                                        notification.notification_id
+                                      );
                                     }
                                   }}
                                 >
@@ -269,7 +390,9 @@ export default function NotificationPage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() =>
-                                    handleMarkAsRead(notification.notification_id)
+                                    handleMarkAsRead(
+                                      notification.notification_id
+                                    )
                                   }
                                   title="읽음 처리"
                                 >
