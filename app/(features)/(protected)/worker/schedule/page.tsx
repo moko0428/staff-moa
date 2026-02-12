@@ -993,14 +993,14 @@ export default function WorkerSchedulePage() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-100px)] overflow-hidden">
+    <div className="relative h-[calc(100vh-100px)] overflow-hidden overscroll-none">
       {/* 급여 계산 섹션 */}
       <EarningsSection earnings={earningsData} />
 
       {/* 달력 영역 (풀-블리드) */}
       <div
         ref={calendarAreaRef}
-        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-pan-y"
+        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-none overscroll-none"
         onClickCapture={(e) => {
           if (Date.now() < swipeStateRef.current.blockClickUntil) {
             e.preventDefault();

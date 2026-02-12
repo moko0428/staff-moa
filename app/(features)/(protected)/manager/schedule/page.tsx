@@ -191,6 +191,12 @@ export default function SchedulePage() {
   const [bottomSheetHeightPx, setBottomSheetHeightPx] = useState<number>(
     typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.75) : 0
   );
+  const [userDraggedHeight, setUserDraggedHeight] = useState<number | null>(null);
+  const [bottomSheetMinHeight, setBottomSheetMinHeight] = useState(200);
+  const [bottomSheetMaxHeight, setBottomSheetMaxHeight] = useState(
+    typeof window !== 'undefined' ? window.innerHeight - 100 : 600
+  );
+  const headerRowRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedSchedule, setSelectedSchedule] =
     useState<ScheduleWithPost | null>(null);
   const [selectedDetailSchedule, setSelectedDetailSchedule] =
@@ -598,11 +604,24 @@ export default function SchedulePage() {
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight;
 
-    // 실제 달력 영역 하단 기준으로 바텀시트 높이 계산
-    // 월간 달력: 달력이 크므로 바텀시트 높이가 작아짐
-    // 주간 달력: 달력이 작으므로 바텀시트가 위로 올라감 (높이가 커짐)
-    const next = Math.max(240, Math.floor(vh - rect.bottom));
-    setBottomSheetHeightPx(next);
+    // maxHeight: 오늘 버튼 영역 하단까지 (헤더 row의 bottom)
+    const headerEl = headerRowRef.current;
+    if (headerEl) {
+      const headerRect = headerEl.getBoundingClientRect();
+      setBottomSheetMaxHeight(Math.floor(vh - headerRect.bottom));
+    }
+
+    // minHeight: 6줄 달력이 보일 정도 (각 줄 약 40px 버튼 + 8px gap = ~288px, + 요일 레이블 + 헤더)
+    // 달력 영역 top + 6줄 달력 높이를 빼서 계산
+    const calendarTop = rect.top;
+    // 요일 헤더 ~24px + 6줄 × 48px(버튼+gap) = ~312px
+    const sixRowCalendarHeight = 24 + 6 * 48;
+    const minH = Math.max(200, Math.floor(vh - calendarTop - sixRowCalendarHeight));
+    setBottomSheetMinHeight(minH);
+
+    // 자동 높이 (사용자가 드래그하지 않았을 때만 적용)
+    const autoHeight = Math.max(240, Math.floor(vh - rect.bottom));
+    setBottomSheetHeightPx(autoHeight);
   }, []);
 
   useEffect(() => {
@@ -628,6 +647,7 @@ export default function SchedulePage() {
 
   // 월간/주간 전환 시 CSS 트랜지션(300ms) 완료 후 바텀시트 높이 재계산
   useEffect(() => {
+    setUserDraggedHeight(null); // 달력 모드 전환 시 드래그 높이 초기화
     const t = window.setTimeout(updateBottomSheetHeight, 320);
     return () => window.clearTimeout(t);
   }, [monthCalendarOpen, updateBottomSheetHeight]);
@@ -793,10 +813,10 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-100px)] overflow-hidden">
+    <div className="relative h-[calc(100vh-100px)] overflow-hidden overscroll-none">
       <div
         ref={calendarAreaRef}
-        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-pan-y"
+        className="pb-2 relative left-1/2 w-[100vw] -translate-x-1/2 px-4 select-none touch-none overscroll-none"
         onClickCapture={(e) => {
           if (Date.now() < swipeStateRef.current.blockClickUntil) {
             e.preventDefault();
@@ -818,9 +838,7 @@ export default function SchedulePage() {
             swipeStateRef.current.isSwiping = true;
             if (!swipeStateRef.current.hasPointerCapture) {
               try {
-                (e.currentTarget as HTMLElement).setPointerCapture(
-                  e.pointerId
-                );
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                 swipeStateRef.current.hasPointerCapture = true;
               } catch {
                 // ignore
@@ -857,7 +875,7 @@ export default function SchedulePage() {
         }}
       >
         {/* 상단: 이번주 + 오늘/추가 + 뷰 토글 */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+        <div ref={headerRowRef} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" size="sm" onClick={goToday}>
               오늘
@@ -873,9 +891,7 @@ export default function SchedulePage() {
                 title="월간(1달) 달력 보기"
                 className="px-2"
               >
-                <span className="text-sm font-medium">
-                  스케줄 관리 ({headerMonthLabel})
-                </span>
+                <span className="text-sm font-medium">{headerMonthLabel}</span>
                 {monthCalendarOpen ? (
                   <ChevronUp className="size-4" />
                 ) : (
@@ -1044,7 +1060,12 @@ export default function SchedulePage() {
       </div>
 
       {viewType === 'card' ? (
-        <BottomSheet heightPx={bottomSheetHeightPx}>
+        <BottomSheet
+          heightPx={userDraggedHeight ?? bottomSheetHeightPx}
+          minHeightPx={bottomSheetMinHeight}
+          maxHeightPx={bottomSheetMaxHeight}
+          onHeightChange={(h) => setUserDraggedHeight(h)}
+        >
           <CardView
             categorizedSchedules={filteredCategorizedSchedules}
             onScheduleClick={handleScheduleClick}
