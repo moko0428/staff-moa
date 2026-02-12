@@ -328,7 +328,7 @@ export async function getAcceptedSchedulesAction(): Promise<
   }
 }
 
-// 경력 불러오기 - accepted 스케줄을 profiles.experiences에 추가
+// 경력 불러오기 - 승인된 스케줄 + 개인 스케줄을 profiles.experiences에 추가
 export async function importExperiencesAction(): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -338,15 +338,11 @@ export async function importExperiencesAction(): Promise<ActionResult> {
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    // 1. 승인된 스케줄 가져오기
-    const result = await getAcceptedSchedulesAction();
-    if (!result.ok || !result.data) {
-      return { ok: false, message: '승인된 스케줄을 불러올 수 없습니다.' };
-    }
-
-    if (result.data.length === 0) {
-      return { ok: false, message: '불러올 경력이 없습니다.' };
-    }
+    // 1. 승인된 스케줄 + 개인 스케줄 동시 조회
+    const [acceptedResult, personalResult] = await Promise.all([
+      getAcceptedSchedulesAction(),
+      getPersonalSchedulesAction(),
+    ]);
 
     // 2. 현재 experiences 가져오기
     const { data: profile } = await supabase
@@ -355,7 +351,6 @@ export async function importExperiencesAction(): Promise<ActionResult> {
       .eq('user_id', userData.user.id)
       .single();
 
-    // 기존 experiences를 ExperienceItem 배열로 타입 캐스팅
     const rawExperiences = profile?.experiences;
     const existingExperiences: ExperienceItem[] = Array.isArray(rawExperiences)
       ? rawExperiences.filter(
@@ -364,21 +359,24 @@ export async function importExperiencesAction(): Promise<ActionResult> {
         )
       : [];
 
-    const existingPostIds = new Set(
+    // 중복 방지용 기존 ID 세트
+    const existingIds = new Set(
       existingExperiences
-        .filter((exp) => exp.postId !== undefined)
-        .map((exp) => exp.postId as number)
+        .filter((exp) => exp.id)
+        .map((exp) => exp.id as string)
     );
 
-    // 3. 새로운 경력 데이터 생성
-    const schedules = result.data;
-    const newExperiences = schedules
-      .filter((schedule) => {
+    const newExperiences: ExperienceItem[] = [];
+
+    // 3. 승인된 공고 스케줄 → 경력 변환
+    if (acceptedResult.ok && acceptedResult.data) {
+      for (const schedule of acceptedResult.data) {
         const post = schedule.posts;
-        return post && !existingPostIds.has(post.post_id);
-      })
-      .map((schedule) => {
-        const post = schedule.posts!;
+        if (!post) continue;
+
+        const expId = `imported-${post.post_id}`;
+        if (existingIds.has(expId)) continue;
+
         const rawWorkSlots = post.work_slots;
         const workSlots: WorkSlot[] = Array.isArray(rawWorkSlots)
           ? rawWorkSlots.filter(
@@ -389,7 +387,6 @@ export async function importExperiencesAction(): Promise<ActionResult> {
             )
           : [];
 
-        // work_slots에서 첫 번째와 마지막 날짜 추출
         const dates =
           workSlots.length > 0
             ? workSlots
@@ -399,23 +396,51 @@ export async function importExperiencesAction(): Promise<ActionResult> {
         const startDate = dates[0] || post.work_date;
         const endDate = dates[dates.length - 1] || post.work_date;
 
-        return {
-          id: `imported-${post.post_id}`,
-          company: post.manager_name,
-          position: post.title,
-          startDate,
-          endDate,
-          description: post.description,
+        // 날짜 표시 문자열
+        const dateStr =
+          startDate === endDate ? startDate : `${startDate} ~ ${endDate}`;
+
+        newExperiences.push({
+          id: expId,
+          title: post.title,
+          date: dateStr,
+          location: post.location || '',
           source: 'imported',
           postId: post.post_id,
-        } as ExperienceItem;
-      });
-
-    if (newExperiences.length === 0) {
-      return { ok: false, message: '이미 모든 경력을 불러왔습니다.' };
+        });
+      }
     }
 
-    // 4. experiences 업데이트
+    // 4. 개인 스케줄 → 경력 변환
+    if (personalResult.ok && personalResult.data) {
+      for (const ps of personalResult.data) {
+        const psId = `personal-${ps.personal_schedule_id as string}`;
+        if (existingIds.has(psId)) continue;
+
+        newExperiences.push({
+          id: psId,
+          title: (ps.title as string) || '개인 일정',
+          date: ps.date as string,
+          location: (ps.location as string) || '',
+          source: 'personal',
+        });
+      }
+    }
+
+    if (newExperiences.length === 0) {
+      const hasAny =
+        (acceptedResult.data?.length ?? 0) +
+        (personalResult.data?.length ?? 0);
+      return {
+        ok: false,
+        message:
+          hasAny > 0
+            ? '이미 모든 경력을 불러왔습니다.'
+            : '불러올 경력이 없습니다.',
+      };
+    }
+
+    // 5. experiences 업데이트
     const updatedExperiences = [...existingExperiences, ...newExperiences];
 
     const { error } = await supabase

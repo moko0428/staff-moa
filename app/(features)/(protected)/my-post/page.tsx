@@ -121,9 +121,8 @@ export default function MyPostPage() {
     return filtered;
   }, [posts, searchTerm, sortOrder]);
 
-  const handleDelete = async (postId: string) => {
-    if (!confirm('정말 이 공고를 삭제하시겠습니까?')) return;
-    const result = await deletePostAction(postId);
+  const handleDelete = async (postId: string, deleteWithSchedules: boolean) => {
+    const result = await deletePostAction(postId, deleteWithSchedules);
     if (result.ok) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       toast.success('삭제되었습니다.');

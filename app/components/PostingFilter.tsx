@@ -67,7 +67,8 @@ export default function PostingFilter({
 
       // 아직 좌/우로 스크롤 가능한 경우에만 페이지 스크롤을 막고 가로 이동
       const canScrollHorizontally =
-        (delta > 0 && el.scrollLeft < maxLeft) || (delta < 0 && el.scrollLeft > 0);
+        (delta > 0 && el.scrollLeft < maxLeft) ||
+        (delta < 0 && el.scrollLeft > 0);
 
       if (!canScrollHorizontally) return;
 
@@ -215,18 +216,20 @@ export default function PostingFilter({
       >
         <div className="flex flex-nowrap gap-2 p-2 w-full scroll-none">
           {/* 전체 버튼 - 맨 왼쪽 */}
-          <button
-            type="button"
-            onClick={handleAllClick}
-            className={
-              'rounded-md border px-3 py-1 text-xs shrink-0 ' +
-              (isAllSelected
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-muted text-foreground border-border')
-            }
-          >
-            전체
-          </button>
+          {allCategories.length > 0 && (
+            <button
+              type="button"
+              onClick={handleAllClick}
+              className={
+                'rounded-md border px-3 py-1 text-xs shrink-0 ' +
+                (isAllSelected
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-muted text-foreground border-border')
+              }
+            >
+              전체
+            </button>
+          )}
 
           {/* 키워드 버튼들 - 모든 키워드 표시 */}
           {allCategories.map((c) => {
