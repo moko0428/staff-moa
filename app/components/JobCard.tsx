@@ -269,7 +269,6 @@ export function JobCard({ item }: JobCardProps) {
   };
 
   const handleCardClick = () => {
-    if (item.status === '모집완료') return;
     router.push(`/post/${item.id}`);
   };
 
@@ -368,11 +367,10 @@ export function JobCard({ item }: JobCardProps) {
 
   return (
     <Card
-      aria-disabled={item.status === '모집완료'}
       className={`${cn(
         statusClassName,
         enabledHoverClasses,
-        item.status === '모집완료' ? 'pointer-events-none' : 'cursor-pointer'
+        'cursor-pointer'
       )} relative overflow-hidden flex flex-col gap-2 rounded-xl border`}
       onClick={handleCardClick}
     >
