@@ -37,6 +37,7 @@ import {
   toggleBlacklistAction,
   updateWorkerRatingAction,
   updateWorkerNotesAction,
+  getManagedWorkersAction,
 } from './actions';
 
 import { Textarea } from '@/app/components/ui/textarea';
@@ -347,6 +348,8 @@ export default function WorkerManagementPage() {
   );
   const [selectedApplication, setSelectedApplication] =
     useState<ApplicationWithPost | null>(null);
+  const [selectedWorkerProfile, setSelectedWorkerProfile] =
+    useState<GroupedWorker | null>(null);
   const [applications, setApplications] = useState<ApplicationWithPost[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
 
@@ -355,45 +358,99 @@ export default function WorkerManagementPage() {
     const fetchApplicants = async () => {
       setIsLoading(true);
       try {
-        const result = await getApplicantsAction();
-        if (result.ok && result.data) {
-          const convertedData = result.data.map((item) =>
-            convertToApplicationWithPost(item as unknown as ApplicantData),
-          );
-          setApplications(convertedData);
+        // 지원자 목록과 즐겨찾기/블랙리스트 워커를 병렬로 가져오기
+        const [applicantsResult, managedResult] = await Promise.all([
+          getApplicantsAction(),
+          getManagedWorkersAction(),
+        ]);
 
-          // 각 워커의 관리 데이터 가져오기
-          const managementDataPromises = convertedData.map(async (app) => {
-            const mgmtResult = await getWorkerManagementAction(app.applicantId);
-            return {
-              workerId: app.applicantId,
-              data: mgmtResult.ok ? mgmtResult.data : {},
-            };
-          });
+        const convertedData = applicantsResult.ok && applicantsResult.data
+          ? applicantsResult.data.map((item) =>
+              convertToApplicationWithPost(item as unknown as ApplicantData),
+            )
+          : [];
 
-          const managementResults = await Promise.all(managementDataPromises);
-          const managementMap: Record<
-            string,
-            ApplicationWithPost['workerManagement']
-          > = {};
+        // 각 워커의 관리 데이터 가져오기
+        const managementDataPromises = convertedData.map(async (app) => {
+          const mgmtResult = await getWorkerManagementAction(app.applicantId);
+          return {
+            workerId: app.applicantId,
+            data: mgmtResult.ok ? mgmtResult.data : {},
+          };
+        });
 
-          managementResults.forEach((result) => {
-            const data = result.data as {
-              rating?: number | null;
-              notes?: string | null;
-              is_favorite?: boolean;
-              is_blacklisted?: boolean;
-            };
-            managementMap[result.workerId] = data;
-          });
+        const managementResults = await Promise.all(managementDataPromises);
+        const managementMap: Record<
+          string,
+          ApplicationWithPost['workerManagement']
+        > = {};
 
-          // applications에 workerManagement 데이터 결합
-          const applicationsWithManagement = convertedData.map((app) => ({
-            ...app,
-            workerManagement: managementMap[app.applicantId],
+        managementResults.forEach((result) => {
+          const data = result.data as {
+            rating?: number | null;
+            notes?: string | null;
+            is_favorite?: boolean;
+            is_blacklisted?: boolean;
+          };
+          managementMap[result.workerId] = data;
+        });
+
+        // applications에 workerManagement 데이터 결합
+        const applicationsWithManagement = convertedData.map((app) => ({
+          ...app,
+          workerManagement: managementMap[app.applicantId],
+        }));
+
+        // 즐겨찾기/블랙리스트 워커 중 지원자 목록에 없는 워커 추가
+        const existingWorkerIds = new Set(convertedData.map((app) => app.applicantId));
+        const managedWorkers = managedResult.ok && managedResult.data ? managedResult.data : [];
+
+        const calculateAge = (birthDate: string | null): number | null => {
+          if (!birthDate) return null;
+          const today = new Date();
+          const birth = new Date(birthDate);
+          let age = today.getFullYear() - birth.getFullYear();
+          const monthDiff = today.getMonth() - birth.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            age--;
+          }
+          return age;
+        };
+
+        const extraApplications: ApplicationWithPost[] = managedWorkers
+          .filter((mw) => !existingWorkerIds.has(mw.worker_id))
+          .map((mw) => ({
+            id: `managed-${mw.worker_id}`,
+            postId: 0,
+            applicantId: mw.worker_id,
+            applicantName: mw.profile?.name || '알 수 없음',
+            postTitle: '',
+            postDate: '',
+            postLocation: '',
+            appliedAt: '',
+            status: 'accepted' as ApplicationStatus,
+            applicantPhoto: mw.profile?.avatar || undefined,
+            applicantAttendanceScore: mw.profile?.attendance_score,
+            applicantKakaoId: mw.profile?.kakao_id || undefined,
+            applicantGender: mw.profile?.gender || undefined,
+            applicantAge: calculateAge(mw.profile?.birth_date || null) || undefined,
+            applicantInfo: mw.profile ? {
+              name: mw.profile.name,
+              email: mw.profile.email,
+              phone: mw.profile.phone,
+              attendanceScore: mw.profile.attendance_score,
+              gender: mw.profile.gender,
+              kakaoId: mw.profile.kakao_id,
+            } : undefined,
+            workerManagement: {
+              rating: mw.rating,
+              notes: mw.notes,
+              is_favorite: mw.is_favorite,
+              is_blacklisted: mw.is_blacklisted,
+            },
           }));
-          setApplications(applicationsWithManagement);
-        }
+
+        setApplications([...applicationsWithManagement, ...extraApplications]);
       } catch (error) {
         console.error('Failed to fetch applicants:', error);
         setApplications([]);
@@ -787,10 +844,36 @@ export default function WorkerManagementPage() {
                   if (app) setSelectedApplication(app);
                 }}
                 onStatusChange={handleStatusChange}
+                onProfileClick={(w) => setSelectedWorkerProfile(w)}
               />
             ))
           )}
         </div>
+      )}
+
+      {/* 워커 프로필 모달 */}
+      {selectedWorkerProfile && (
+        <WorkerProfileModal
+          worker={selectedWorkerProfile}
+          onClose={() => setSelectedWorkerProfile(null)}
+          onNotesChange={(workerId, notes) => {
+            setApplications((prev) =>
+              prev.map((app) =>
+                app.applicantId === workerId
+                  ? {
+                      ...app,
+                      workerManagement: { ...app.workerManagement, notes },
+                    }
+                  : app,
+              ),
+            );
+            setSelectedWorkerProfile((prev) =>
+              prev && prev.applicantId === workerId
+                ? { ...prev, workerManagement: { ...prev.workerManagement, notes } }
+                : prev,
+            );
+          }}
+        />
       )}
 
       {/* 지원자 상세 모달 */}
@@ -1697,6 +1780,7 @@ interface GroupedWorkerCardProps {
   onToggleBlacklist: (applicantId: string) => void;
   onScheduleClick: (scheduleId: string) => void;
   onStatusChange: (scheduleId: string, newStatus: ApplicationStatus) => void;
+  onProfileClick: (worker: GroupedWorker) => void;
 }
 
 function GroupedWorkerCard({
@@ -1705,6 +1789,7 @@ function GroupedWorkerCard({
   onToggleBlacklist,
   onScheduleClick,
   onStatusChange,
+  onProfileClick,
 }: GroupedWorkerCardProps) {
   const getStatusBadge = (status: ApplicationStatus) => {
     const badges = {
@@ -1745,7 +1830,10 @@ function GroupedWorkerCard({
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={() => onProfileClick(worker)}
+    >
       <CardContent className="p-4">
         {/* 헤더: 워커 정보 */}
         <div className="flex items-start justify-between gap-3 mb-4">
@@ -1825,6 +1913,8 @@ function GroupedWorkerCard({
 
         {/* 함께한 스케줄 목록 */}
         <div className="border-t pt-3">
+          {worker.schedules.length > 0 && worker.schedules[0].postId !== 0 ? (
+          <>
           <p className="text-sm font-medium mb-2 flex items-center gap-1">
             <Calendar className="size-4" />
             지원 내역 ({worker.schedules.length}건)
@@ -1839,7 +1929,10 @@ function GroupedWorkerCard({
                   className="p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 >
                   <div
-                    onClick={() => onScheduleClick(schedule.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onScheduleClick(schedule.id);
+                    }}
                     className="cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1961,8 +2054,129 @@ function GroupedWorkerCard({
               );
             })}
           </div>
+          </>
+          ) : (
+            <p className="text-sm text-muted-foreground">지원 내역이 없습니다.</p>
+          )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// 워커 프로필 모달
+interface WorkerProfileModalProps {
+  worker: GroupedWorker;
+  onClose: () => void;
+  onNotesChange: (workerId: string, notes: string) => void;
+}
+
+function WorkerProfileModal({
+  worker,
+  onClose,
+  onNotesChange,
+}: WorkerProfileModalProps) {
+  const [notes, setNotes] = useState(worker.workerManagement?.notes || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const info = worker.applicantInfo;
+
+  const handleSaveNotes = async () => {
+    setIsSaving(true);
+    try {
+      const result = await updateWorkerNotesAction(worker.applicantId, notes);
+      if (result.ok) {
+        onNotesChange(worker.applicantId, notes);
+        toast.success('메모가 저장되었습니다.');
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('메모 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-center">워커 프로필</DialogTitle>
+          <DialogDescription />
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-4 py-2">
+          <Avatar className="w-20 h-20">
+            <AvatarImage
+              src={worker.applicantPhoto}
+              alt={worker.applicantName}
+            />
+            <AvatarFallback className="text-2xl bg-primary/10 text-primary font-semibold">
+              {worker.applicantName.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="text-center">
+            <h3 className="text-xl font-semibold">{worker.applicantName}</h3>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mt-1">
+              {worker.applicantAge && <span>{worker.applicantAge}세</span>}
+              {worker.applicantGender && <span>· {worker.applicantGender}</span>}
+            </div>
+          </div>
+
+          {/* 근태 점수 */}
+          <Badge variant="secondary" className="text-xs">
+            근태 점수: {worker.applicantAttendanceScore ?? 50}점
+          </Badge>
+
+          {/* 기본 정보 */}
+          <div className="w-full space-y-2 p-4 bg-muted rounded-lg">
+            {info?.phone && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">전화번호</span>
+                <span className="font-medium">{info.phone}</span>
+              </div>
+            )}
+            {info?.kakaoId && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">카카오톡</span>
+                <span className="font-medium">{info.kakaoId}</span>
+              </div>
+            )}
+            {info?.email && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">이메일</span>
+                <span className="font-medium">{info.email}</span>
+              </div>
+            )}
+            {info?.mbti && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">MBTI</span>
+                <span className="font-medium">{info.mbti}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 메모 */}
+          <div className="w-full space-y-2">
+            <Label className="text-sm font-medium">메모</Label>
+            <Textarea
+              placeholder="이 워커에 대한 메모를 작성하세요..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={4}
+            />
+            <Button
+              size="sm"
+              onClick={handleSaveNotes}
+              disabled={isSaving}
+              className="w-full"
+            >
+              {isSaving ? '저장 중...' : '메모 저장'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -683,3 +683,85 @@ export async function updateWorkerNotesAction(
     return { ok: false, message: '메모 저장 중 오류가 발생했습니다.' };
   }
 }
+
+// 즐겨찾기 또는 블랙리스트에 등록된 워커 목록 (프로필 포함)
+export async function getManagedWorkersAction(): Promise<
+  ActionResult<
+    Array<{
+      worker_id: string;
+      is_favorite: boolean;
+      is_blacklisted: boolean;
+      rating: number | null;
+      notes: string | null;
+      profile: {
+        name: string;
+        email: string;
+        phone: string | null;
+        avatar: string | null;
+        attendance_score: number;
+        birth_date: string | null;
+        gender: string | null;
+        kakao_id: string | null;
+      } | null;
+    }>
+  >
+> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: [] };
+    }
+
+    const { data, error } = await supabase
+      .from('manager_worker_management')
+      .select('worker_id, is_favorite, is_blacklisted, rating, notes')
+      .eq('manager_id', userData.user.id)
+      .or('is_favorite.eq.true,is_blacklisted.eq.true');
+
+    if (error) {
+      console.error('[getManagedWorkersAction] Select error', error);
+      return { ok: false, message: '관리 워커 목록을 불러오는데 실패했습니다.', data: [] };
+    }
+
+    if (!data || data.length === 0) {
+      return { ok: true, message: '', data: [] };
+    }
+
+    // 프로필 조회
+    const workerIds = data.map((d) => d.worker_id as string);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, email, phone, avatar, attendance_score, birth_date, gender, kakao_id')
+      .in('user_id', workerIds);
+
+    const profileMap = new Map(
+      (profiles || []).map((p) => [p.user_id, p])
+    );
+
+    return {
+      ok: true,
+      message: '',
+      data: data.map((d) => ({
+        worker_id: d.worker_id as string,
+        is_favorite: d.is_favorite as boolean,
+        is_blacklisted: d.is_blacklisted as boolean,
+        rating: d.rating as number | null,
+        notes: d.notes as string | null,
+        profile: profileMap.get(d.worker_id as string) as {
+          name: string;
+          email: string;
+          phone: string | null;
+          avatar: string | null;
+          attendance_score: number;
+          birth_date: string | null;
+          gender: string | null;
+          kakao_id: string | null;
+        } | null,
+      })),
+    };
+  } catch (err) {
+    console.error('[getManagedWorkersAction] Unexpected error', err);
+    return { ok: false, message: '관리 워커 목록을 불러오는 중 오류가 발생했습니다.', data: [] };
+  }
+}
