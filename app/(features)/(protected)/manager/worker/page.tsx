@@ -582,6 +582,13 @@ export default function WorkerManagementPage() {
     };
   }, [managerApplications]);
 
+  const formatStatCount = (value: number) =>
+    new Intl.NumberFormat('ko-KR', {
+      notation: 'compact',
+      compactDisplay: 'short',
+      maximumFractionDigits: 1,
+    }).format(value);
+
   if (!roleHydrated) {
     return (
       <div className="space-y-4">
@@ -655,205 +662,205 @@ export default function WorkerManagementPage() {
       />
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5 sm:gap-4 mb-4 sm:mb-6">
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+      <div className="mb-4 sm:mb-6 flex gap-2 overflow-x-auto scroll-none md:grid md:grid-cols-5 md:gap-4">
+        <Card className="min-w-[132px] md:min-w-0">
+          <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground leading-tight">지원자 수</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold">
-                  {statistics.uniqueApplicants}
+                <p className="text-base sm:text-xl font-bold tabular-nums whitespace-nowrap">
+                  {formatStatCount(statistics.uniqueApplicants)}
                 </p>
-                <User className="size-6 sm:size-8 text-muted-foreground" />
+                <User className="size-5 sm:size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+        <Card className="min-w-[132px] md:min-w-0">
+          <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground leading-tight">지원 건수</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold">
-                  {statistics.totalApplications}
+                <p className="text-base sm:text-xl font-bold tabular-nums whitespace-nowrap">
+                  {formatStatCount(statistics.totalApplications)}
                 </p>
-                <FileText className="size-6 sm:size-8 text-muted-foreground" />
+                <FileText className="size-5 sm:size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+        <Card className="min-w-[132px] md:min-w-0">
+          <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground">대기중</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-yellow-600">
-                  {statistics.pending}
+                <p className="text-base sm:text-xl font-bold text-yellow-600 tabular-nums whitespace-nowrap">
+                  {formatStatCount(statistics.pending)}
                 </p>
-                <Clock className="size-6 sm:size-8 text-yellow-400" />
+                <Clock className="size-5 sm:size-6 text-yellow-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+        <Card className="min-w-[132px] md:min-w-0">
+          <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground">승인</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-green-600">
-                  {statistics.accepted}
+                <p className="text-base sm:text-xl font-bold text-green-600 tabular-nums whitespace-nowrap">
+                  {formatStatCount(statistics.accepted)}
                 </p>
-                <CheckCircle2 className="size-6 sm:size-8 text-green-400" />
+                <CheckCircle2 className="size-5 sm:size-6 text-green-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-3 pb-3 sm:pt-6 sm:pb-6">
+        <Card className="min-w-[132px] md:min-w-0">
+          <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
               <p className="text-xs text-muted-foreground">거절</p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                <p className="text-lg sm:text-2xl font-bold text-red-600">
-                  {statistics.rejected}
+                <p className="text-base sm:text-xl font-bold text-red-600 tabular-nums whitespace-nowrap">
+                  {formatStatCount(statistics.rejected)}
                 </p>
-                <XCircle className="size-6 sm:size-8 text-red-400" />
+                <XCircle className="size-5 sm:size-6 text-red-400" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 탭 + 필터 및 검색 */}
-      <Card className="mb-4 sm:mb-6">
-        <CardContent className="pt-4 sm:pt-6 space-y-4 sm:space-y-6">
-          {/* 탭 */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as TabType)}
-            className="w-full"
-          >
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="all">지원자</TabsTrigger>
-              <TabsTrigger value="favorite">즐겨찾기</TabsTrigger>
-              <TabsTrigger value="blacklist">블랙리스트</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* 검색 + 상태 필터 */}
-          <div className="flex md:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 w-full md:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="지원자 이름 또는 공고명 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="md:w-48">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) =>
-                  setStatusFilter(value as ApplicationStatus | 'all')
-                }
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        {/* 필터 섹션 (좌측) */}
+        <div className="lg:col-span-3">
+          <Card className="mb-0 lg:sticky lg:top-20">
+            <CardContent className="pt-4 sm:pt-6 space-y-4">
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as TabType)}
+                className="w-full"
               >
-                <SelectTrigger>
-                  <Filter className="size-4 mr-2" />
-                  <SelectValue placeholder="상태 필터" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  <SelectItem value="pending">대기중</SelectItem>
-                  <SelectItem value="accepted">승인</SelectItem>
-                  <SelectItem value="rejected">거절</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="all">지원자</TabsTrigger>
+                  <TabsTrigger value="favorite">즐겨찾기</TabsTrigger>
+                  <TabsTrigger value="blacklist">블랙리스트</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-      {/* 지원자 목록 */}
-      {isLoading ? (
-        <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-muted-foreground">로딩 중...</p>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    placeholder="지원자 이름 또는 공고명 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                    setStatusFilter(value as ApplicationStatus | 'all')
+                  }
+                >
+                  <SelectTrigger>
+                    <Filter className="size-4 mr-2" />
+                    <SelectValue placeholder="상태 필터" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="pending">대기중</SelectItem>
+                    <SelectItem value="accepted">승인</SelectItem>
+                    <SelectItem value="rejected">거절</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {groupedWorkers.length === 0 ? (
-            <Card className="col-span-full">
-              <CardContent className="py-10 sm:py-12 text-center">
-                <User className="size-10 sm:size-12 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  {searchTerm || statusFilter !== 'all'
-                    ? '검색 결과가 없습니다.'
-                    : activeTab === 'favorite'
-                      ? '즐겨찾기한 워커가 없습니다.'
-                      : activeTab === 'blacklist'
-                        ? '블랙리스트에 등록된 워커가 없습니다.'
-                        : '지원자가 없습니다.'}
-                </p>
-              </CardContent>
-            </Card>
+
+        {/* 지원자 카드 섹션 (우측) */}
+        <div className="lg:col-span-9">
+          {isLoading ? (
+            <div className="flex justify-center items-center min-h-[400px]">
+              <p className="text-muted-foreground">로딩 중...</p>
+            </div>
           ) : (
-            groupedWorkers.map((worker) => (
-              <GroupedWorkerCard
-                key={worker.applicantId}
-                worker={worker}
-                onToggleFavorite={async (applicantId) => {
-                  const result = await toggleFavoriteAction(applicantId);
-                  if (result.ok) {
-                    setApplications((prev) =>
-                      prev.map((app) =>
-                        app.applicantId === applicantId
-                          ? {
-                              ...app,
-                              workerManagement: {
-                                ...app.workerManagement,
-                                is_favorite: !app.workerManagement?.is_favorite,
-                              },
-                            }
-                          : app,
-                      ),
-                    );
-                  }
-                }}
-                onToggleBlacklist={async (applicantId) => {
-                  const result = await toggleBlacklistAction(applicantId);
-                  if (result.ok) {
-                    setApplications((prev) =>
-                      prev.map((app) =>
-                        app.applicantId === applicantId
-                          ? {
-                              ...app,
-                              workerManagement: {
-                                ...app.workerManagement,
-                                is_blacklisted:
-                                  !app.workerManagement?.is_blacklisted,
-                              },
-                            }
-                          : app,
-                      ),
-                    );
-                  }
-                }}
-                onScheduleClick={(scheduleId) => {
-                  const app = applications.find((a) => a.id === scheduleId);
-                  if (app) setSelectedApplication(app);
-                }}
-                onStatusChange={handleStatusChange}
-                onProfileClick={(w) => setSelectedWorkerProfile(w)}
-              />
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {groupedWorkers.length === 0 ? (
+                <Card className="col-span-full">
+                  <CardContent className="py-10 sm:py-12 text-center">
+                    <User className="size-10 sm:size-12 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-sm sm:text-base text-muted-foreground">
+                      {searchTerm || statusFilter !== 'all'
+                        ? '검색 결과가 없습니다.'
+                        : activeTab === 'favorite'
+                          ? '즐겨찾기한 워커가 없습니다.'
+                          : activeTab === 'blacklist'
+                            ? '블랙리스트에 등록된 워커가 없습니다.'
+                            : '지원자가 없습니다.'}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                groupedWorkers.map((worker) => (
+                  <GroupedWorkerCard
+                    key={worker.applicantId}
+                    worker={worker}
+                    onToggleFavorite={async (applicantId) => {
+                      const result = await toggleFavoriteAction(applicantId);
+                      if (result.ok) {
+                        setApplications((prev) =>
+                          prev.map((app) =>
+                            app.applicantId === applicantId
+                              ? {
+                                  ...app,
+                                  workerManagement: {
+                                    ...app.workerManagement,
+                                    is_favorite: !app.workerManagement?.is_favorite,
+                                  },
+                                }
+                              : app,
+                          ),
+                        );
+                      }
+                    }}
+                    onToggleBlacklist={async (applicantId) => {
+                      const result = await toggleBlacklistAction(applicantId);
+                      if (result.ok) {
+                        setApplications((prev) =>
+                          prev.map((app) =>
+                            app.applicantId === applicantId
+                              ? {
+                                  ...app,
+                                  workerManagement: {
+                                    ...app.workerManagement,
+                                    is_blacklisted:
+                                      !app.workerManagement?.is_blacklisted,
+                                  },
+                                }
+                              : app,
+                          ),
+                        );
+                      }
+                    }}
+                    onScheduleClick={(scheduleId) => {
+                      const app = applications.find((a) => a.id === scheduleId);
+                      if (app) setSelectedApplication(app);
+                    }}
+                    onStatusChange={handleStatusChange}
+                    onProfileClick={(w) => setSelectedWorkerProfile(w)}
+                  />
+                ))
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* 워커 프로필 모달 */}
       {selectedWorkerProfile && (
