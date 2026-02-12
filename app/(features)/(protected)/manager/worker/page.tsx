@@ -476,7 +476,11 @@ export default function WorkerManagementPage() {
     let filtered = managerApplications;
 
     // 탭 필터
-    if (activeTab === 'favorite') {
+    if (activeTab === 'all') {
+      filtered = filtered.filter(
+        (app) => app.postStatus === 'recruiting' || app.postStatus === 'urgent',
+      );
+    } else if (activeTab === 'favorite') {
       filtered = filtered.filter((app) => app.workerManagement?.is_favorite);
     } else if (activeTab === 'blacklist') {
       filtered = filtered.filter((app) => app.workerManagement?.is_blacklisted);
@@ -733,7 +737,7 @@ export default function WorkerManagementPage() {
             className="w-full"
           >
             <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="all">전체</TabsTrigger>
+              <TabsTrigger value="all">지원자</TabsTrigger>
               <TabsTrigger value="favorite">즐겨찾기</TabsTrigger>
               <TabsTrigger value="blacklist">블랙리스트</TabsTrigger>
             </TabsList>
