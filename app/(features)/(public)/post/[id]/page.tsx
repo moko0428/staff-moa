@@ -42,6 +42,7 @@ import {
   Share2,
   Building2,
   Flag,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -57,6 +58,7 @@ import {
 } from '@/app/(features)/(protected)/worker/favorit/actions';
 import { applyToPostAction, checkAppliedToPostAction } from '@/app/(features)/(protected)/worker/schedule/actions';
 import { checkReportAction } from '@/app/(features)/(protected)/admin/report-actions';
+import { deletePostAction } from '@/app/(features)/(protected)/my-post/actions';
 import ReportModal from '@/app/components/ReportModal';
 import ProfileModal from '@/app/components/profile-modal';
 import { User } from '@/types/mockData';
@@ -351,6 +353,20 @@ export default function PostDetailPage({
     }
   };
 
+  const handleDeletePost = async () => {
+    if (!post || !currentUserId || currentUserId !== post.author_id) return;
+    const confirmed = window.confirm('이 공고를 삭제하시겠습니까?');
+    if (!confirmed) return;
+
+    const result = await deletePostAction(post.post_id.toString());
+    if (result.ok) {
+      toast.success('공고가 삭제되었습니다.');
+      router.push('/post');
+      return;
+    }
+    toast.error(result.message || '공고 삭제에 실패했습니다.');
+  };
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -510,6 +526,17 @@ export default function PostDetailPage({
           뒤로가기
         </Button>
         <div className="flex items-center gap-2">
+          {roleHydrated && currentUserId && post.author_id === currentUserId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDeletePost}
+              className="hover:bg-destructive/10"
+              title="공고 삭제"
+            >
+              <Trash2 className="size-5 text-destructive" />
+            </Button>
+          )}
           {isMember && roleHydrated && (
             <Button
               variant="ghost"
