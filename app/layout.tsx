@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className="min-h-screen bg-accent text-foreground">
+      <body className="min-h-screen bg-accent text-foreground overscroll-behavior:none">
         {/* Google tag (gtag.js) */}
         <Script
           async
