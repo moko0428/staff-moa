@@ -550,6 +550,72 @@ export default function WorkerSchedulePage() {
     return d;
   }, []);
 
+  // 개인 스케줄을 행사 단위로 그룹핑 (같은 title + payType + salary → 같은 행사)
+  const groupedScheduleEvents = useMemo(() => {
+    // 승인된 공고 스케줄 (각각 하나의 행사)
+    const acceptedWorkerSchedules = workerPosts.filter(
+      (post) => post.applicationStatus === 'accepted'
+    );
+
+    type ScheduleEvent = {
+      id: string;
+      dates: string[];
+      salary: number;
+      payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
+      time: string;
+    };
+
+    const events: ScheduleEvent[] = [];
+
+    // 공고 스케줄: 각 공고가 하나의 행사
+    acceptedWorkerSchedules.forEach((post) => {
+      const dates = parseDateString(post.date);
+      if (dates.length === 0) return;
+      events.push({
+        id: post.id,
+        dates,
+        salary: post.salary || 0,
+        payType: (post.payType || 'daily') as ScheduleEvent['payType'],
+        time: post.time,
+      });
+    });
+
+    // 개인 스케줄: 같은 title + payType + salary + managerName을 하나의 행사로 그룹핑
+    const personalGroups = new Map<string, { dates: string[]; salary: number; payType: ScheduleEvent['payType']; time: string; ids: string[] }>();
+    personalSchedules.forEach((ps) => {
+      const payType = (ps.payType || 'daily') as ScheduleEvent['payType'];
+      const groupKey = `${ps.title}|${payType}|${ps.salary}|${ps.managerInfo?.name || ''}`;
+      const existing = personalGroups.get(groupKey);
+      const dates = parseDateString(ps.date);
+      if (existing) {
+        existing.dates.push(...dates);
+        existing.ids.push(ps.id);
+      } else {
+        personalGroups.set(groupKey, {
+          dates: [...dates],
+          salary: ps.salary || 0,
+          payType,
+          time: ps.time,
+          ids: [ps.id],
+        });
+      }
+    });
+
+    personalGroups.forEach((group, key) => {
+      // 날짜 정렬 및 중복 제거
+      const uniqueDates = Array.from(new Set(group.dates)).sort();
+      events.push({
+        id: `personal-group-${key}`,
+        dates: uniqueDates,
+        salary: group.salary,
+        payType: group.payType,
+        time: group.time,
+      });
+    });
+
+    return events;
+  }, [workerPosts, personalSchedules]);
+
   // 급여 계산 (선택된 날짜의 달 기준)
   const earningsData = useMemo(() => {
     if (!isMounted) {
@@ -577,55 +643,35 @@ export default function WorkerSchedulePage() {
     let thisMonthCount = 0;
     let accumulatedCount = 0;
 
-    // 주급/월급 중복 방지를 위한 Set
-    const weeklyPostsAdded = new Set<string>();
-    const monthlyPostsAdded = new Set<string>();
-    const accumulatedWeeklyPosts = new Set<string>();
-    const accumulatedMonthlyPosts = new Set<string>();
+    // 주급/월급 중복 방지를 위한 Set (행사 ID 기준)
+    const weeklyEventsAdded = new Set<string>();
+    const monthlyEventsAdded = new Set<string>();
+    const accumulatedWeeklyEvents = new Set<string>();
+    const accumulatedMonthlyEvents = new Set<string>();
 
-    // 승인된 스케줄만 계산 (accepted) - 지원한 공고 + 개인 스케줄
-    const acceptedWorkerSchedules = workerPosts.filter(
-      (post) => post.applicationStatus === 'accepted'
-    );
-    const allAcceptedSchedules = [
-      ...acceptedWorkerSchedules,
-      ...personalSchedules,
-    ];
+    groupedScheduleEvents.forEach((event) => {
+      const { dates, salary, payType, time, id: eventId } = event;
+      if (dates.length === 0 || salary === 0) return;
 
-    allAcceptedSchedules.forEach((post) => {
-      const dates = parseDateString(post.date);
-      if (dates.length === 0) return;
+      const workHours = calculateWorkHours(time);
 
-      const payType = post.payType || 'daily';
-      const salary = post.salary || 0;
-      const workHours = calculateWorkHours(post.time);
-
-      // 급여 타입별 계산
       if (payType === 'hourly') {
-        // 시급: 근무 시간 × 시급
+        // 시급: 각 근무일의 근무 시간 × 시급
         dates.forEach((dateStr) => {
           try {
             const scheduleDate = parseISO(dateStr);
             const dailyPay = salary * workHours;
 
-            if (
-              isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })
-            ) {
+            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
               thisWeekEarnings += dailyPay;
               thisWeekCount++;
             }
-
-            if (
-              isWithinInterval(scheduleDate, {
-                start: monthStart,
-                end: monthEnd,
-              })
-            ) {
+            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
               thisMonthEarnings += dailyPay;
               thisMonthCount++;
             }
-          } catch (error) {
-            console.error('Error parsing schedule date:', error);
+          } catch {
+            // skip
           }
         });
       } else if (payType === 'daily') {
@@ -634,120 +680,89 @@ export default function WorkerSchedulePage() {
           try {
             const scheduleDate = parseISO(dateStr);
 
-            if (
-              isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })
-            ) {
+            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
               thisWeekEarnings += salary;
               thisWeekCount++;
             }
-
-            if (
-              isWithinInterval(scheduleDate, {
-                start: monthStart,
-                end: monthEnd,
-              })
-            ) {
+            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
               thisMonthEarnings += salary;
               thisMonthCount++;
             }
-          } catch (error) {
-            console.error('Error parsing schedule date:', error);
+          } catch {
+            // skip
           }
         });
       } else if (payType === 'weekly') {
-        // 주급: 해당 주에 근무가 있으면 한 번만 추가
+        // 주급: 행사 단위로 한 번만 추가
         const hasWorkThisWeek = dates.some((dateStr) => {
           try {
-            const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, {
-              start: weekStart,
-              end: weekEnd,
-            });
-          } catch {
-            return false;
-          }
+            return isWithinInterval(parseISO(dateStr), { start: weekStart, end: weekEnd });
+          } catch { return false; }
         });
 
-        if (hasWorkThisWeek && !weeklyPostsAdded.has(post.id)) {
+        if (hasWorkThisWeek && !weeklyEventsAdded.has(eventId)) {
           thisWeekEarnings += salary;
           thisWeekCount++;
-          weeklyPostsAdded.add(post.id);
+          weeklyEventsAdded.add(eventId);
         }
 
         const hasWorkThisMonth = dates.some((dateStr) => {
           try {
-            const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, {
-              start: monthStart,
-              end: monthEnd,
-            });
-          } catch {
-            return false;
-          }
+            return isWithinInterval(parseISO(dateStr), { start: monthStart, end: monthEnd });
+          } catch { return false; }
         });
 
-        if (hasWorkThisMonth && !monthlyPostsAdded.has(post.id)) {
+        if (hasWorkThisMonth && !monthlyEventsAdded.has(eventId)) {
           thisMonthEarnings += salary;
           thisMonthCount++;
-          monthlyPostsAdded.add(post.id);
+          monthlyEventsAdded.add(eventId);
         }
       } else if (payType === 'monthly') {
-        // 월급: 해당 월에 근무가 있으면 한 번만 추가
+        // 월급: 행사 단위로 한 번만 추가
         const hasWorkThisMonth = dates.some((dateStr) => {
           try {
-            const scheduleDate = parseISO(dateStr);
-            return isWithinInterval(scheduleDate, {
-              start: monthStart,
-              end: monthEnd,
-            });
-          } catch {
-            return false;
-          }
+            return isWithinInterval(parseISO(dateStr), { start: monthStart, end: monthEnd });
+          } catch { return false; }
         });
 
-        if (hasWorkThisMonth && !monthlyPostsAdded.has(post.id)) {
+        if (hasWorkThisMonth && !monthlyEventsAdded.has(eventId)) {
           thisMonthEarnings += salary;
           thisMonthCount++;
-          monthlyPostsAdded.add(post.id);
+          monthlyEventsAdded.add(eventId);
         }
       }
 
-      // 누적 급여는 완료된 스케줄만 계산
-      const endTime = parseEndTime(post.time);
+      // 누적 급여: 마지막 근무일이 과거인 행사만 계산
+      const endTimeObj = parseEndTime(time);
       const allDates = dates.map((dateStr) => {
         const d = parseISO(dateStr);
-        if (endTime) {
-          d.setHours(endTime.hours, endTime.minutes, 0, 0);
+        if (endTimeObj) {
+          d.setHours(endTimeObj.hours, endTimeObj.minutes, 0, 0);
         } else {
           d.setHours(23, 59, 59, 999);
         }
         return d;
       });
 
-      // 마지막 날짜가 과거인지 확인
       const lastDate = allDates[allDates.length - 1];
       if (lastDate && lastDate < now) {
         if (payType === 'hourly') {
-          // 시급: 근무일 수 × 근무 시간 × 시급
           accumulatedEarnings += salary * workHours * dates.length;
           accumulatedCount += dates.length;
         } else if (payType === 'daily') {
-          // 일급: 근무일 수 × 일급
           accumulatedEarnings += salary * dates.length;
           accumulatedCount += dates.length;
         } else if (payType === 'weekly') {
-          // 주급: 한 번만 추가
-          if (!accumulatedWeeklyPosts.has(post.id)) {
+          if (!accumulatedWeeklyEvents.has(eventId)) {
             accumulatedEarnings += salary;
             accumulatedCount++;
-            accumulatedWeeklyPosts.add(post.id);
+            accumulatedWeeklyEvents.add(eventId);
           }
         } else if (payType === 'monthly') {
-          // 월급: 한 번만 추가
-          if (!accumulatedMonthlyPosts.has(post.id)) {
+          if (!accumulatedMonthlyEvents.has(eventId)) {
             accumulatedEarnings += salary;
             accumulatedCount++;
-            accumulatedMonthlyPosts.add(post.id);
+            accumulatedMonthlyEvents.add(eventId);
           }
         }
       }
@@ -761,7 +776,7 @@ export default function WorkerSchedulePage() {
       thisMonthCount,
       accumulatedCount,
     };
-  }, [workerPosts, personalSchedules, isMounted, selectedDate, today]);
+  }, [groupedScheduleEvents, isMounted, selectedDate, today]);
 
   const handleScheduleClick = (schedule: ScheduleWithPost) => {
     setSelectedSchedule(schedule);
@@ -1668,7 +1683,16 @@ function ScheduleCard({
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <span>💰</span>
-            <span>{schedule.salary.toLocaleString()}원</span>
+            <span>
+              {payType === 'hourly'
+                ? `${(schedule.salary * calculateWorkHours(schedule.time)).toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원)`
+                : payType === 'weekly'
+                  ? `${schedule.salary.toLocaleString()}원 (주급)`
+                  : payType === 'monthly'
+                    ? `${schedule.salary.toLocaleString()}원 (월급)`
+                    : `${schedule.salary.toLocaleString()}원 (일급)`
+              }
+            </span>
           </div>
         </div>
       </CardContent>
@@ -2020,7 +2044,17 @@ function ScheduleDetailModal({
                 </div>
                 <div className="flex items-center gap-2">
                   <span>💰</span>
-                  <span>{schedule.salary.toLocaleString()}원</span>
+                  <span>
+                    {(() => {
+                      const pt = (schedule as PostWithApplicationStatus).payType || 'daily';
+                      if (pt === 'hourly') {
+                        const hours = calculateWorkHours(schedule.time);
+                        return `${(schedule.salary * hours).toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원 × ${hours}h)`;
+                      }
+                      const label = pt === 'weekly' ? '주급' : pt === 'monthly' ? '월급' : '일급';
+                      return `${schedule.salary.toLocaleString()}원 (${label})`;
+                    })()}
+                  </span>
                 </div>
               </div>
             )}
