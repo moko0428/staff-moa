@@ -14,6 +14,70 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_reviews: {
+        Row: {
+          content: string
+          created_at: string
+          is_featured: boolean
+          rating: number
+          review_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          is_featured?: boolean
+          rating: number
+          review_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          is_featured?: boolean
+          rating?: number
+          review_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_reviews_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      favorites_keywords: {
+        Row: {
+          created_at: string
+          keyword: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          keyword: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          keyword?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_keywords_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       favorites_posts: {
         Row: {
           created_at: string
@@ -74,6 +138,39 @@ export type Database = {
           {
             foreignKeyName: "followers_following_id_profiles_user_id_fk"
             columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      manager_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          manager_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          manager_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          manager_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_follows_follower_id_profiles_user_id_fk"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "manager_follows_manager_id_profiles_user_id_fk"
+            columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
@@ -224,6 +321,7 @@ export type Database = {
           description: string | null
           end_time: string
           location: string | null
+          manager_contact_type: string | null
           manager_name: string | null
           manager_phone: string | null
           pay_amount: number | null
@@ -240,6 +338,7 @@ export type Database = {
           description?: string | null
           end_time: string
           location?: string | null
+          manager_contact_type?: string | null
           manager_name?: string | null
           manager_phone?: string | null
           pay_amount?: number | null
@@ -256,6 +355,7 @@ export type Database = {
           description?: string | null
           end_time?: string
           location?: string | null
+          manager_contact_type?: string | null
           manager_name?: string | null
           manager_phone?: string | null
           pay_amount?: number | null
@@ -276,6 +376,67 @@ export type Database = {
           },
         ]
       }
+      post_reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          detail: string | null
+          post_id: number
+          reason: Database["public"]["Enums"]["report_reason"]
+          report_id: number
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["report_status"]
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          detail?: string | null
+          post_id: number
+          reason: Database["public"]["Enums"]["report_reason"]
+          report_id?: never
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          detail?: string | null
+          post_id?: number
+          reason?: Database["public"]["Enums"]["report_reason"]
+          report_id?: never
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+          {
+            foreignKeyName: "post_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "post_reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string
@@ -286,6 +447,7 @@ export type Database = {
           form_type: string | null
           keywords: string[] | null
           location: string
+          manager_contact_type: string
           manager_name: string
           manager_phone: string
           notes: string | null
@@ -313,6 +475,7 @@ export type Database = {
           form_type?: string | null
           keywords?: string[] | null
           location: string
+          manager_contact_type?: string
           manager_name: string
           manager_phone: string
           notes?: string | null
@@ -340,6 +503,7 @@ export type Database = {
           form_type?: string | null
           keywords?: string[] | null
           location?: string
+          manager_contact_type?: string
           manager_name?: string
           manager_phone?: string
           notes?: string | null
@@ -563,6 +727,20 @@ export type Database = {
         | "system"
       pay_type: "hourly" | "daily" | "weekly" | "monthly"
       post_status: "recruiting" | "completed" | "urgent"
+      report_reason:
+        | "fraud_investment"
+        | "obscene"
+        | "child_abuse"
+        | "hate_violence"
+        | "illegal_product"
+        | "privacy_violation"
+        | "abnormal_usage"
+        | "scam_impersonation"
+        | "defamation_copyright"
+        | "illegal_filming"
+        | "false_advertisement"
+        | "spam"
+        | "other"
       report_status:
         | "pending"
         | "reviewed"
@@ -714,6 +892,21 @@ export const Constants = {
       ],
       pay_type: ["hourly", "daily", "weekly", "monthly"],
       post_status: ["recruiting", "completed", "urgent"],
+      report_reason: [
+        "fraud_investment",
+        "obscene",
+        "child_abuse",
+        "hate_violence",
+        "illegal_product",
+        "privacy_violation",
+        "abnormal_usage",
+        "scam_impersonation",
+        "defamation_copyright",
+        "illegal_filming",
+        "false_advertisement",
+        "spam",
+        "other",
+      ],
       report_status: [
         "pending",
         "reviewed",

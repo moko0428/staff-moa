@@ -59,6 +59,7 @@ export default function EditPostPage() {
   const [workSlots, setWorkSlots] = useState<WorkSlot[]>([]);
   const [recruitCount, setRecruitCount] = useState(1);
   const [managerName, setManagerName] = useState('');
+  const [managerContactType, setManagerContactType] = useState<'phone' | 'kakao' | 'email' | 'other'>('phone');
   const [managerPhone, setManagerPhone] = useState('');
   const [equipments, setEquipments] = useState('');
   const [qualifications, setQualifications] = useState('');
@@ -83,6 +84,9 @@ export default function EditPostPage() {
           setDescription((post.description as string) || '');
           setRecruitCount((post.recruit_count as number) || 1);
           setManagerName((post.manager_name as string) || '');
+          if (post.manager_contact_type) {
+            setManagerContactType(post.manager_contact_type as 'phone' | 'kakao' | 'email' | 'other');
+          }
           setManagerPhone((post.manager_phone as string) || '');
           setEquipments((post.equipments as string) || '');
           setQualifications((post.qualifications as string) || '');
@@ -271,6 +275,7 @@ export default function EditPostPage() {
     formData.append('work_slots', JSON.stringify(workSlots));
     formData.append('recruit_count', recruitCount.toString());
     formData.append('manager_name', managerName);
+    formData.append('manager_contact_type', managerContactType);
     formData.append('manager_phone', managerPhone);
     if (equipments) formData.append('equipments', equipments);
     if (qualifications) formData.append('qualifications', qualifications);
@@ -537,13 +542,41 @@ export default function EditPostPage() {
               />
             </div>
             <div>
+              <Label htmlFor="manager_contact_type">
+                연락처 유형 <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={managerContactType}
+                onValueChange={(value) =>
+                  setManagerContactType(value as 'phone' | 'kakao' | 'email' | 'other')
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">전화번호</SelectItem>
+                  <SelectItem value="kakao">카카오톡 ID</SelectItem>
+                  <SelectItem value="email">이메일</SelectItem>
+                  <SelectItem value="other">기타</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="manager_phone">
                 담당자 연락처 <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="manager_phone"
+                type={managerContactType === 'email' ? 'email' : managerContactType === 'phone' ? 'tel' : 'text'}
                 value={managerPhone}
                 onChange={(e) => setManagerPhone(e.target.value)}
+                placeholder={
+                  managerContactType === 'phone' ? '010-1234-5678'
+                  : managerContactType === 'kakao' ? '카카오톡 ID'
+                  : managerContactType === 'email' ? 'example@email.com'
+                  : '연락처 정보'
+                }
                 required
               />
             </div>

@@ -474,6 +474,7 @@ export async function createPersonalScheduleAction(scheduleData: {
   payAmount?: string;
   description?: string;
   managerName?: string;
+  managerContactType?: 'phone' | 'kakao' | 'email' | 'other';
   managerPhone?: string;
 }): Promise<ActionResult> {
   try {
@@ -507,6 +508,7 @@ export async function createPersonalScheduleAction(scheduleData: {
       pay_amount: scheduleData.payAmount ? parseInt(scheduleData.payAmount) : null,
       description: scheduleData.description || null,
       manager_name: scheduleData.managerName || null,
+      manager_contact_type: scheduleData.managerContactType || 'phone',
       manager_phone: scheduleData.managerPhone || null,
     });
 
@@ -518,6 +520,71 @@ export async function createPersonalScheduleAction(scheduleData: {
     return { ok: true, message: '개인 스케줄이 추가되었습니다.' };
   } catch (err) {
     console.error('[createPersonalScheduleAction] Unexpected error', err);
+    return { ok: false, message: '개인 스케줄 추가 중 오류가 발생했습니다.' };
+  }
+}
+
+// 여러 날짜의 개인 스케줄 일괄 추가
+export async function createPersonalSchedulesBulkAction(schedules: Array<{
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  payAmount?: string;
+  description?: string;
+  managerName?: string;
+  managerContactType?: 'phone' | 'kakao' | 'email' | 'other';
+  managerPhone?: string;
+}>): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (profile?.role !== 'member') {
+      return { ok: false, message: '스탭만 개인 스케줄을 추가할 수 있습니다.' };
+    }
+
+    if (schedules.length === 0) {
+      return { ok: false, message: '추가할 스케줄이 없습니다.' };
+    }
+
+    const rows = schedules.map((s) => ({
+      user_id: userData.user!.id,
+      title: s.title,
+      date: s.date,
+      start_time: s.startTime,
+      end_time: s.endTime,
+      location: s.location || null,
+      pay_type: s.payType,
+      pay_amount: s.payAmount ? parseInt(s.payAmount) : null,
+      description: s.description || null,
+      manager_name: s.managerName || null,
+      manager_contact_type: s.managerContactType || 'phone',
+      manager_phone: s.managerPhone || null,
+    }));
+
+    const { error } = await supabase.from('personal_schedules').insert(rows);
+
+    if (error) {
+      console.error('[createPersonalSchedulesBulkAction] Insert error', error);
+      return { ok: false, message: '개인 스케줄 추가에 실패했습니다.' };
+    }
+
+    return { ok: true, message: `${schedules.length}개의 개인 스케줄이 추가되었습니다.` };
+  } catch (err) {
+    console.error('[createPersonalSchedulesBulkAction] Unexpected error', err);
     return { ok: false, message: '개인 스케줄 추가 중 오류가 발생했습니다.' };
   }
 }
@@ -573,6 +640,7 @@ export async function updatePersonalScheduleAction(
     payAmount?: string;
     description?: string;
     managerName?: string;
+    managerContactType?: 'phone' | 'kakao' | 'email' | 'other';
     managerPhone?: string;
   }
 ): Promise<ActionResult> {
@@ -611,6 +679,7 @@ export async function updatePersonalScheduleAction(
         pay_amount: scheduleData.payAmount ? parseInt(scheduleData.payAmount) : null,
         description: scheduleData.description || null,
         manager_name: scheduleData.managerName || null,
+        manager_contact_type: scheduleData.managerContactType || 'phone',
         manager_phone: scheduleData.managerPhone || null,
         updated_at: new Date().toISOString(),
       })

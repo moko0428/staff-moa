@@ -66,6 +66,7 @@ export interface Post {
   description: string;
   managerInfo: {
     name: string;
+    contactType?: string;
     phone: string;
   };
   recruitCount: number;

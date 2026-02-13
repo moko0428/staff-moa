@@ -46,7 +46,8 @@ export const posts = pgTable('posts', {
 
   recruit_count: integer('recruit_count').notNull(),              
 
-  manager_name: text('manager_name').notNull(),                    
+  manager_name: text('manager_name').notNull(),
+  manager_contact_type: text('manager_contact_type').notNull().default('phone'),
   manager_phone: text('manager_phone').notNull(),                  
 
   equipments: text('equipments'),                              

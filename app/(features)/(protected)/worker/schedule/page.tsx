@@ -36,10 +36,13 @@ import {
   SelectValue,
 } from '@/app/components/ui/select';
 import ScheduleCalendar from '@/app/components/ScheduleCalendar';
+import { Calendar } from '@/app/components/ui/calendar';
 import { Post } from '@/types/mockData';
+import type { DateRange } from 'react-day-picker';
 import {
   getMySchedulesAction,
   createPersonalScheduleAction,
+  createPersonalSchedulesBulkAction,
   getPersonalSchedulesAction,
   updatePersonalScheduleAction,
   deletePersonalScheduleAction,
@@ -135,6 +138,7 @@ type SupabasePost = {
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   recruit_count: number;
   manager_name: string;
+  manager_contact_type?: string | null;
   manager_phone: string;
   equipments?: string | null;
   qualifications?: string | null;
@@ -235,6 +239,7 @@ function supabasePostToPost(
     description: supabasePost.description,
     managerInfo: {
       name: supabasePost.manager_name,
+      contactType: supabasePost.manager_contact_type || 'phone',
       phone: supabasePost.manager_phone,
     },
     recruitCount: supabasePost.recruit_count,
@@ -354,6 +359,7 @@ export default function WorkerSchedulePage() {
               description: (schedule.description as string) || '',
               managerInfo: {
                 name: (schedule.manager_name as string) || '',
+                contactType: (schedule.manager_contact_type as string) || 'phone',
                 phone: (schedule.manager_phone as string) || '',
               },
               recruitCount: 0,
@@ -1757,6 +1763,7 @@ function ScheduleDetailModal({
     payAmount: schedule.salary?.toString() || '',
     description: schedule.description || '',
     managerName: schedule.managerInfo?.name || '',
+    managerContactType: (schedule.managerInfo?.contactType || 'phone') as 'phone' | 'kakao' | 'email' | 'other',
     managerPhone: schedule.managerInfo?.phone || '',
   });
 
@@ -1820,6 +1827,7 @@ function ScheduleDetailModal({
         payAmount: formData.payAmount,
         description: formData.description,
         managerName: formData.managerName,
+        managerContactType: formData.managerContactType,
         managerPhone: formData.managerPhone,
       });
 
@@ -2054,22 +2062,52 @@ function ScheduleDetailModal({
                   />
                 </div>
                 <div>
+                  <Label htmlFor="edit-contactType">연락처 유형</Label>
+                  <Select
+                    value={formData.managerContactType}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        managerContactType: value as 'phone' | 'kakao' | 'email' | 'other',
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="phone">전화번호</SelectItem>
+                      <SelectItem value="kakao">카카오톡 ID</SelectItem>
+                      <SelectItem value="email">이메일</SelectItem>
+                      <SelectItem value="other">기타</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
                   <Label htmlFor="edit-managerPhone">연락처</Label>
                   <Input
                     id="edit-managerPhone"
-                    type="tel"
+                    type={formData.managerContactType === 'email' ? 'email' : formData.managerContactType === 'phone' ? 'tel' : 'text'}
                     value={formData.managerPhone}
                     onChange={(e) =>
                       setFormData({ ...formData, managerPhone: e.target.value })
                     }
-                    placeholder="연락처"
+                    placeholder={
+                      formData.managerContactType === 'phone' ? '010-1234-5678'
+                      : formData.managerContactType === 'kakao' ? '카카오톡 ID'
+                      : formData.managerContactType === 'email' ? 'example@email.com'
+                      : '연락처 정보'
+                    }
                   />
                 </div>
               </div>
             ) : (
               <div className="space-y-1 text-sm">
                 <div>이름: {schedule.managerInfo?.name || '없음'}</div>
-                <div>연락처: {schedule.managerInfo?.phone || '없음'}</div>
+                <div>
+                  {schedule.managerInfo?.contactType === 'kakao' ? '카카오톡' : schedule.managerInfo?.contactType === 'email' ? '이메일' : schedule.managerInfo?.contactType === 'other' ? '연락처' : '전화번호'}
+                  : {schedule.managerInfo?.phone || '없음'}
+                </div>
               </div>
             )}
           </div>
@@ -2122,6 +2160,14 @@ function ScheduleDetailModal({
 }
 
 // 개인 스케줄 추가 모달
+type DateMode = 'single' | 'range' | 'multi';
+
+interface ScheduleSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
 interface AddPersonalScheduleModalProps {
   selectedDate: Date;
   onClose: () => void;
@@ -2133,9 +2179,16 @@ function AddPersonalScheduleModal({
   onClose,
   onSuccess,
 }: AddPersonalScheduleModalProps) {
+  const [dateMode, setDateMode] = useState<DateMode>('single');
+  const [selectedSingleDate, setSelectedSingleDate] = useState<Date | undefined>(selectedDate);
+  const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(undefined);
+  const [multiDraftDate, setMultiDraftDate] = useState<Date | undefined>(undefined);
+  const [multiDraftStart, setMultiDraftStart] = useState('09:00');
+  const [multiDraftEnd, setMultiDraftEnd] = useState('18:00');
+  const [multiSlots, setMultiSlots] = useState<ScheduleSlot[]>([]);
+
   const [formData, setFormData] = useState({
     title: '',
-    date: format(selectedDate, 'yyyy-MM-dd'),
     startTime: '',
     endTime: '',
     location: '',
@@ -2143,41 +2196,124 @@ function AddPersonalScheduleModal({
     payAmount: '',
     description: '',
     managerName: '',
+    managerContactType: 'phone' as 'phone' | 'kakao' | 'email' | 'other',
     managerPhone: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 현재 선택된 날짜들 계산
+  const selectedDates = useMemo(() => {
+    if (dateMode === 'single') {
+      return selectedSingleDate ? [format(selectedSingleDate, 'yyyy-MM-dd')] : [];
+    }
+    if (dateMode === 'range') {
+      const from = selectedRange?.from;
+      const to = selectedRange?.to ?? selectedRange?.from;
+      if (!from || !to) return from ? [format(from, 'yyyy-MM-dd')] : [];
+      return eachDayOfInterval({ start: from, end: to }).map((d) => format(d, 'yyyy-MM-dd'));
+    }
+    // multi
+    return multiSlots.map((s) => s.date).sort();
+  }, [dateMode, selectedSingleDate, selectedRange, multiSlots]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 유효성 검사
-    if (!formData.title || !formData.startTime || !formData.endTime) {
-      toast.error('제목, 시작 시간, 종료 시간은 필수 입력 항목입니다.');
+    if (!formData.title) {
+      toast.error('제목은 필수 입력 항목입니다.');
       return;
+    }
+
+    if (dateMode === 'multi') {
+      if (multiSlots.length === 0) {
+        toast.error('최소 하나의 날짜를 추가해주세요.');
+        return;
+      }
+      const invalid = multiSlots.find((s) => !s.startTime || !s.endTime);
+      if (invalid) {
+        toast.error('모든 날짜의 시작/종료 시간을 입력해주세요.');
+        return;
+      }
+    } else {
+      if (selectedDates.length === 0) {
+        toast.error('날짜를 선택해주세요.');
+        return;
+      }
+      if (!formData.startTime || !formData.endTime) {
+        toast.error('시작 시간과 종료 시간은 필수 입력 항목입니다.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      const result = await createPersonalScheduleAction({
-        title: formData.title,
-        date: formData.date,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        location: formData.location,
-        payType: formData.payType,
-        payAmount: formData.payAmount,
-        description: formData.description,
-        managerName: formData.managerName,
-        managerPhone: formData.managerPhone,
-      });
-
-      if (result.ok) {
-        toast.success(result.message);
-        onSuccess();
+      if (dateMode === 'multi') {
+        // multi: 날짜별 개별 시간
+        const schedules = multiSlots.map((slot) => ({
+          title: formData.title,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          location: formData.location,
+          payType: formData.payType,
+          payAmount: formData.payAmount,
+          description: formData.description,
+          managerName: formData.managerName,
+          managerContactType: formData.managerContactType,
+          managerPhone: formData.managerPhone,
+        }));
+        const result = await createPersonalSchedulesBulkAction(schedules);
+        if (result.ok) {
+          toast.success(result.message);
+          onSuccess();
+        } else {
+          toast.error(result.message);
+        }
+      } else if (selectedDates.length === 1) {
+        // single date
+        const result = await createPersonalScheduleAction({
+          title: formData.title,
+          date: selectedDates[0],
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          location: formData.location,
+          payType: formData.payType,
+          payAmount: formData.payAmount,
+          description: formData.description,
+          managerName: formData.managerName,
+          managerContactType: formData.managerContactType,
+          managerPhone: formData.managerPhone,
+        });
+        if (result.ok) {
+          toast.success(result.message);
+          onSuccess();
+        } else {
+          toast.error(result.message);
+        }
       } else {
-        toast.error(result.message);
+        // range: 같은 시간으로 여러 날짜
+        const schedules = selectedDates.map((date) => ({
+          title: formData.title,
+          date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          location: formData.location,
+          payType: formData.payType,
+          payAmount: formData.payAmount,
+          description: formData.description,
+          managerName: formData.managerName,
+          managerContactType: formData.managerContactType,
+          managerPhone: formData.managerPhone,
+        }));
+        const result = await createPersonalSchedulesBulkAction(schedules);
+        if (result.ok) {
+          toast.success(result.message);
+          onSuccess();
+        } else {
+          toast.error(result.message);
+        }
       }
     } catch (error) {
       console.error('Failed to create personal schedule:', error);
@@ -2193,19 +2329,18 @@ function AddPersonalScheduleModal({
         <DialogHeader>
           <DialogTitle>개인 스케줄 추가</DialogTitle>
           <DialogDescription>
-            {format(selectedDate, 'yyyy년 MM월 dd일 (E)', { locale: ko })}{' '}
-            스케줄을 추가합니다
+            날짜와 시간을 선택하여 스케줄을 추가합니다
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* 제목 */}
           <div>
-            <Label htmlFor="title">
+            <Label htmlFor="ps-title">
               제목 <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="title"
+              id="ps-title"
               value={formData.title}
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
@@ -2215,57 +2350,258 @@ function AddPersonalScheduleModal({
             />
           </div>
 
-          {/* 날짜 */}
+          {/* 기간 타입 선택 */}
           <div>
-            <Label htmlFor="date">날짜</Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
-              required
-            />
+            <Label>날짜 선택</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={dateMode === 'single' ? 'default' : 'outline'}
+                onClick={() => {
+                  setDateMode('single');
+                  setSelectedRange(undefined);
+                  setMultiSlots([]);
+                }}
+              >
+                하루
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dateMode === 'range' ? 'default' : 'outline'}
+                onClick={() => {
+                  setDateMode('range');
+                  setSelectedSingleDate(undefined);
+                  setMultiSlots([]);
+                }}
+              >
+                기간
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dateMode === 'multi' ? 'default' : 'outline'}
+                onClick={() => {
+                  setDateMode('multi');
+                  setSelectedSingleDate(undefined);
+                  setSelectedRange(undefined);
+                }}
+              >
+                여러 날짜
+              </Button>
+              <span className="text-xs text-muted-foreground ml-1">
+                {dateMode === 'single'
+                  ? '하루만 선택'
+                  : dateMode === 'range'
+                    ? '시작일~종료일 선택'
+                    : '날짜별 시간 지정'}
+              </span>
+            </div>
           </div>
 
-          {/* 시간 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startTime">
-                시작 시간 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={formData.startTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, startTime: e.target.value })
-                }
-                required
+          {/* 날짜 선택 UI */}
+          <div className="rounded-lg border p-3">
+            {dateMode === 'single' && (
+              <Calendar
+                mode="single"
+                selected={selectedSingleDate}
+                onSelect={(d) => setSelectedSingleDate(d)}
               />
-            </div>
-            <div>
-              <Label htmlFor="endTime">
-                종료 시간 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={formData.endTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, endTime: e.target.value })
-                }
-                required
+            )}
+            {dateMode === 'range' && (
+              <Calendar
+                mode="range"
+                selected={selectedRange}
+                onSelect={(range) => setSelectedRange(range)}
               />
-            </div>
+            )}
+            {dateMode === 'multi' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">날짜 선택</Label>
+                    <Calendar
+                      mode="single"
+                      selected={multiDraftDate}
+                      onSelect={(d) => setMultiDraftDate(d)}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">시간 선택</Label>
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">시작</Label>
+                          <Input
+                            type="time"
+                            value={multiDraftStart}
+                            onChange={(e) => setMultiDraftStart(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">종료</Label>
+                          <Input
+                            type="time"
+                            value={multiDraftEnd}
+                            onChange={(e) => setMultiDraftEnd(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={() => {
+                        if (!multiDraftDate) return;
+                        if (!multiDraftStart || !multiDraftEnd) return;
+                        const ds = format(multiDraftDate, 'yyyy-MM-dd');
+                        setMultiSlots((prev) => {
+                          const exists = prev.some((s) => s.date === ds);
+                          const next = exists
+                            ? prev.map((s) =>
+                                s.date === ds
+                                  ? { ...s, startTime: multiDraftStart, endTime: multiDraftEnd }
+                                  : s
+                              )
+                            : [...prev, { date: ds, startTime: multiDraftStart, endTime: multiDraftEnd }];
+                          return next.sort((a, b) => a.date.localeCompare(b.date));
+                        });
+                      }}
+                      disabled={!multiDraftDate || !multiDraftStart || !multiDraftEnd}
+                    >
+                      <Plus className="size-4 mr-2" />
+                      추가
+                    </Button>
+
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium mb-2">추가된 날짜/시간</p>
+                      {multiSlots.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          아직 추가된 날짜가 없습니다.
+                        </p>
+                      ) : (
+                        <div className={cn(
+                          'space-y-2',
+                          multiSlots.length >= 2 && 'max-h-48 overflow-y-auto pr-1'
+                        )}>
+                          {multiSlots.map((s) => (
+                            <div
+                              key={s.date}
+                              className="flex flex-col md:flex-row md:items-center gap-2 rounded-md border p-2 bg-primary/5 border-primary/20"
+                            >
+                              <Badge variant="secondary" className="w-fit">
+                                {s.date}
+                              </Badge>
+                              <div className="grid grid-cols-2 gap-2 flex-1">
+                                <Input
+                                  type="time"
+                                  value={s.startTime}
+                                  onChange={(e) =>
+                                    setMultiSlots((prev) =>
+                                      prev.map((sl) =>
+                                        sl.date === s.date
+                                          ? { ...sl, startTime: e.target.value }
+                                          : sl
+                                      )
+                                    )
+                                  }
+                                />
+                                <Input
+                                  type="time"
+                                  value={s.endTime}
+                                  onChange={(e) =>
+                                    setMultiSlots((prev) =>
+                                      prev.map((sl) =>
+                                        sl.date === s.date
+                                          ? { ...sl, endTime: e.target.value }
+                                          : sl
+                                      )
+                                    )
+                                  }
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setMultiSlots((prev) => prev.filter((sl) => sl.date !== s.date))
+                                }
+                                title="삭제"
+                              >
+                                <X className="size-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* 선택된 날짜 요약 */}
+          {selectedDates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                선택 {selectedDates.length}일
+              </Badge>
+              {selectedDates.slice(0, 10).map((d) => (
+                <Badge key={d} variant="secondary" className="text-xs">
+                  {d}
+                </Badge>
+              ))}
+              {selectedDates.length > 10 && (
+                <span className="text-xs text-muted-foreground">
+                  외 {selectedDates.length - 10}일
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 시간 (single/range 모드에서만) */}
+          {dateMode !== 'multi' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="ps-startTime">
+                  시작 시간 <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="ps-startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, startTime: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="ps-endTime">
+                  종료 시간 <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="ps-endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, endTime: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+          )}
 
           {/* 장소 */}
           <div>
-            <Label htmlFor="location">장소</Label>
+            <Label htmlFor="ps-location">장소</Label>
             <Input
-              id="location"
+              id="ps-location"
               value={formData.location}
               onChange={(e) =>
                 setFormData({ ...formData, location: e.target.value })
@@ -2277,7 +2613,7 @@ function AddPersonalScheduleModal({
           {/* 급여 타입 & 급여 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="payType">급여 타입</Label>
+              <Label htmlFor="ps-payType">급여 타입</Label>
               <Select
                 value={formData.payType}
                 onValueChange={(value) =>
@@ -2299,9 +2635,9 @@ function AddPersonalScheduleModal({
               </Select>
             </div>
             <div>
-              <Label htmlFor="payAmount">급여 (원)</Label>
+              <Label htmlFor="ps-payAmount">급여 (원)</Label>
               <Input
-                id="payAmount"
+                id="ps-payAmount"
                 type="number"
                 value={formData.payAmount}
                 onChange={(e) =>
@@ -2314,9 +2650,9 @@ function AddPersonalScheduleModal({
 
           {/* 업무 내용 */}
           <div>
-            <Label htmlFor="description">업무 내용</Label>
+            <Label htmlFor="ps-description">업무 내용</Label>
             <textarea
-              id="description"
+              id="ps-description"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
@@ -2329,9 +2665,9 @@ function AddPersonalScheduleModal({
           {/* 담당자 정보 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="managerName">담당자 이름</Label>
+              <Label htmlFor="ps-managerName">담당자 이름</Label>
               <Input
-                id="managerName"
+                id="ps-managerName"
                 value={formData.managerName}
                 onChange={(e) =>
                   setFormData({ ...formData, managerName: e.target.value })
@@ -2340,17 +2676,44 @@ function AddPersonalScheduleModal({
               />
             </div>
             <div>
-              <Label htmlFor="managerPhone">담당자 연락처</Label>
-              <Input
-                id="managerPhone"
-                type="tel"
-                value={formData.managerPhone}
-                onChange={(e) =>
-                  setFormData({ ...formData, managerPhone: e.target.value })
+              <Label htmlFor="ps-contactType">연락처 유형</Label>
+              <Select
+                value={formData.managerContactType}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    managerContactType: value as 'phone' | 'kakao' | 'email' | 'other',
+                  })
                 }
-                placeholder="예: 010-1234-5678"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">전화번호</SelectItem>
+                  <SelectItem value="kakao">카카오톡 ID</SelectItem>
+                  <SelectItem value="email">이메일</SelectItem>
+                  <SelectItem value="other">기타</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+          <div>
+            <Label htmlFor="ps-managerPhone">담당자 연락처</Label>
+            <Input
+              id="ps-managerPhone"
+              type={formData.managerContactType === 'email' ? 'email' : formData.managerContactType === 'phone' ? 'tel' : 'text'}
+              value={formData.managerPhone}
+              onChange={(e) =>
+                setFormData({ ...formData, managerPhone: e.target.value })
+              }
+              placeholder={
+                formData.managerContactType === 'phone' ? '010-1234-5678'
+                : formData.managerContactType === 'kakao' ? '카카오톡 ID'
+                : formData.managerContactType === 'email' ? 'example@email.com'
+                : '연락처 정보'
+              }
+            />
           </div>
 
           <DialogFooter>

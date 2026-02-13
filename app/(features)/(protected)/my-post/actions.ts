@@ -42,6 +42,7 @@ const createPostSchema = z.object({
     .min(1, '최소 하나의 날짜/시간/급여 정보를 입력해주세요.'),
   recruit_count: z.number().int().positive('모집인원은 1명 이상이어야 합니다.'),
   manager_name: z.string().min(1, '담당자 이름을 입력해주세요.'),
+  manager_contact_type: z.enum(['phone', 'kakao', 'email', 'other']).default('phone'),
   manager_phone: z.string().min(1, '담당자 연락처를 입력해주세요.'),
   equipments: z.string().optional(),
   qualifications: z.string().optional(),
@@ -267,6 +268,7 @@ export async function createPostAction(
       work_slots: workSlots,
       recruit_count: Number(formData.get('recruit_count')),
       manager_name: formData.get('manager_name') || profile.name,
+      manager_contact_type: formData.get('manager_contact_type') || 'phone',
       manager_phone: formData.get('manager_phone'),
       equipments: formData.get('equipments') || undefined,
       qualifications: formData.get('qualifications') || undefined,
@@ -335,6 +337,7 @@ export async function createPostAction(
         work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
         manager_name: parsed.data.manager_name,
+        manager_contact_type: parsed.data.manager_contact_type,
         manager_phone: parsed.data.manager_phone,
         equipments: parsed.data.equipments || null,
         qualifications: parsed.data.qualifications || null,
@@ -504,6 +507,7 @@ export async function updatePostAction(
       work_slots: workSlots,
       recruit_count: Number(formData.get('recruit_count')),
       manager_name: formData.get('manager_name'),
+      manager_contact_type: formData.get('manager_contact_type') || 'phone',
       manager_phone: formData.get('manager_phone'),
       equipments: formData.get('equipments') || undefined,
       qualifications: formData.get('qualifications') || undefined,
@@ -572,6 +576,7 @@ export async function updatePostAction(
         work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
         manager_name: parsed.data.manager_name,
+        manager_contact_type: parsed.data.manager_contact_type,
         manager_phone: parsed.data.manager_phone,
         equipments: parsed.data.equipments || null,
         qualifications: parsed.data.qualifications || null,
@@ -630,6 +635,7 @@ export async function deletePostAction(
             pay_amount,
             pay_type,
             manager_name,
+            manager_contact_type,
             manager_phone,
             work_slots
           )
@@ -682,6 +688,7 @@ export async function deletePostAction(
               pay_amount: (slot.pay_amount as number) || post.pay_amount || null,
               description: post.description || null,
               manager_name: post.manager_name || null,
+              manager_contact_type: post.manager_contact_type || 'phone',
               manager_phone: post.manager_phone || null,
             });
           }
@@ -697,6 +704,7 @@ export async function deletePostAction(
             pay_amount: post.pay_amount || null,
             description: post.description || null,
             manager_name: post.manager_name || null,
+            manager_contact_type: post.manager_contact_type || 'phone',
             manager_phone: post.manager_phone || null,
           });
         }

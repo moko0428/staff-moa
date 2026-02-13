@@ -91,6 +91,7 @@ type PostData = {
   work_slots?: WorkSlot[];
   recruit_count: number;
   manager_name: string;
+  manager_contact_type?: 'phone' | 'kakao' | 'email' | 'other';
   manager_phone: string;
   equipments?: string;
   qualifications?: string;
@@ -857,13 +858,26 @@ export default function PostDetailPage({
               <div className="flex items-center gap-3">
                 <Phone className="size-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">연락처</p>
-                  <a
-                    href={`tel:${post.manager_phone}`}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {post.manager_phone}
-                  </a>
+                  <p className="text-sm text-muted-foreground">
+                    {post.manager_contact_type === 'kakao' ? '카카오톡' : post.manager_contact_type === 'email' ? '이메일' : post.manager_contact_type === 'other' ? '연락처' : '전화번호'}
+                  </p>
+                  {post.manager_contact_type === 'email' ? (
+                    <a
+                      href={`mailto:${post.manager_phone}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {post.manager_phone}
+                    </a>
+                  ) : post.manager_contact_type === 'phone' || !post.manager_contact_type ? (
+                    <a
+                      href={`tel:${post.manager_phone}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {post.manager_phone}
+                    </a>
+                  ) : (
+                    <p className="font-medium">{post.manager_phone}</p>
+                  )}
                 </div>
               </div>
             </CardContent>

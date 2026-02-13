@@ -89,6 +89,7 @@ type SupabasePost = {
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   recruit_count: number;
   manager_name: string;
+  manager_contact_type?: string | null;
   manager_phone: string;
   equipments?: string | null;
   qualifications?: string | null;
@@ -167,6 +168,7 @@ function supabasePostToPost(supabasePost: SupabasePost): Post {
     description: supabasePost.description,
     managerInfo: {
       name: supabasePost.manager_name,
+      contactType: supabasePost.manager_contact_type || 'phone',
       phone: supabasePost.manager_phone,
     },
     recruitCount: supabasePost.recruit_count,

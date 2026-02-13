@@ -44,6 +44,7 @@
     pay_amount: integer('pay_amount'),
     description: text('description'),
     manager_name: text('manager_name'),
+    manager_contact_type: text('manager_contact_type').default('phone'),
     manager_phone: text('manager_phone'),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
