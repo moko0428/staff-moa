@@ -51,11 +51,11 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import {
   CheckCircle2,
+  Circle,
   Clock,
   Calendar as CalendarIcon,
   TrendingUp,
   Wallet,
-  DollarSign,
   Plus,
   Trash2,
   Pencil,
@@ -69,12 +69,14 @@ import {
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
+  endOfYear,
   format,
   isSameDay,
   isWithinInterval,
   parseISO,
   startOfMonth,
   startOfWeek,
+  startOfYear,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -83,12 +85,17 @@ import { BottomSheet } from '@/app/components/mobile/BottomSheet';
 
 type ScheduleStatus = 'upcoming' | 'ongoing' | 'completed';
 
-// 파일 상단에 시간 파싱 헬퍼 함수 추가
+// "HH:MM:SS" → "HH:MM" 로 정규화 (초 포함 시 정규식 잘못 매칭 방지)
+function normalizeTimeRangeString(timeStr: string): string {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  return timeStr.trim().replace(/(\d{1,2}):(\d{2}):(\d{2})/g, '$1:$2');
+}
+
 function parseEndTime(
   timeStr: string
 ): { hours: number; minutes: number } | null {
-  // "09:00 - 18:00" 또는 "06:00 - 14:00" 형식에서 종료 시간 추출
-  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  const normalized = normalizeTimeRangeString(timeStr);
+  const match = normalized.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
   if (match) {
     return {
       hours: parseInt(match[3], 10),
@@ -99,9 +106,11 @@ function parseEndTime(
 }
 
 // 근무 시간 계산 함수 (시간 단위)
+// "09:00 - 18:00" 또는 "13:00:00 - 18:00:00"(초 포함) 형식 지원
 function calculateWorkHours(timeStr: string): number {
-  // "09:00 - 18:00" 형식에서 근무 시간 계산
-  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!timeStr || typeof timeStr !== 'string') return 0;
+  const normalized = normalizeTimeRangeString(timeStr);
+  const match = normalized.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
   if (match) {
     const startHours = parseInt(match[1], 10);
     const startMinutes = parseInt(match[2], 10);
@@ -110,10 +119,76 @@ function calculateWorkHours(timeStr: string): number {
 
     const startTotalMinutes = startHours * 60 + startMinutes;
     const endTotalMinutes = endHours * 60 + endMinutes;
-
-    return (endTotalMinutes - startTotalMinutes) / 60;
+    const hours = (endTotalMinutes - startTotalMinutes) / 60;
+    // 종료가 시작보다 이전이면 0 반환 (음수 방지)
+    return hours > 0 ? hours : 0;
   }
   return 0;
+}
+
+// 슬롯 하나에서 근무 시간 계산 (work_slots 항목용)
+function getWorkHoursFromSlot(slot: {
+  start_time?: string;
+  end_time?: string;
+  start?: string;
+  end?: string;
+}): number {
+  const start = slot.start_time || slot.start || '';
+  const end = slot.end_time || slot.end || '';
+  if (!start || !end) return 0;
+  const timeStr = `${start} - ${end}`;
+  return calculateWorkHours(timeStr);
+}
+
+// 스케줄(공고/개인)에 대해 날짜별 급여 항목 계산 (카드/모달 표시 및 통계용)
+// range/multi: 시급=날짜별 근무시간×시급, 일급=날짜별 일급, 주급/월급=총액을 일수로 나눈 하루치
+function getPerDatePayItems(schedule: {
+  date: string;
+  time: string;
+  salary: number;
+  payType?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  workSlots?: Array<{
+    date: string;
+    start_time?: string;
+    end_time?: string;
+    start?: string;
+    end?: string;
+    pay_amount?: number;
+    pay_type?: string;
+  }>;
+}): { dateStr: string; workHours: number; payAmount: number }[] {
+  const payType = schedule.payType || 'daily';
+  const salary = schedule.salary || 0;
+  const dates = parseDateString(schedule.date);
+  if (dates.length === 0) return [];
+
+  const fallbackHours = calculateWorkHours(schedule.time);
+  const numDays = dates.length;
+  // 주급/월급: range·multi일 때 총액을 일수로 나눈 하루치
+  const dailyRateForWeeklyMonthly = numDays > 1 ? salary / numDays : salary;
+
+  return dates.map((dateStr) => {
+    let workHours = fallbackHours;
+    let slotSalary = salary;
+    if (schedule.workSlots?.length) {
+      const slot = schedule.workSlots.find((s) => s.date === dateStr);
+      if (slot) {
+        workHours = getWorkHoursFromSlot(slot);
+        slotSalary = slot.pay_amount ?? salary;
+      }
+    }
+    let payAmount: number;
+    if (payType === 'hourly') {
+      payAmount = workHours * slotSalary;
+    } else if (payType === 'daily') {
+      payAmount = slotSalary;
+    } else if (payType === 'weekly' || payType === 'monthly') {
+      payAmount = dailyRateForWeeklyMonthly;
+    } else {
+      payAmount = slotSalary;
+    }
+    return { dateStr, workHours, payAmount };
+  });
 }
 
 export interface ScheduleWithPost extends Omit<Post, 'status'> {
@@ -557,26 +632,40 @@ export default function WorkerSchedulePage() {
       (post) => post.applicationStatus === 'accepted'
     );
 
+    type DailyItem = { dateStr: string; workHours: number; dailyPay: number };
     type ScheduleEvent = {
       id: string;
       dates: string[];
       salary: number;
       payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
       time: string;
+      dailyItems: DailyItem[];
     };
 
     const events: ScheduleEvent[] = [];
 
-    // 공고 스케줄: 각 공고가 하나의 행사
+    // 공고 스케줄: 각 공고가 하나의 행사, 날짜별 급여(dailyItems) 계산
     acceptedWorkerSchedules.forEach((post) => {
       const dates = parseDateString(post.date);
       if (dates.length === 0) return;
+      const items = getPerDatePayItems({
+        date: post.date,
+        time: post.time,
+        salary: post.salary || 0,
+        payType: post.payType,
+        workSlots: post.workSlots,
+      });
       events.push({
         id: post.id,
         dates,
         salary: post.salary || 0,
         payType: (post.payType || 'daily') as ScheduleEvent['payType'],
         time: post.time,
+        dailyItems: items.map(({ dateStr, workHours, payAmount }) => ({
+          dateStr,
+          workHours,
+          dailyPay: payAmount,
+        })),
       });
     });
 
@@ -604,177 +693,94 @@ export default function WorkerSchedulePage() {
     personalGroups.forEach((group, key) => {
       // 날짜 정렬 및 중복 제거
       const uniqueDates = Array.from(new Set(group.dates)).sort();
+      const dateStrForParse =
+        uniqueDates.length === 1
+          ? uniqueDates[0]
+          : uniqueDates.join(', ');
+      const items = getPerDatePayItems({
+        date: dateStrForParse,
+        time: group.time,
+        salary: group.salary,
+        payType: group.payType,
+      });
       events.push({
         id: `personal-group-${key}`,
         dates: uniqueDates,
         salary: group.salary,
         payType: group.payType,
         time: group.time,
+        dailyItems: items.map(({ dateStr, workHours, payAmount }) => ({
+          dateStr,
+          workHours,
+          dailyPay: payAmount,
+        })),
       });
     });
 
     return events;
   }, [workerPosts, personalSchedules]);
 
-  // 급여 계산 (선택된 날짜의 달 기준)
+  // 급여 계산 (선택된 날짜 기준: 주 / 월 / 연)
   const earningsData = useMemo(() => {
     if (!isMounted) {
       return {
         thisWeek: 0,
         thisMonth: 0,
-        accumulated: 0,
+        thisYear: 0,
         thisWeekCount: 0,
         thisMonthCount: 0,
-        accumulatedCount: 0,
+        thisYearCount: 0,
       };
     }
 
-    const now = new Date();
     const baseDate = selectedDate ?? today;
     const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
     const weekEnd = endOfWeek(baseDate, { weekStartsOn: 0 });
     const monthStart = startOfMonth(baseDate);
     const monthEnd = endOfMonth(baseDate);
+    const yearStart = startOfYear(baseDate);
+    const yearEnd = endOfYear(baseDate);
 
     let thisWeekEarnings = 0;
     let thisMonthEarnings = 0;
-    let accumulatedEarnings = 0;
+    let thisYearEarnings = 0;
     let thisWeekCount = 0;
     let thisMonthCount = 0;
-    let accumulatedCount = 0;
-
-    // 주급/월급 중복 방지를 위한 Set (행사 ID 기준)
-    const weeklyEventsAdded = new Set<string>();
-    const monthlyEventsAdded = new Set<string>();
-    const accumulatedWeeklyEvents = new Set<string>();
-    const accumulatedMonthlyEvents = new Set<string>();
+    let thisYearCount = 0;
 
     groupedScheduleEvents.forEach((event) => {
-      const { dates, salary, payType, time, id: eventId } = event;
-      if (dates.length === 0 || salary === 0) return;
+      const { dailyItems } = event;
+      if (dailyItems.length === 0) return;
 
-      const workHours = calculateWorkHours(time);
+      dailyItems.forEach((item) => {
+        try {
+          const scheduleDate = parseISO(item.dateStr);
 
-      if (payType === 'hourly') {
-        // 시급: 각 근무일의 근무 시간 × 시급
-        dates.forEach((dateStr) => {
-          try {
-            const scheduleDate = parseISO(dateStr);
-            const dailyPay = salary * workHours;
-
-            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
-              thisWeekEarnings += dailyPay;
-              thisWeekCount++;
-            }
-            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
-              thisMonthEarnings += dailyPay;
-              thisMonthCount++;
-            }
-          } catch {
-            // skip
+          if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
+            thisWeekEarnings += item.dailyPay;
+            thisWeekCount++;
           }
-        });
-      } else if (payType === 'daily') {
-        // 일급: 각 근무일마다 일급
-        dates.forEach((dateStr) => {
-          try {
-            const scheduleDate = parseISO(dateStr);
-
-            if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
-              thisWeekEarnings += salary;
-              thisWeekCount++;
-            }
-            if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
-              thisMonthEarnings += salary;
-              thisMonthCount++;
-            }
-          } catch {
-            // skip
+          if (isWithinInterval(scheduleDate, { start: monthStart, end: monthEnd })) {
+            thisMonthEarnings += item.dailyPay;
+            thisMonthCount++;
           }
-        });
-      } else if (payType === 'weekly') {
-        // 주급: 행사 단위로 한 번만 추가
-        const hasWorkThisWeek = dates.some((dateStr) => {
-          try {
-            return isWithinInterval(parseISO(dateStr), { start: weekStart, end: weekEnd });
-          } catch { return false; }
-        });
-
-        if (hasWorkThisWeek && !weeklyEventsAdded.has(eventId)) {
-          thisWeekEarnings += salary;
-          thisWeekCount++;
-          weeklyEventsAdded.add(eventId);
+          if (isWithinInterval(scheduleDate, { start: yearStart, end: yearEnd })) {
+            thisYearEarnings += item.dailyPay;
+            thisYearCount++;
+          }
+        } catch {
+          // skip
         }
-
-        const hasWorkThisMonth = dates.some((dateStr) => {
-          try {
-            return isWithinInterval(parseISO(dateStr), { start: monthStart, end: monthEnd });
-          } catch { return false; }
-        });
-
-        if (hasWorkThisMonth && !monthlyEventsAdded.has(eventId)) {
-          thisMonthEarnings += salary;
-          thisMonthCount++;
-          monthlyEventsAdded.add(eventId);
-        }
-      } else if (payType === 'monthly') {
-        // 월급: 행사 단위로 한 번만 추가
-        const hasWorkThisMonth = dates.some((dateStr) => {
-          try {
-            return isWithinInterval(parseISO(dateStr), { start: monthStart, end: monthEnd });
-          } catch { return false; }
-        });
-
-        if (hasWorkThisMonth && !monthlyEventsAdded.has(eventId)) {
-          thisMonthEarnings += salary;
-          thisMonthCount++;
-          monthlyEventsAdded.add(eventId);
-        }
-      }
-
-      // 누적 급여: 마지막 근무일이 과거인 행사만 계산
-      const endTimeObj = parseEndTime(time);
-      const allDates = dates.map((dateStr) => {
-        const d = parseISO(dateStr);
-        if (endTimeObj) {
-          d.setHours(endTimeObj.hours, endTimeObj.minutes, 0, 0);
-        } else {
-          d.setHours(23, 59, 59, 999);
-        }
-        return d;
       });
-
-      const lastDate = allDates[allDates.length - 1];
-      if (lastDate && lastDate < now) {
-        if (payType === 'hourly') {
-          accumulatedEarnings += salary * workHours * dates.length;
-          accumulatedCount += dates.length;
-        } else if (payType === 'daily') {
-          accumulatedEarnings += salary * dates.length;
-          accumulatedCount += dates.length;
-        } else if (payType === 'weekly') {
-          if (!accumulatedWeeklyEvents.has(eventId)) {
-            accumulatedEarnings += salary;
-            accumulatedCount++;
-            accumulatedWeeklyEvents.add(eventId);
-          }
-        } else if (payType === 'monthly') {
-          if (!accumulatedMonthlyEvents.has(eventId)) {
-            accumulatedEarnings += salary;
-            accumulatedCount++;
-            accumulatedMonthlyEvents.add(eventId);
-          }
-        }
-      }
     });
 
     return {
       thisWeek: thisWeekEarnings,
       thisMonth: thisMonthEarnings,
-      accumulated: accumulatedEarnings,
+      thisYear: thisYearEarnings,
       thisWeekCount,
       thisMonthCount,
-      accumulatedCount,
+      thisYearCount,
     };
   }, [groupedScheduleEvents, isMounted, selectedDate, today]);
 
@@ -1339,7 +1345,7 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
               지원한 공고가 없습니다
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scroll-none">
               {categorizedSchedules.applications.map((schedule) => (
                 <ScheduleCard
                   key={schedule.id}
@@ -1380,14 +1386,16 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
                   예정된 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.upcoming.map((schedule) => (
-                  <ScheduleCard
-                    key={schedule.id}
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    compact
-                  />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scroll-none">
+                  {categorizedSchedules.upcoming.map((schedule) => (
+                    <ScheduleCard
+                      key={schedule.id}
+                      schedule={schedule}
+                      onClick={() => onScheduleClick(schedule)}
+                      compact
+                    />
+                  ))}
+                </div>
               )}
             </div>
 
@@ -1405,14 +1413,16 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
                   진행중인 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.ongoing.map((schedule) => (
-                  <ScheduleCard
-                    key={schedule.id}
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    compact
-                  />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scroll-none">
+                  {categorizedSchedules.ongoing.map((schedule) => (
+                    <ScheduleCard
+                      key={schedule.id}
+                      schedule={schedule}
+                      onClick={() => onScheduleClick(schedule)}
+                      compact
+                    />
+                  ))}
+                </div>
               )}
             </div>
 
@@ -1430,14 +1440,16 @@ function CardView({ categorizedSchedules, onScheduleClick }: CardViewProps) {
                   완료된 스케줄이 없습니다
                 </p>
               ) : (
-                categorizedSchedules.completed.map((schedule) => (
-                  <ScheduleCard
-                    key={schedule.id}
-                    schedule={schedule}
-                    onClick={() => onScheduleClick(schedule)}
-                    compact
-                  />
-                ))
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scroll-none">
+                  {categorizedSchedules.completed.map((schedule) => (
+                    <ScheduleCard
+                      key={schedule.id}
+                      schedule={schedule}
+                      onClick={() => onScheduleClick(schedule)}
+                      compact
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -1627,12 +1639,12 @@ function ScheduleCard({
   return (
     <Card
       className={cn(
-        'cursor-pointer hover:shadow-md transition-shadow',
-        compact && 'mb-2'
+        'cursor-pointer hover:shadow-md transition-shadow flex-shrink-0',
+        compact && 'min-w-[160px] max-w-[calc(50%-6px)]'
       )}
       onClick={onClick}
     >
-      <CardHeader className={cn('pb-3', compact && 'pb-2')}>
+      <CardHeader className={cn('pb-3', compact && 'pb-1.5 px-3 pt-3')}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h3
@@ -1641,7 +1653,7 @@ function ScheduleCard({
             >
               {schedule.title}
             </h3>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <div className={cn('flex items-center gap-2 flex-wrap', compact ? 'mt-1.5 gap-1' : 'mt-2')}>
               {!showApplicationStatus && (
                 <Badge className={cn('text-xs', config.className)}>
                   {config.label}
@@ -1665,33 +1677,50 @@ function ScheduleCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className={cn('pt-0', compact && 'pt-0')}>
+      <CardContent className={cn('pt-0', compact && 'pt-0 px-3 pb-3')}>
         <div
           className={cn('space-y-2 text-sm', compact && 'space-y-1 text-xs')}
         >
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <CalendarIcon className="size-4" />
-            <span>{schedule.date}</span>
+          <div className={cn('flex items-center gap-2 text-muted-foreground', compact && 'gap-1.5')}>
+            <CalendarIcon className={cn('size-4', compact && 'size-3.5')} />
+            <span className={compact ? 'truncate' : ''}>{schedule.date}</span>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="size-4" />
-            <span>{schedule.time}</span>
+          <div className={cn('flex items-center gap-2 text-muted-foreground', compact && 'gap-1.5')}>
+            <Clock className={cn('size-4', compact && 'size-3.5')} />
+            <span className={compact ? 'truncate' : ''}>{normalizeTimeRangeString(schedule.time) || schedule.time}</span>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>📍</span>
+          <div className={cn('flex items-center gap-2 text-muted-foreground', compact && 'gap-1.5')}>
+            <span className={compact ? 'text-[10px]' : ''}>📍</span>
             <span className="truncate">{schedule.location}</span>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>💰</span>
-            <span>
-              {payType === 'hourly'
-                ? `${(schedule.salary * calculateWorkHours(schedule.time)).toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원)`
-                : payType === 'weekly'
-                  ? `${schedule.salary.toLocaleString()}원 (주급)`
-                  : payType === 'monthly'
-                    ? `${schedule.salary.toLocaleString()}원 (월급)`
-                    : `${schedule.salary.toLocaleString()}원 (일급)`
-              }
+          <div className={cn('flex items-center gap-2 text-muted-foreground', compact && 'gap-1.5')}>
+            <span className={compact ? 'text-[10px]' : ''}>💰</span>
+            <span className="flex flex-col gap-0.5">
+              {(() => {
+                const items = getPerDatePayItems(schedule);
+                if (items.length === 0) {
+                  const label = payType === 'weekly' ? '주급' : payType === 'monthly' ? '월급' : payType === 'hourly' ? '시급' : '일급';
+                  return `${schedule.salary.toLocaleString()}원 (${label})`;
+                }
+                if (items.length <= 1) {
+                  const single = items[0];
+                  const pt = payType;
+                  if (pt === 'hourly') {
+                    return `${single.payAmount.toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원 × ${single.workHours}h)`;
+                  }
+                  const label = pt === 'weekly' ? '주급' : pt === 'monthly' ? '월급' : '일급';
+                  return `${single.payAmount.toLocaleString()}원 (${label})`;
+                }
+                return (
+                  <>
+                    {items.map(({ dateStr, payAmount }) => (
+                      <span key={dateStr}>
+                        {format(parseISO(dateStr), 'M/d', { locale: ko })}: {payAmount.toLocaleString()}원
+                      </span>
+                    ))}
+                  </>
+                );
+              })()}
             </span>
           </div>
         </div>
@@ -1710,10 +1739,10 @@ interface EarningsSectionProps {
   earnings: {
     thisWeek: number;
     thisMonth: number;
-    accumulated: number;
+    thisYear: number;
     thisWeekCount: number;
     thisMonthCount: number;
-    accumulatedCount: number;
+    thisYearCount: number;
   };
 }
 
@@ -1738,10 +1767,10 @@ function EarningsSection({ earnings }: EarningsSectionProps) {
       </div>
       <div className="h-3 w-px bg-border" />
       <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-        <DollarSign className="size-4 text-purple-600" />
-        <span className="text-muted-foreground">누적</span>
+        <Circle className="size-4 text-purple-600" />
+        <span className="text-muted-foreground">연</span>
         <span className="font-semibold">
-          {formatWon(earnings.accumulated)}원
+          {formatWon(earnings.thisYear)}원
         </span>
       </div>
     </div>
@@ -2036,7 +2065,7 @@ function ScheduleDetailModal({
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="size-4" />
-                  <span>{schedule.time}</span>
+                  <span>{normalizeTimeRangeString(schedule.time) || schedule.time}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span>📍</span>
@@ -2044,15 +2073,32 @@ function ScheduleDetailModal({
                 </div>
                 <div className="flex items-center gap-2">
                   <span>💰</span>
-                  <span>
+                  <span className="flex flex-col gap-1">
                     {(() => {
+                      const items = getPerDatePayItems(schedule);
                       const pt = (schedule as PostWithApplicationStatus).payType || 'daily';
-                      if (pt === 'hourly') {
-                        const hours = calculateWorkHours(schedule.time);
-                        return `${(schedule.salary * hours).toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원 × ${hours}h)`;
+                      if (items.length === 0) {
+                        const label = pt === 'weekly' ? '주급' : pt === 'monthly' ? '월급' : pt === 'hourly' ? '시급' : '일급';
+                        return `${schedule.salary.toLocaleString()}원 (${label})`;
                       }
-                      const label = pt === 'weekly' ? '주급' : pt === 'monthly' ? '월급' : '일급';
-                      return `${schedule.salary.toLocaleString()}원 (${label})`;
+                      if (items.length <= 1) {
+                        const single = items[0];
+                        if (pt === 'hourly') {
+                          return `${single.payAmount.toLocaleString()}원 (시급 ${schedule.salary.toLocaleString()}원 × ${single.workHours}h)`;
+                        }
+                        const label = pt === 'weekly' ? '주급' : pt === 'monthly' ? '월급' : '일급';
+                        return `${single.payAmount.toLocaleString()}원 (${label})`;
+                      }
+                      return (
+                        <>
+                          {items.map(({ dateStr, workHours, payAmount }) => (
+                            <span key={dateStr}>
+                              {format(parseISO(dateStr), 'yyyy.MM.dd (E)', { locale: ko })}: {payAmount.toLocaleString()}원
+                              {pt === 'hourly' && ` (${workHours}h × 시급)`}
+                            </span>
+                          ))}
+                        </>
+                      );
                     })()}
                   </span>
                 </div>
