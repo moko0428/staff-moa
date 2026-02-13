@@ -408,7 +408,16 @@ export default function ProfilePage() {
                     onChange={handleProfileImageUpload}
                   />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">{currentUser.name}</h2>
+                {isEditing ? (
+                  <Input
+                    value={currentUser.name ?? ''}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="이름"
+                    className="text-2xl font-bold h-12 text-center mb-2"
+                  />
+                ) : (
+                  <h2 className="text-2xl font-bold mb-2">{currentUser.name}</h2>
+                )}
                 <Badge variant="outline" className="mb-4">
                   {effectiveRole === 'member' && '스탭'}
                   {effectiveRole === 'manager' && '매니저'}
@@ -653,13 +662,14 @@ export default function ProfilePage() {
                   </Label>
                   {isEditing ? (
                     <Input
-                      value={currentUser.name}
+                      value={currentUser.name ?? ''}
                       onChange={(e) =>
                         handleInputChange('name', e.target.value)
                       }
+                      placeholder="이름"
                     />
                   ) : (
-                    <p className="font-semibold">{currentUser.name}</p>
+                    <p className="font-semibold">{currentUser.name ?? '-'}</p>
                   )}
                 </div>
                 <div>
