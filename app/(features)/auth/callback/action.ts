@@ -43,11 +43,16 @@ async function ensureProfile(supabase: SupabaseClient) {
     const email = user.email || meta.email || '';
     const avatar = meta.avatar_url || meta.picture || null;
 
+    // 카카오 로그인: 이메일에서 @ 앞부분을 kakao_id로 저장
+    const isKakao = user.app_metadata?.provider === 'kakao';
+    const kakao_id = isKakao && email ? email.split('@')[0] : null;
+
     const { error } = await supabase.from('profiles').insert({
       user_id: user.id,
       email,
       name,
       avatar,
+      kakao_id,
       role: 'member',
       is_banned: false,
       attendance_score: 50,
