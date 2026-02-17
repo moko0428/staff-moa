@@ -8,9 +8,9 @@ import { signUpAction } from '../../action';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
-import { Checkbox } from '@/app/components/ui/checkbox';
 import { ChevronLeft } from 'lucide-react';
 import { RoleOption } from '../types';
+import { TermsAgreeSection } from '../../components/TermsBottomSheet';
 
 type ActionState = {
   ok: boolean;
@@ -35,7 +35,8 @@ export default function ManagerJoinPage() {
     email: '',
     password: '',
     passwordConfirm: '',
-    termsAgree: false,
+    serviceAgree: false,
+    privacyAgree: false,
   });
 
   useEffect(() => {
@@ -153,28 +154,17 @@ export default function ManagerJoinPage() {
                 )}
               </div>
 
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="termsAgree"
-                  name="termsAgree"
-                  checked={formValues.termsAgree}
-                  onCheckedChange={(checked) =>
-                    setFormValues((prev) => ({
-                      ...prev,
-                      termsAgree: Boolean(checked),
-                    }))
-                  }
-                />
-                <Label htmlFor="termsAgree" className="text-sm leading-tight">
-                  약관에 동의합니다. (필수)
-                </Label>
-              </div>
-
-              {state?.fieldErrors?.termsAgree && (
-                <p className="text-xs text-red-500">
-                  {state.fieldErrors.termsAgree}
-                </p>
-              )}
+              <TermsAgreeSection
+                serviceChecked={formValues.serviceAgree}
+                privacyChecked={formValues.privacyAgree}
+                onServiceChange={(checked) =>
+                  setFormValues((prev) => ({ ...prev, serviceAgree: checked }))
+                }
+                onPrivacyChange={(checked) =>
+                  setFormValues((prev) => ({ ...prev, privacyAgree: checked }))
+                }
+                fieldError={state?.fieldErrors?.termsAgree}
+              />
 
               {state?.message && (
                 <p
