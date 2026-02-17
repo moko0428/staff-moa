@@ -27,7 +27,11 @@ import {
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/Separator';
-import { submitReviewAction, getMyReviewAction } from './actions';
+import {
+  submitReviewAction,
+  getMyReviewAction,
+  deleteAccountAction,
+} from './actions';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -114,6 +118,7 @@ export default function SettingsPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // 다크모드 hydration 방지 및 설정 로드
   useEffect(() => {
@@ -249,13 +254,27 @@ export default function SettingsPage() {
   // 계정 탈퇴 핸들러
   const handleDeleteAccount = async () => {
     if (
-      !confirm('정말 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')
+      !confirm(
+        '정말 계정을 탈퇴하시겠습니까?\n\n모든 데이터(프로필, 공고, 지원 내역, 스케줄 등)가 영구 삭제되며 복구할 수 없습니다.',
+      )
     ) {
       return;
     }
 
-    // TODO: 계정 탈퇴 로직 구현
-    toast.message('계정 탈퇴 기능은 곧 구현될 예정입니다.');
+    setIsDeletingAccount(true);
+    try {
+      const result = await deleteAccountAction();
+      if (result.ok) {
+        toast.success(result.message);
+        window.location.href = '/auth';
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('계정 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -660,9 +679,10 @@ export default function SettingsPage() {
                         </div>
                         <button
                           onClick={handleDeleteAccount}
-                          className="ml-4 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md border border-destructive/20 transition-colors"
+                          disabled={isDeletingAccount}
+                          className="ml-4 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md border border-destructive/20 transition-colors disabled:opacity-50"
                         >
-                          탈퇴하기
+                          {isDeletingAccount ? '처리중...' : '탈퇴하기'}
                         </button>
                       </div>
                     </div>

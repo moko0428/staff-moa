@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export type SubmitReviewInput = {
   rating: number;
@@ -113,5 +114,83 @@ export async function getMyReviewAction(): Promise<{
   } catch (error) {
     console.error('Get review error:', error);
     return { ok: false, message: '오류가 발생했습니다.' };
+  }
+}
+
+export async function deleteAccountAction(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    const userId = user.id;
+
+    // 관련 데이터 삭제 (CASCADE가 안 걸린 테이블들)
+    // personal_schedules
+    await supabase
+      .from('personal_schedules')
+      .delete()
+      .eq('user_id', userId);
+
+    // member_schedules (스탭이 지원한 스케줄)
+    await supabase
+      .from('member_schedules')
+      .delete()
+      .eq('member_id', userId);
+
+    // app_reviews
+    await supabase
+      .from('app_reviews')
+      .delete()
+      .eq('user_id', userId);
+
+    // 매니저인 경우: 등록한 공고 삭제 (member_schedules CASCADE)
+    await supabase
+      .from('posts')
+      .delete()
+      .eq('author_id', userId);
+
+    // profiles 삭제
+    await supabase
+      .from('profiles')
+      .delete()
+      .eq('user_id', userId);
+
+    // auth.users 삭제 (service role 필요)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return { ok: false, message: '서버 설정 오류입니다. 관리자에게 문의하세요.' };
+    }
+
+    const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { error: deleteUserError } =
+      await adminClient.auth.admin.deleteUser(userId);
+
+    if (deleteUserError) {
+      console.error('[deleteAccountAction] auth delete error:', deleteUserError);
+      return { ok: false, message: '계정 삭제에 실패했습니다. 관리자에게 문의하세요.' };
+    }
+
+    // 세션 종료
+    await supabase.auth.signOut();
+
+    return { ok: true, message: '계정이 삭제되었습니다.' };
+  } catch (error) {
+    console.error('[deleteAccountAction] unexpected error:', error);
+    return { ok: false, message: '계정 삭제 중 오류가 발생했습니다.' };
   }
 }

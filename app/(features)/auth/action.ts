@@ -243,6 +243,39 @@ export async function signUpAction(
 }
 
 /* =========================
+   Kakao OAuth
+========================= */
+
+export async function signInWithKakaoAction(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!siteUrl) {
+    return { ok: false, message: '환경변수가 올바르지 않습니다.' };
+  }
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'kakao',
+    options: {
+      redirectTo: `${siteUrl}/auth/callback`,
+    },
+  });
+
+  if (error || !data.url) {
+    return {
+      ok: false,
+      message: '카카오 로그인을 시작할 수 없습니다.',
+    };
+  }
+
+  return {
+    ok: true,
+    message: '',
+    redirectTo: data.url,
+  };
+}
+
+/* =========================
    Sign Out
 ========================= */
 

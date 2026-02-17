@@ -1,6 +1,7 @@
 import Logo from '@/app/components/Logo';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
+import { KakaoLoginButton } from './components/KakaoLoginButton';
 
 export default function AuthPage() {
   return (
@@ -18,20 +19,9 @@ export default function AuthPage() {
             원하는 공고를 찾아보세요.
           </p>
         </section>
-        <section className="flex flex-col gap-4 w-full *:text-sm *:h-12 *:font-normal">
-          {/* <Button className="bg-yellow-300 hover:bg-yellow-400 text-black">
-            카카오 계정으로 계속하기
-          </Button>
-          <Button className="bg-white border-2 border-border text-black hover:bg-muted">
-            애플 계정으로 계속하기
-          </Button>
-          <Button className="bg-white border-2 border-border text-black hover:bg-muted">
-            구글 계정으로 계속하기
-          </Button> */}
-          <div className="text-sm text-muted-foreground text-center">
-            소셜 계정 로그인 공사중!
-          </div>
-          <Button variant="default" asChild className="hover:bg-primary/90">
+        <section className="flex flex-col gap-3 w-full">
+          <KakaoLoginButton />
+          <Button variant="default" asChild className="w-full h-12 text-sm font-normal hover:bg-primary/90">
             <Link href="/auth/login">이메일로 계속하기</Link>
           </Button>
         </section>
