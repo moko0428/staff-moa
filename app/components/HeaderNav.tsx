@@ -172,7 +172,7 @@ export default function HeaderNav() {
                 isHome ? 'text-white' : 'text-primary'
               )}
             >
-              스탭알바
+              고인력
             </span>
           </Link>
 
@@ -280,6 +280,7 @@ export default function HeaderNav() {
                   </Link>
                   <Link
                     href="/settings"
+                    prefetch={false}
                     className={cn(
                       'inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
                       isHome
@@ -376,6 +377,7 @@ export default function HeaderNav() {
                         <DropdownMenuItem asChild>
                           <Link
                             href="/settings"
+                            prefetch={false}
                             className="flex items-center gap-2"
                           >
                             <Settings className="size-4" />

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import Script from 'next/script';
@@ -8,11 +9,18 @@ import { Toaster } from './components/ui/sonner';
 import GoogleAnalyticsRouteTracker from '@/app/components/GoogleAnalyticsRouteTracker';
 
 export const metadata: Metadata = {
-  title: 'Staff MOA',
+  title: '고인력',
   description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
 };
 
 const GA_ID = process.env.GA_ID!;
+
+const pretendard = localFont({
+  src: '../public/fonts/PretendardVariable.ttf',
+  display: 'swap',
+  weight: '100 900',
+  variable: '--font-pretendard',
+});
 
 export default function RootLayout({
   children,
@@ -21,7 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className="min-h-screen bg-accent text-foreground overscroll-none">
+      <body
+        className={`min-h-screen bg-accent text-foreground overscroll-none antialiased ${pretendard.variable} ${pretendard.className}`}
+      >
         {/* Google tag (gtag.js) */}
         <Script
           async
