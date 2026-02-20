@@ -113,14 +113,10 @@ type ApplicantData = {
     birth_date: string | null;
     gender: string | null;
     kakao_id: string | null;
-    mbti: string | null;
-    height: number | null;
-    weight: number | null;
-    personality: string | null;
-    features: string | null;
     bio: string | null;
     experiences: unknown;
     documents: unknown;
+    profile_visibility: unknown;
   } | null;
 };
 
@@ -146,11 +142,6 @@ interface ApplicationWithPost {
     age?: number | null;
     gender?: string | null;
     kakaoId?: string | null;
-    mbti?: string | null;
-    height?: number | null;
-    weight?: number | null;
-    personality?: string | null;
-    features?: string | null;
     introduction?: string | null;
     experiences?: Array<{
       title?: string;
@@ -164,6 +155,17 @@ interface ApplicationWithPost {
       certificates?: string[];
       language?: string[];
       extraDocuments?: string[];
+    };
+    profileVisibility?: {
+      email?: boolean;
+      phone?: boolean;
+      kakaoId?: boolean;
+      age?: boolean;
+      gender?: boolean;
+      experiences?: boolean;
+      documents?: boolean;
+      certificates?: boolean;
+      languages?: boolean;
     };
   };
   applicantPhoto?: string;
@@ -199,6 +201,7 @@ interface GroupedWorker {
     postStatus?: 'recruiting' | 'completed' | 'urgent';
     appliedAt: string;
     status: ApplicationStatus;
+    message?: string | null;
   }>;
 }
 
@@ -316,14 +319,12 @@ function convertToApplicationWithPost(
           age: age,
           gender: profile.gender,
           kakaoId: profile.kakao_id,
-          mbti: profile.mbti,
-          height: profile.height,
-          weight: profile.weight,
-          personality: profile.personality,
-          features: profile.features,
           introduction: profile.bio,
           experiences,
           documents,
+          profileVisibility: typeof profile?.profile_visibility === 'object' && profile?.profile_visibility !== null
+            ? (profile.profile_visibility as Record<string, boolean>)
+            : undefined,
         }
       : undefined,
     applicantPhoto: profile?.avatar || undefined,
@@ -515,6 +516,7 @@ export default function WorkerManagementPage() {
         postStatus: app.postStatus,
         appliedAt: app.appliedAt,
         status: app.status,
+        message: app.message,
       };
 
       if (existing) {
@@ -862,9 +864,9 @@ export default function WorkerManagementPage() {
         </div>
       </div>
 
-      {/* 워커 프로필 모달 */}
+      {/* 스탭 프로필 모달 */}
       {selectedWorkerProfile && (
-        <WorkerProfileModal
+        <StaffProfileModal
           worker={selectedWorkerProfile}
           onClose={() => setSelectedWorkerProfile(null)}
           onNotesChange={(workerId, notes) => {
@@ -1108,6 +1110,10 @@ function ApplicationDetailModal({
             </>
           )}
           {/* 지원자 기본 정보 */}
+          {(() => {
+            const vis = application.applicantInfo?.profileVisibility;
+            return (
+            <>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">지원자 기본 정보</CardTitle>
@@ -1127,7 +1133,7 @@ function ApplicationDetailModal({
                   <h3 className="font-semibold text-lg">
                     {application.applicantName}
                   </h3>
-                  {application.applicantInfo?.email && (
+                  {application.applicantInfo?.email && vis?.email !== false && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Mail className="size-3" />
                       <span>{application.applicantInfo.email}</span>
@@ -1147,7 +1153,7 @@ function ApplicationDetailModal({
                     </span>
                   </div>
                 </div>
-                {application.applicantInfo?.kakaoId && (
+                {application.applicantInfo?.kakaoId && vis?.kakaoId !== false && (
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-muted-foreground">카카오톡</Label>
                     <p className="font-semibold">
@@ -1155,7 +1161,7 @@ function ApplicationDetailModal({
                     </p>
                   </div>
                 )}
-                {application.applicantInfo?.phone && (
+                {application.applicantInfo?.phone && vis?.phone !== false && (
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-muted-foreground">전화번호</Label>
                     <p className="font-semibold">
@@ -1163,15 +1169,7 @@ function ApplicationDetailModal({
                     </p>
                   </div>
                 )}
-                {application.applicantInfo?.mbti && (
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm text-muted-foreground">MBTI</Label>
-                    <p className="font-semibold">
-                      {application.applicantInfo.mbti}
-                    </p>
-                  </div>
-                )}
-                {application.applicantInfo?.gender && (
+                {application.applicantInfo?.gender && vis?.gender !== false && (
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-muted-foreground">성별</Label>
                     <p className="font-semibold">
@@ -1179,32 +1177,11 @@ function ApplicationDetailModal({
                     </p>
                   </div>
                 )}
-                {application.applicantInfo?.age && (
+                {application.applicantInfo?.age && vis?.age !== false && (
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-muted-foreground">나이</Label>
                     <p className="font-semibold">
                       {application.applicantInfo.age}세
-                    </p>
-                  </div>
-                )}
-                {application.applicantInfo?.height && (
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Ruler className="size-3" />키
-                    </Label>
-                    <p className="font-semibold">
-                      {application.applicantInfo.height}cm
-                    </p>
-                  </div>
-                )}
-                {application.applicantInfo?.weight && (
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Weight className="size-3" />
-                      몸무게
-                    </Label>
-                    <p className="font-semibold">
-                      {application.applicantInfo.weight}kg
                     </p>
                   </div>
                 )}
@@ -1213,7 +1190,7 @@ function ApplicationDetailModal({
           </Card>
 
           {/* 서류 제출 현황 */}
-          {application.applicantInfo?.documents &&
+          {application.applicantInfo?.documents && vis?.documents !== false &&
             (() => {
               const docs = application.applicantInfo.documents;
               const hasIdCard = !!docs.idCard;
@@ -1222,8 +1199,8 @@ function ApplicationDetailModal({
               const hasDriverLicense =
                 docs.extraDocuments?.includes('driverLicense');
               const hasCertificates =
-                docs.certificates && docs.certificates.length > 0;
-              const hasLanguage = docs.language && docs.language.length > 0;
+                docs.certificates && docs.certificates.length > 0 && vis?.certificates !== false;
+              const hasLanguage = docs.language && docs.language.length > 0 && vis?.languages !== false;
 
               // 제출한 서류가 하나라도 있는지 확인
               const hasAnyDocument =
@@ -1344,43 +1321,8 @@ function ApplicationDetailModal({
               );
             })()}
 
-          {/* 성격 및 특징 */}
-          {application.applicantInfo &&
-            (application.applicantInfo.personality ||
-              application.applicantInfo.features) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">성격 및 특징</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {application.applicantInfo.personality && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
-                        <Smile className="size-4" />
-                        성격
-                      </Label>
-                      <p className="text-sm leading-relaxed">
-                        {application.applicantInfo.personality}
-                      </p>
-                    </div>
-                  )}
-                  {application.applicantInfo.features && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
-                        <Star className="size-4" />
-                        특징
-                      </Label>
-                      <p className="text-sm leading-relaxed">
-                        {application.applicantInfo.features}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
           {/* 경력 및 소개 */}
-          {application.applicantInfo &&
+          {application.applicantInfo && vis?.experiences !== false &&
             (application.applicantInfo.experiences ||
               application.applicantInfo.introduction) && (
               <Card>
@@ -1421,6 +1363,10 @@ function ApplicationDetailModal({
                 </CardContent>
               </Card>
             )}
+
+            </>
+            );
+          })()}
 
           {/* 공고 정보 */}
           <Card>
@@ -2075,21 +2021,22 @@ function GroupedWorkerCard({
   );
 }
 
-// 워커 프로필 모달
-interface WorkerProfileModalProps {
+// 스탭 프로필 모달
+interface StaffProfileModalProps {
   worker: GroupedWorker;
   onClose: () => void;
   onNotesChange: (workerId: string, notes: string) => void;
 }
 
-function WorkerProfileModal({
+function StaffProfileModal({
   worker,
   onClose,
   onNotesChange,
-}: WorkerProfileModalProps) {
+}: StaffProfileModalProps) {
   const [notes, setNotes] = useState(worker.workerManagement?.notes || '');
   const [isSaving, setIsSaving] = useState(false);
   const info = worker.applicantInfo;
+  const vis = info?.profileVisibility;
 
   const handleSaveNotes = async () => {
     setIsSaving(true);
@@ -2108,11 +2055,21 @@ function WorkerProfileModal({
     }
   };
 
+  // 서류 정보 (visibility 반영)
+  const docs = info?.documents;
+  const hasIdCard = vis?.documents !== false && !!docs?.idCard;
+  const hasBankbook = vis?.documents !== false && !!docs?.bankbook;
+  const hasHealthCert = vis?.documents !== false && !!docs?.healthCertificate;
+  const hasDriverLicense = vis?.documents !== false && docs?.extraDocuments?.includes('driverLicense');
+  const hasCertificates = vis?.certificates !== false && docs?.certificates && docs.certificates.length > 0;
+  const hasLanguage = vis?.languages !== false && docs?.language && docs.language.length > 0;
+  const hasAnyDocument = hasIdCard || hasBankbook || hasHealthCert || hasDriverLicense || hasCertificates || hasLanguage;
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-center">워커 프로필</DialogTitle>
+          <DialogTitle className="text-center">스탭 프로필</DialogTitle>
           <DialogDescription />
         </DialogHeader>
 
@@ -2130,8 +2087,8 @@ function WorkerProfileModal({
           <div className="text-center">
             <h3 className="text-xl font-semibold">{worker.applicantName}</h3>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mt-1">
-              {worker.applicantAge && <span>{worker.applicantAge}세</span>}
-              {worker.applicantGender && <span>· {worker.applicantGender}</span>}
+              {vis?.age !== false && worker.applicantAge && <span>{worker.applicantAge}세</span>}
+              {vis?.gender !== false && worker.applicantGender && <span>· {worker.applicantGender}</span>}
             </div>
           </div>
 
@@ -2141,38 +2098,156 @@ function WorkerProfileModal({
           </Badge>
 
           {/* 기본 정보 */}
-          <div className="w-full space-y-2 p-4 bg-muted rounded-lg">
-            {info?.phone && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">전화번호</span>
-                <span className="font-medium">{info.phone}</span>
+          {((vis?.phone !== false && info?.phone) || (vis?.kakaoId !== false && info?.kakaoId) || (vis?.email !== false && info?.email) || (vis?.gender !== false && info?.gender) || (vis?.age !== false && info?.age)) && (
+            <div className="w-full space-y-2 p-4 bg-muted rounded-lg">
+              {vis?.phone !== false && info?.phone && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">전화번호</span>
+                  <span className="font-medium">{info.phone}</span>
+                </div>
+              )}
+              {vis?.kakaoId !== false && info?.kakaoId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">카카오톡</span>
+                  <span className="font-medium">{info.kakaoId}</span>
+                </div>
+              )}
+              {vis?.email !== false && info?.email && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">이메일</span>
+                  <span className="font-medium">{info.email}</span>
+                </div>
+              )}
+              {vis?.gender !== false && info?.gender && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">성별</span>
+                  <span className="font-medium">{info.gender}</span>
+                </div>
+              )}
+              {vis?.age !== false && info?.age && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">나이</span>
+                  <span className="font-medium">{info.age}세</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 경력 및 자기소개 */}
+          {vis?.experiences !== false && (info?.experiences?.length || info?.introduction) && (
+            <div className="w-full space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Briefcase className="size-4" />
+                경력 및 자기소개
+              </h4>
+              {info?.experiences && info.experiences.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">경력</Label>
+                  {info.experiences.map((exp, idx) => (
+                    <div key={idx} className="text-sm border-l-2 border-primary/30 pl-3">
+                      <p className="font-medium">{exp.title}</p>
+                      <div className="text-xs text-muted-foreground flex gap-2">
+                        {exp.date && <span>{exp.date}</span>}
+                        {exp.location && <span>· {exp.location}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {info?.introduction && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">자기소개</Label>
+                  <p className="text-sm leading-relaxed">{info.introduction}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 서류 제출 현황 */}
+          {hasAnyDocument && (
+            <div className="w-full space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <FileText className="size-4" />
+                서류 제출 현황
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {hasIdCard && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="size-4 text-green-500" />
+                    <span>신분증</span>
+                  </div>
+                )}
+                {hasBankbook && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="size-4 text-green-500" />
+                    <span>통장사본</span>
+                  </div>
+                )}
+                {hasHealthCert && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="size-4 text-green-500" />
+                    <span>보건증</span>
+                  </div>
+                )}
+                {hasDriverLicense && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="size-4 text-green-500" />
+                    <span>운전면허증</span>
+                  </div>
+                )}
               </div>
-            )}
-            {info?.kakaoId && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">카카오톡</span>
-                <span className="font-medium">{info.kakaoId}</span>
+              {hasCertificates && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">자격증</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {docs!.certificates!.map((cert, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {cert}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {hasLanguage && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">어학 능력</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {docs!.language!.map((lang, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {lang}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 지원 메세지 */}
+          {worker.schedules.some((s) => s.message) && (
+            <div className="w-full space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <MessageSquare className="size-4" />
+                지원 메세지
+              </h4>
+              <div className="space-y-3">
+                {worker.schedules
+                  .filter((s) => s.message)
+                  .map((s) => (
+                    <div key={s.id} className="text-sm border-l-2 border-primary/30 pl-3">
+                      <p className="text-xs text-muted-foreground mb-1">{s.postTitle}</p>
+                      <p className="leading-relaxed whitespace-pre-wrap">{s.message}</p>
+                    </div>
+                  ))}
               </div>
-            )}
-            {info?.email && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">이메일</span>
-                <span className="font-medium">{info.email}</span>
-              </div>
-            )}
-            {info?.mbti && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">MBTI</span>
-                <span className="font-medium">{info.mbti}</span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* 메모 */}
           <div className="w-full space-y-2">
             <Label className="text-sm font-medium">메모</Label>
             <Textarea
-              placeholder="이 워커에 대한 메모를 작성하세요..."
+              placeholder="이 스탭에 대한 메모를 작성하세요..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}

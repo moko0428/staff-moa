@@ -12,6 +12,8 @@ import {
 } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
 import {
   Dialog,
@@ -24,6 +26,9 @@ import {
 import ScheduleCalendar from '@/app/components/ScheduleCalendar';
 import { Post, AttendanceReview } from '@/types/mockData';
 import { getMyPostsAction } from '@/app/(features)/(protected)/my-post/actions';
+import { submitAttendanceReviewAction, getReviewsByPostAction } from './actions';
+import { PENALTY_TYPES } from './constants';
+import type { PenaltyItem } from './constants';
 import { createClient } from '@/utils/supabase/client';
 import {
   CheckCircle2,
@@ -172,7 +177,7 @@ function supabasePostToPost(supabasePost: SupabasePost): Post {
       phone: supabasePost.manager_phone,
     },
     recruitCount: supabasePost.recruit_count,
-    currentApplicants: 0, // TODO: applications 테이블이 생성되면 실제 데이터로 교체
+    currentApplicants: 0,
     notes: supabasePost.notes || undefined,
     requirements: supabasePost.qualifications || undefined,
     preferences: supabasePost.preferences || undefined,
@@ -210,7 +215,8 @@ export default function SchedulePage() {
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const [reviews, setReviews] = useState<AttendanceReview[]>([]); // TODO: attendance_reviews 테이블이 생성되면 실제 데이터로 교체
+  const [reviews, setReviews] = useState<AttendanceReview[]>([]);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [managerPosts, setManagerPosts] = useState<Post[]>([]);
@@ -488,9 +494,34 @@ export default function SchedulePage() {
     return { upcoming, ongoing, completed };
   }, [managerPosts, reviews, isMounted, applicantsData]);
 
-  const handleScheduleClick = (schedule: ScheduleWithPost) => {
+  const handleScheduleClick = async (schedule: ScheduleWithPost) => {
     if (schedule.status === 'completed') {
-      setSelectedSchedule(schedule);
+      // DB에서 기존 리뷰 로드
+      const result = await getReviewsByPostAction(Number(schedule.id));
+      if (result.ok && result.data) {
+        const loadedReviews: AttendanceReview[] = result.data.map((r) => ({
+          id: r.review_id,
+          postId: schedule.id,
+          userId: r.member_id,
+          score: r.score,
+          comment: r.comment,
+          penaltyItems: (r.penalty_items as PenaltyItem[] | null) || undefined,
+          reviewedBy: currentUserId || '',
+          createdAt: r.updated_at,
+        }));
+        setReviews(loadedReviews);
+
+        // 참여자에 리뷰 정보 매핑
+        setSelectedSchedule({
+          ...schedule,
+          participants: schedule.participants.map((p) => {
+            const review = loadedReviews.find((r) => r.userId === p.userId);
+            return review ? { ...p, review } : p;
+          }),
+        });
+      } else {
+        setSelectedSchedule(schedule);
+      }
     } else {
       // 예정/진행중 스케줄은 상세 모달 표시
       setSelectedDetailSchedule(schedule);
@@ -718,62 +749,60 @@ export default function SchedulePage() {
     };
   }, [categorizedSchedules, selectedDate, today]);
 
-  const handleReviewSubmit = (
+  const handleReviewSubmit = async (
     postId: string,
     userId: string,
     score: number,
-    comment: string
+    comment: string,
+    penaltyItems: PenaltyItem[] = []
   ) => {
-    const existingReview = reviews.find(
-      (r) => r.postId === postId && r.userId === userId
-    );
-
-    if (existingReview) {
-      // 기존 리뷰 업데이트
-      setReviews(
-        reviews.map((r) =>
-          r.id === existingReview.id
-            ? { ...r, score, comment, updatedAt: new Date().toISOString() }
-            : r
-        )
+    setIsSubmittingReview(true);
+    try {
+      const result = await submitAttendanceReviewAction(
+        Number(postId),
+        userId,
+        score,
+        comment,
+        penaltyItems
       );
-    } else {
-      // 새 리뷰 생성
+
+      if (!result.ok) {
+        alert(result.message);
+        return;
+      }
+
       const newReview: AttendanceReview = {
-        id: `rev-${Date.now()}`,
+        id: result.data?.reviewId || `rev-${Date.now()}`,
         postId,
         userId,
         score,
         comment,
-        reviewedBy: currentUserId || 'manager-1',
+        penaltyItems: penaltyItems.length > 0 ? penaltyItems : undefined,
+        reviewedBy: currentUserId || '',
         createdAt: new Date().toISOString(),
       };
-      setReviews([...reviews, newReview]);
-    }
 
-    // 선택된 스케줄 업데이트
-    if (selectedSchedule) {
-      setSelectedSchedule({
-        ...selectedSchedule,
-        participants: selectedSchedule.participants.map((p) =>
-          p.userId === userId
-            ? {
-                ...p,
-                review: existingReview
-                  ? { ...existingReview, score, comment }
-                  : {
-                      id: `rev-${Date.now()}`,
-                      postId,
-                      userId,
-                      score,
-                      comment,
-                      reviewedBy: currentUserId || 'manager-1',
-                      createdAt: new Date().toISOString(),
-                    },
-              }
-            : p
-        ),
+      // 로컬 state 업데이트
+      setReviews((prev) => {
+        const existing = prev.find((r) => r.postId === postId && r.userId === userId);
+        if (existing) {
+          return prev.map((r) =>
+            r.id === existing.id ? { ...newReview, id: existing.id } : r
+          );
+        }
+        return [...prev, newReview];
       });
+
+      if (selectedSchedule) {
+        setSelectedSchedule({
+          ...selectedSchedule,
+          participants: selectedSchedule.participants.map((p) =>
+            p.userId === userId ? { ...p, review: newReview } : p
+          ),
+        });
+      }
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -1093,6 +1122,7 @@ export default function SchedulePage() {
             setSelectedDate(undefined);
           }}
           onSubmit={handleReviewSubmit}
+          isSubmitting={isSubmittingReview}
         />
       )}
 
@@ -1646,14 +1676,17 @@ interface AttendanceReviewModalProps {
     postId: string,
     userId: string,
     score: number,
-    comment: string
-  ) => void;
+    comment: string,
+    penaltyItems?: PenaltyItem[]
+  ) => Promise<void> | void;
+  isSubmitting?: boolean;
 }
 
 function AttendanceReviewModal({
   schedule,
   onClose,
   onSubmit,
+  isSubmitting,
 }: AttendanceReviewModalProps) {
   const [selectedParticipant, setSelectedParticipant] = useState<
     ScheduleWithPost['participants'][0] | null
@@ -1661,7 +1694,8 @@ function AttendanceReviewModal({
   const [reviewData, setReviewData] = useState<{
     score: number;
     comment: string;
-  }>({ score: 0, comment: '' });
+    penaltyItems: PenaltyItem[];
+  }>({ score: 0, comment: '', penaltyItems: [] });
 
   const handleScoreChange = (score: number) => {
     setReviewData((prev) => ({ ...prev, score }));
@@ -1670,6 +1704,36 @@ function AttendanceReviewModal({
   const handleCommentChange = (comment: string) => {
     setReviewData((prev) => ({ ...prev, comment }));
   };
+
+  const handlePenaltyToggle = (reason: string, checked: boolean) => {
+    setReviewData((prev) => {
+      if (checked) {
+        const penaltyType = PENALTY_TYPES[reason];
+        return {
+          ...prev,
+          penaltyItems: [...prev.penaltyItems, { reason, deduction: penaltyType.min }],
+        };
+      } else {
+        return {
+          ...prev,
+          penaltyItems: prev.penaltyItems.filter((item) => item.reason !== reason),
+        };
+      }
+    });
+  };
+
+  const handlePenaltyDeductionChange = (reason: string, deduction: number) => {
+    const penaltyType = PENALTY_TYPES[reason];
+    const clamped = Math.min(Math.max(deduction, penaltyType.min), penaltyType.max);
+    setReviewData((prev) => ({
+      ...prev,
+      penaltyItems: prev.penaltyItems.map((item) =>
+        item.reason === reason ? { ...item, deduction: clamped } : item
+      ),
+    }));
+  };
+
+  const totalPenalty = reviewData.penaltyItems.reduce((sum, item) => sum + item.deduction, 0);
 
   const handleSubmit = () => {
     if (
@@ -1681,11 +1745,12 @@ function AttendanceReviewModal({
         schedule.id,
         selectedParticipant.userId,
         reviewData.score,
-        reviewData.comment
+        reviewData.comment,
+        reviewData.penaltyItems
       );
       // 평가 후 목록으로 돌아가기
       setSelectedParticipant(null);
-      setReviewData({ score: 0, comment: '' });
+      setReviewData({ score: 0, comment: '', penaltyItems: [] });
     }
   };
 
@@ -1697,12 +1762,13 @@ function AttendanceReviewModal({
     setReviewData({
       score: participant.review?.score || 0,
       comment: participant.review?.comment || '',
+      penaltyItems: participant.review?.penaltyItems || [],
     });
   };
 
   const handleBack = () => {
     setSelectedParticipant(null);
-    setReviewData({ score: 0, comment: '' });
+    setReviewData({ score: 0, comment: '', penaltyItems: [] });
   };
 
   // schedule.date를 파싱하여 표시할 날짜 문자열 생성
@@ -1776,6 +1842,11 @@ function AttendanceReviewModal({
                                 <Star className="size-3 fill-yellow-400 text-yellow-400" />
                                 <span>
                                   평가 완료: {participant.review?.score}점
+                                  {participant.review?.penaltyItems && participant.review.penaltyItems.length > 0 && (
+                                    <span className="text-red-500 ml-1">
+                                      · 감점 -{participant.review.penaltyItems.reduce((s, i) => s + i.deduction, 0)}점
+                                    </span>
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -1865,6 +1936,51 @@ function AttendanceReviewModal({
                     </div>
                   </div>
 
+                  {/* 감점 항목 */}
+                  <div>
+                    <Label>감점 항목</Label>
+                    <div className="mt-2 space-y-2 rounded-md border p-3">
+                      {Object.entries(PENALTY_TYPES).map(([reason, range]) => {
+                        const isChecked = reviewData.penaltyItems.some((item) => item.reason === reason);
+                        const currentItem = reviewData.penaltyItems.find((item) => item.reason === reason);
+                        return (
+                          <div key={reason} className="flex items-center gap-3">
+                            <Checkbox
+                              id={`penalty-${reason}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => handlePenaltyToggle(reason, !!checked)}
+                            />
+                            <label
+                              htmlFor={`penalty-${reason}`}
+                              className="flex-1 text-sm cursor-pointer select-none"
+                            >
+                              {reason}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                (-{range.min} ~ -{range.max})
+                              </span>
+                            </label>
+                            {isChecked && (
+                              <Input
+                                type="number"
+                                min={range.min}
+                                max={range.max}
+                                value={currentItem?.deduction ?? range.min}
+                                onChange={(e) => handlePenaltyDeductionChange(reason, Number(e.target.value))}
+                                className="w-20 h-8 text-sm text-center"
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                      {totalPenalty > 0 && (
+                        <div className="pt-2 mt-2 border-t flex justify-between items-center">
+                          <span className="text-sm font-medium">총 감점</span>
+                          <span className="text-sm font-semibold text-red-500">-{totalPenalty}점</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <Label htmlFor="comment">
                       평가 내용 <span className="text-red-500">*</span>
@@ -1890,9 +2006,9 @@ function AttendanceReviewModal({
                       type="button"
                       variant="default"
                       onClick={handleSubmit}
-                      disabled={!canSubmit}
+                      disabled={!canSubmit || isSubmitting}
                     >
-                      {selectedParticipant.review ? '평가 수정' : '평가 저장'}
+                      {isSubmitting ? '저장 중...' : selectedParticipant.review ? '평가 수정' : '평가 저장'}
                     </Button>
                   </div>
                 </div>

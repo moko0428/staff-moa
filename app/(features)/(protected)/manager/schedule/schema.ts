@@ -1,9 +1,34 @@
 // app/(features)/(protected)/manager/schedule/schema.ts
-import { pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, uuid, bigint, integer, text, timestamp, unique, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 import { profiles } from '@/app/(features)/(protected)/profile/schema';
 import { posts } from '@/app/(features)/(public)/post/schema';
 import { member_schedules } from '@/app/(features)/(protected)/worker/schedule/schema';
+
+// 근태 평가 테이블
+export const attendance_reviews = pgTable('attendance_reviews', {
+  review_id: uuid('review_id').primaryKey().defaultRandom(),
+  post_id: bigint('post_id', { mode: 'number' })
+    .notNull()
+    .references(() => posts.post_id, { onDelete: 'cascade' }),
+  member_id: uuid('member_id')
+    .notNull()
+    .references(() => profiles.profile_id, { onDelete: 'cascade' }),
+  reviewed_by: uuid('reviewed_by')
+    .notNull()
+    .references(() => profiles.profile_id, { onDelete: 'cascade' }),
+  score: integer('score').notNull(), // 20, 40, 60, 80, 100
+  comment: text('comment').notNull(),
+  penalty_items: jsonb('penalty_items').default(sql`'[]'::jsonb`).$type<Array<{
+    reason: string;
+    deduction: number;
+  }>>(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  unique('attendance_reviews_post_member_unique').on(table.post_id, table.member_id),
+]);
 
 // 매니저 스케줄 상태 enum (동적으로 계산되지만 타입 정의용)
 export const manager_schedule_status_enum = pgEnum('manager_schedule_status', [

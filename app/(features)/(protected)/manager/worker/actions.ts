@@ -124,14 +124,10 @@ export async function getApplicantsAction(): Promise<
         birth_date,
         gender,
         kakao_id,
-        mbti,
-        height,
-        weight,
-        personality,
-        features,
         bio,
         experiences,
-        documents
+        documents,
+        profile_visibility
       `
       )
       .in('user_id', memberIds);
