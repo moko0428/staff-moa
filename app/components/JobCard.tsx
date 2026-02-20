@@ -567,7 +567,7 @@ export function JobCard({ item }: JobCardProps) {
 
       {/* 지원 정보 선택 모달 */}
       <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
-        <DialogContent>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle className="text-base">
               {item.title}에 지원하기
@@ -575,84 +575,6 @@ export function JobCard({ item }: JobCardProps) {
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
-              <p className="text-xs text-muted-foreground">
-                아래 항목 중 지원 시 전달할 정보를 선택해주세요.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="font-medium">개인정보</p>
-                  </div>
-                  <Switch
-                    checked={selectedFields.personal}
-                    onCheckedChange={() => handleToggleField('personal')}
-                  />
-                </div>
-                {currentUser.experiences &&
-                  currentUser.experiences.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">경력</p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.experiences}
-                        onCheckedChange={() => handleToggleField('experiences')}
-                      />
-                    </div>
-                  )}
-                {currentUser.documents &&
-                  Object.values(currentUser.documents).some(Boolean) && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">서류</p>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {currentUser.documents.idCard && <li>신분증</li>}
-                          {currentUser.documents.bankbook && <li>통장사본</li>}
-                          {currentUser.documents.healthCertificate && (
-                            <li>보건증</li>
-                          )}
-                        </ul>
-                      </div>
-                      <Switch
-                        checked={selectedFields.documents}
-                        onCheckedChange={() => handleToggleField('documents')}
-                      />
-                    </div>
-                  )}
-                {currentUser.documents?.certificates &&
-                  currentUser.documents.certificates.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">자격증</p>
-                        <p className="text-xs text-muted-foreground">
-                          {currentUser.documents.certificates.join(', ')}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.certificates}
-                        onCheckedChange={() =>
-                          handleToggleField('certificates')
-                        }
-                      />
-                    </div>
-                  )}
-                {currentUser.documents?.language &&
-                  currentUser.documents.language.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">어학 능력</p>
-                        <p className="text-xs text-muted-foreground">
-                          {currentUser.documents.language.join(', ')}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.languages}
-                        onCheckedChange={() => handleToggleField('languages')}
-                      />
-                    </div>
-                  )}
-              </div>
-
               {/* 지원 메시지 입력 */}
               <div className="space-y-2">
                 <Label

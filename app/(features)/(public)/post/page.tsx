@@ -8,6 +8,7 @@ import {
   getAllPostsAction,
   getAllProfilesAction,
   getManagerPostsAction,
+  getMyAcceptedSchedulesAction,
 } from './actions';
 import { Post } from '@/types/mockData';
 import {
@@ -300,9 +301,23 @@ export default function PostPage() {
   // 워커 스케줄 가져오기
   useEffect(() => {
     if (hash === '/worker/schedule' && currentUserId) {
-      // TODO: schedules 테이블이 생성되면 실제 데이터로 교체
-      setIsLoadingSchedules(false);
-      setUserSchedules([]);
+      const fetchSchedules = async () => {
+        setIsLoadingSchedules(true);
+        try {
+          const result = await getMyAcceptedSchedulesAction();
+          if (result.ok && result.data) {
+            setUserSchedules(result.data);
+          } else {
+            setUserSchedules([]);
+          }
+        } catch (error) {
+          console.error('Failed to fetch schedules:', error);
+          setUserSchedules([]);
+        } finally {
+          setIsLoadingSchedules(false);
+        }
+      };
+      fetchSchedules();
     }
   }, [hash, currentUserId]);
 
@@ -514,7 +529,7 @@ export default function PostPage() {
             <CardContent>
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  지원서 기능은 준비 중입니다. (applications 테이블 필요)
+                  지원서 관리 기능은 준비 중입니다.
                 </p>
               </div>
             </CardContent>
@@ -556,7 +571,7 @@ export default function PostPage() {
             <Card>
               <CardContent className="py-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                  스케줄 기능은 준비 중입니다. (applications/schedules 테이블 필요)
+                  승인된 스케줄이 없습니다. 공고에 지원하고 승인을 기다려주세요.
                 </p>
               </CardContent>
             </Card>

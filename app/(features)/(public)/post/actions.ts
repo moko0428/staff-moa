@@ -341,6 +341,71 @@ export async function getPublicPostByIdAction(
   }
 }
 
+// 워커의 승인된 스케줄 조회 (포스트 페이지용)
+export async function getMyAcceptedSchedulesAction(): Promise<
+  ActionResult<Array<{
+    id: string;
+    postId: string;
+    title: string;
+    date: string;
+    salary: number;
+    location: string;
+  }>>
+> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.', data: [] };
+    }
+
+    const { data: schedules, error } = await supabase
+      .from('member_schedules')
+      .select(`
+        member_schedule_id,
+        post_id,
+        posts (
+          post_id,
+          title,
+          location,
+          pay_amount,
+          work_date,
+          work_slots
+        )
+      `)
+      .eq('member_id', userData.user.id)
+      .eq('status', 'accepted')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[getMyAcceptedSchedulesAction] Error', error);
+      return { ok: false, message: '스케줄을 불러오는데 실패했습니다.', data: [] };
+    }
+
+    const result = (schedules || []).map((s) => {
+      const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
+      const workSlots = post?.work_slots as Array<{ date: string; pay_amount?: number }> | null;
+      const firstDate = workSlots?.[0]?.date || post?.work_date || '';
+      const salary = workSlots?.[0]?.pay_amount || Number(post?.pay_amount) || 0;
+
+      return {
+        id: s.member_schedule_id,
+        postId: String(s.post_id),
+        title: post?.title || '',
+        date: firstDate,
+        salary,
+        location: post?.location || '',
+      };
+    });
+
+    return { ok: true, message: '', data: result };
+  } catch (err) {
+    console.error('[getMyAcceptedSchedulesAction] Unexpected error', err);
+    return { ok: false, message: '오류가 발생했습니다.', data: [] };
+  }
+}
+
 // 매니저의 공고 가져오기
 export async function getManagerPostsAction(
   managerId: string
