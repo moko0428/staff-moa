@@ -52,6 +52,64 @@ export type Database = {
           },
         ]
       }
+      attendance_reviews: {
+        Row: {
+          comment: string
+          created_at: string
+          member_id: string
+          penalty_items: Json | null
+          post_id: number
+          review_id: string
+          reviewed_by: string
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          member_id: string
+          penalty_items?: Json | null
+          post_id: number
+          review_id?: string
+          reviewed_by: string
+          score: number
+          updated_at?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          member_id?: string
+          penalty_items?: Json | null
+          post_id?: number
+          review_id?: string
+          reviewed_by?: string
+          score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_reviews_member_id_profiles_user_id_fk"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "attendance_reviews_post_id_posts_post_id_fk"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+          {
+            foreignKeyName: "attendance_reviews_reviewed_by_profiles_user_id_fk"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       favorites_keywords: {
         Row: {
           created_at: string
@@ -564,6 +622,7 @@ export type Database = {
           name: string | null
           personality: string | null
           phone: string | null
+          profile_visibility: Json | null
           recent_photos: Json | null
           role: Database["public"]["Enums"]["user_role"]
           stats: Json | null
@@ -603,6 +662,7 @@ export type Database = {
           name?: string | null
           personality?: string | null
           phone?: string | null
+          profile_visibility?: Json | null
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           stats?: Json | null
@@ -642,6 +702,7 @@ export type Database = {
           name?: string | null
           personality?: string | null
           phone?: string | null
+          profile_visibility?: Json | null
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           stats?: Json | null

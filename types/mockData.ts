@@ -108,6 +108,7 @@ export interface AttendanceReview {
   userId: string;
   score: number;
   comment: string;
+  penaltyItems?: Array<{ reason: string; deduction: number }>;
   reviewedBy: string;
   createdAt: string;
 }

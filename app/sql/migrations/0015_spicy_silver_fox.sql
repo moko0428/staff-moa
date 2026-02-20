@@ -1,0 +1,1 @@
+ALTER TABLE "attendance_reviews" ADD COLUMN "penalty_items" jsonb DEFAULT '[]'::jsonb;
