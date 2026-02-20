@@ -31,7 +31,9 @@ import {
   submitReviewAction,
   getMyReviewAction,
   deleteAccountAction,
+  updateProfileVisibilityAction,
 } from './actions';
+import type { ProfileVisibility } from './actions';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -45,12 +47,8 @@ import {
   Mail,
   Phone,
   MessageCircle,
-  Brain,
   Calendar,
   Users,
-  Ruler,
-  Scale,
-  Heart,
   Briefcase as BriefcaseIcon,
   FileText,
   Award,
@@ -87,27 +85,34 @@ export default function SettingsPage() {
   const supabase = useMemo(() => createClient(), []);
 
   // 프로필 공개 설정 상태
-  const [profileVisibility, setProfileVisibility] = useState({
-    // 기본 정보
+  const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>({
     email: true,
     phone: true,
     kakaoId: true,
-    mbti: true,
-    // 신체 정보
     age: true,
     gender: true,
-    heightWeight: true,
-    // 성격 및 특징
-    personalityFeatures: true,
-    // 경력
     experiences: true,
-    // 서류
     documents: true,
-    // 자격증
     certificates: true,
-    // 어학 능력
     languages: true,
   });
+
+  // 실제 프로필 데이터 상태
+  const [profileData, setProfileData] = useState<{
+    phone?: string | null;
+    kakao_id?: string | null;
+    birth_date?: string | null;
+    gender?: string | null;
+    experiences?: Array<{ title: string; date: string; location: string }>;
+    documents?: {
+      certificates?: string[];
+      language?: string[];
+      idCard?: string;
+      bankbook?: string;
+      healthCertificate?: string;
+      extraDocuments?: string[];
+    } | null;
+  } | null>(null);
 
   const isAdmin = role === 'admin';
   const isManager = role === 'manager' || role === 'pending_manager';
@@ -131,27 +136,22 @@ export default function SettingsPage() {
       setNotificationsEnabled(savedNotificationSetting === 'true');
     }
 
-    // localStorage에서 프로필 공개 설정 불러오기
-    const savedProfileVisibility = localStorage.getItem('profileVisibility');
-    if (savedProfileVisibility) {
-      try {
-        setProfileVisibility(JSON.parse(savedProfileVisibility));
-      } catch (error) {
-        console.error('Failed to parse profile visibility settings', error);
-      }
-    }
-
-    // 프로필 정보 가져오기
+    // 프로필 정보 및 공개 설정 불러오기
     const fetchProfile = async () => {
       try {
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
-          // 프로필 정보 가져오기
+          // 프로필 정보 가져오기 (profile_visibility 포함)
           const { data: profile } = await supabase
             .from('profiles')
-            .select('name, avatar, email')
+            .select('name, avatar, email, phone, kakao_id, birth_date, gender, experiences, documents, profile_visibility')
             .eq('user_id', userData.user.id)
             .single();
+
+          // 프로필 공개 설정 반영
+          if (profile?.profile_visibility) {
+            setProfileVisibility(profile.profile_visibility as ProfileVisibility);
+          }
 
           // 로그인 방식 확인
           const identities = userData.user.identities || [];
@@ -174,6 +174,22 @@ export default function SettingsPage() {
             email: profile?.email || userData.user.email || null,
             loginMethod,
           });
+
+          setProfileData({
+            phone: profile?.phone ?? null,
+            kakao_id: profile?.kakao_id ?? null,
+            birth_date: profile?.birth_date ?? null,
+            gender: profile?.gender ?? null,
+            experiences: (profile?.experiences as Array<{ title: string; date: string; location: string }>) ?? undefined,
+            documents: profile?.documents as {
+              certificates?: string[];
+              language?: string[];
+              idCard?: string;
+              bankbook?: string;
+              healthCertificate?: string;
+              extraDocuments?: string[];
+            } | null,
+          });
         }
       } catch (error) {
         console.error('Failed to fetch profile:', error);
@@ -183,6 +199,19 @@ export default function SettingsPage() {
     fetchProfile();
   }, [supabase]);
 
+  // 기존 리뷰 불러오기 (모달 열릴 때)
+  useEffect(() => {
+    if (!isReviewModalOpen) return;
+    const loadMyReview = async () => {
+      const result = await getMyReviewAction();
+      if (result.ok && result.data) {
+        setReviewRating(result.data.rating);
+        setReviewContent(result.data.content);
+      }
+    };
+    loadMyReview();
+  }, [isReviewModalOpen]);
+
   // 알림 설정 변경 핸들러
   const handleNotificationToggle = (enabled: boolean) => {
     setNotificationsEnabled(enabled);
@@ -190,30 +219,20 @@ export default function SettingsPage() {
   };
 
   // 프로필 공개 설정 변경 핸들러
-  const handleProfileVisibilityToggle = (
-    key: keyof typeof profileVisibility,
+  const handleProfileVisibilityToggle = async (
+    key: keyof ProfileVisibility,
   ) => {
     const newVisibility = {
       ...profileVisibility,
       [key]: !profileVisibility[key],
     };
     setProfileVisibility(newVisibility);
-    localStorage.setItem('profileVisibility', JSON.stringify(newVisibility));
-  };
-
-  // 기존 리뷰 불러오기
-  useEffect(() => {
-    if (isReviewModalOpen) {
-      const loadMyReview = async () => {
-        const result = await getMyReviewAction();
-        if (result.ok && result.data) {
-          setReviewRating(result.data.rating);
-          setReviewContent(result.data.content);
-        }
-      };
-      loadMyReview();
+    const result = await updateProfileVisibilityAction(newVisibility);
+    if (!result.ok) {
+      setProfileVisibility(profileVisibility);
+      toast.error(result.message);
     }
-  }, [isReviewModalOpen]);
+  };
 
   if (!roleHydrated) {
     return (
@@ -222,6 +241,45 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const calcAge = (birthDate: string) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  };
+
+  const getFieldPreview = (field: keyof ProfileVisibility): string => {
+    if (!profileData) return '';
+    switch (field) {
+      case 'email': return userProfile?.email || '미설정';
+      case 'phone': return profileData.phone || '미설정';
+      case 'kakaoId': return profileData.kakao_id || '미설정';
+      case 'age': return profileData.birth_date ? `${calcAge(profileData.birth_date)}세` : '미설정';
+      case 'gender': return profileData.gender || '미설정';
+      case 'experiences': {
+        const count = profileData.experiences?.length ?? 0;
+        return count > 0 ? `${count}건` : '미설정';
+      }
+      case 'documents': {
+        const docs = profileData.documents;
+        if (!docs) return '미설정';
+        const count = [docs.idCard, docs.bankbook, docs.healthCertificate].filter(Boolean).length + (docs.extraDocuments?.length ?? 0);
+        return count > 0 ? `${count}개` : '미설정';
+      }
+      case 'certificates': {
+        const count = profileData.documents?.certificates?.length ?? 0;
+        return count > 0 ? `${count}개` : '미설정';
+      }
+      case 'languages': {
+        const count = profileData.documents?.language?.length ?? 0;
+        return count > 0 ? `${count}개` : '미설정';
+      }
+      default: return '';
+    }
+  };
 
   // 리뷰 제출 핸들러
   const handleSubmitReview = async () => {
@@ -232,11 +290,7 @@ export default function SettingsPage() {
 
     setIsSubmittingReview(true);
     try {
-      const result = await submitReviewAction({
-        rating: reviewRating,
-        content: reviewContent,
-      });
-
+      const result = await submitReviewAction({ rating: reviewRating, content: reviewContent });
       if (result.ok) {
         toast.success(result.message);
         setIsReviewModalOpen(false);
@@ -384,12 +438,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.email}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('email')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('email') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('email')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.email}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('email')
+                                }
+                              />
+                            </div>
                           </div>
                           <div className="flex items-center justify-between p-3 rounded-lg border">
                             <div className="flex items-center gap-3">
@@ -401,12 +460,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.phone}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('phone')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('phone') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('phone')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.phone}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('phone')
+                                }
+                              />
+                            </div>
                           </div>
                           <div className="flex items-center justify-between p-3 rounded-lg border">
                             <div className="flex items-center gap-3">
@@ -420,29 +484,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.kakaoId}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('kakaoId')
-                              }
-                            />
-                          </div>
-                          <div className="flex items-center justify-between p-3 rounded-lg border">
-                            <div className="flex items-center gap-3">
-                              <Brain className="size-4 text-muted-foreground" />
-                              <div>
-                                <Label className="font-medium">MBTI</Label>
-                                <p className="text-xs text-muted-foreground">
-                                  MBTI 성격 유형 공개 여부
-                                </p>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('kakaoId') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('kakaoId')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.kakaoId}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('kakaoId')
+                                }
+                              />
                             </div>
-                            <Switch
-                              checked={profileVisibility.mbti}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('mbti')
-                              }
-                            />
                           </div>
                         </div>
                       </div>
@@ -465,12 +517,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.age}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('age')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('age') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('age')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.age}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('age')
+                                }
+                              />
+                            </div>
                           </div>
                           <div className="flex items-center justify-between p-3 rounded-lg border">
                             <div className="flex items-center gap-3">
@@ -482,64 +539,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.gender}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('gender')
-                              }
-                            />
-                          </div>
-                          <div className="flex items-center justify-between p-3 rounded-lg border">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1">
-                                <Ruler className="size-4 text-muted-foreground" />
-                                <Scale className="size-4 text-muted-foreground" />
-                              </div>
-                              <div>
-                                <Label className="font-medium">키/몸무게</Label>
-                                <p className="text-xs text-muted-foreground">
-                                  키와 몸무게 정보 공개 여부
-                                </p>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('gender') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('gender')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.gender}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('gender')
+                                }
+                              />
                             </div>
-                            <Switch
-                              checked={profileVisibility.heightWeight}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('heightWeight')
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* 성격 및 특징 */}
-                      <div className="space-y-3">
-                        <Label className="text-base font-semibold">
-                          성격 및 특징
-                        </Label>
-                        <div className="pl-4">
-                          <div className="flex items-center justify-between p-3 rounded-lg border">
-                            <div className="flex items-center gap-3">
-                              <Heart className="size-4 text-muted-foreground" />
-                              <div>
-                                <Label className="font-medium">
-                                  성격 및 특징
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                  성격과 특징 정보 공개 여부
-                                </p>
-                              </div>
-                            </div>
-                            <Switch
-                              checked={profileVisibility.personalityFeatures}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle(
-                                  'personalityFeatures',
-                                )
-                              }
-                            />
                           </div>
                         </div>
                       </div>
@@ -560,12 +570,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.experiences}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('experiences')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('experiences') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('experiences')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.experiences}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('experiences')
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -586,12 +601,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.documents}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('documents')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('documents') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('documents')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.documents}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('documents')
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -614,12 +634,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.certificates}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('certificates')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('certificates') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('certificates')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.certificates}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('certificates')
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -642,12 +667,17 @@ export default function SettingsPage() {
                                 </p>
                               </div>
                             </div>
-                            <Switch
-                              checked={profileVisibility.languages}
-                              onCheckedChange={() =>
-                                handleProfileVisibilityToggle('languages')
-                              }
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getFieldPreview('languages') === '미설정' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary font-medium'}`}>
+                                {getFieldPreview('languages')}
+                              </span>
+                              <Switch
+                                checked={profileVisibility.languages}
+                                onCheckedChange={() =>
+                                  handleProfileVisibilityToggle('languages')
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -845,7 +875,7 @@ export default function SettingsPage() {
                 <AccordionContent>
                   <div className="space-y-4 pt-2">
                     <p className="text-sm text-muted-foreground">
-                      스탭알바 서비스에 대한 소중한 의견을 남겨주세요. 더 나은
+                      고인력 서비스에 대한 소중한 의견을 남겨주세요. 더 나은
                       서비스를 제공하는 데 큰 도움이 됩니다.
                     </p>
                     <Dialog
@@ -862,7 +892,7 @@ export default function SettingsPage() {
                         <DialogHeader>
                           <DialogTitle>앱 리뷰 작성</DialogTitle>
                           <DialogDescription>
-                            스탭알바 서비스에 대한 솔직한 리뷰를 남겨주세요.
+                            고인력 서비스에 대한 솔직한 리뷰를 남겨주세요.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">

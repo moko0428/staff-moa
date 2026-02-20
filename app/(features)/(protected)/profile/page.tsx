@@ -20,14 +20,11 @@ import {
   Phone,
   MessageSquare,
   Building2,
-  Ruler,
-  Smile,
   Star,
   Plus,
   X,
   CreditCard,
   FileCheck,
-  Weight,
 } from 'lucide-react';
 import {
   Avatar,
@@ -42,8 +39,6 @@ import LanguageSection from './components/LanguageSection';
 import { useUserStore } from '@/store/useUserStore';
 import { useProfile } from './hook/useProfile';
 import {
-  getMyFollowersAction,
-  getMyFollowingAction,
   getProfileForModalAction,
   removeMyFollowerAction,
   removeMyFollowingAction,
@@ -63,6 +58,7 @@ const formatBusinessNumber = (value: string) => {
 
 export default function ProfilePage() {
   const {
+    supabase,
     currentUser,
     isEditing,
     setIsEditing,
@@ -162,36 +158,92 @@ export default function ProfilePage() {
       if (!isManager) return;
       setIsLoadingFollowers(true);
       try {
-        const result = await getMyFollowersAction();
-        if (result.ok && result.data) {
-          setFollowerCount(result.data.count);
-          setFollowers(result.data.followers);
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) return;
+
+        const { data: followRows, count } = await supabase
+          .from('manager_follows')
+          .select('follower_id', { count: 'exact' })
+          .eq('manager_id', userData.user.id)
+          .order('created_at', { ascending: false });
+
+        const followerIds = (followRows || [])
+          .map((r) => r.follower_id as string)
+          .filter(Boolean);
+
+        if (followerIds.length === 0) {
+          setFollowerCount(count ?? 0);
+          setFollowers([]);
+          return;
         }
+
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar, role')
+          .in('user_id', followerIds);
+
+        const followersList = (profiles || []).map((p) => ({
+          userId: p.user_id as string,
+          name: p.name as string | null,
+          avatar: p.avatar as string | null,
+          role: (p.role as string) || 'member',
+        }));
+
+        setFollowerCount(count ?? followersList.length);
+        setFollowers(followersList);
       } finally {
         setIsLoadingFollowers(false);
       }
     };
 
     fetchFollowers();
-  }, [isManager]);
+  }, [isManager, supabase]);
 
   useEffect(() => {
     const fetchFollowings = async () => {
       if (!isMember) return;
       setIsLoadingFollowings(true);
       try {
-        const result = await getMyFollowingAction();
-        if (result.ok && result.data) {
-          setFollowingCount(result.data.count);
-          setFollowings(result.data.followings);
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) return;
+
+        const { data: followRows, count } = await supabase
+          .from('manager_follows')
+          .select('manager_id', { count: 'exact' })
+          .eq('follower_id', userData.user.id)
+          .order('created_at', { ascending: false });
+
+        const managerIds = (followRows || [])
+          .map((r) => r.manager_id as string)
+          .filter(Boolean);
+
+        if (managerIds.length === 0) {
+          setFollowingCount(count ?? 0);
+          setFollowings([]);
+          return;
         }
+
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar, role')
+          .in('user_id', managerIds);
+
+        const followingsList = (profiles || []).map((p) => ({
+          userId: p.user_id as string,
+          name: p.name as string | null,
+          avatar: p.avatar as string | null,
+          role: (p.role as string) || 'member',
+        }));
+
+        setFollowingCount(count ?? followingsList.length);
+        setFollowings(followingsList);
       } finally {
         setIsLoadingFollowings(false);
       }
     };
 
     fetchFollowings();
-  }, [isMember]);
+  }, [isMember, supabase]);
 
   const filteredFollowers = useMemo(() => {
     const q = followerSearch.trim().toLowerCase();
@@ -281,9 +333,7 @@ export default function ProfilePage() {
       ['전화번호', currentUser.phone],
       ['성별', currentUser.gender],
       ['자기소개', currentUser.introduction],
-      ['생년월일', currentUser.birthDate],
-      ['키', currentUser.height],
-      ['몸무게', currentUser.weight]
+      ['생년월일', currentUser.birthDate]
     );
   }
 
@@ -435,7 +485,7 @@ export default function ProfilePage() {
                       {isEditing ? (
                         <Textarea
                           value={currentUser.introduction}
-                          placeholder="자기소개를 입력하세요"
+                          placeholder="자신을 어필해보세요!"
                           rows={3}
                           onChange={(e) =>
                             handleInputChange('introduction', e.target.value)
@@ -723,23 +773,6 @@ export default function ProfilePage() {
                     </p>
                   )}
                 </div>
-                {isMember && (
-                  <div>
-                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
-                      MBTI
-                    </Label>
-                    {isEditing ? (
-                      <Input
-                        value={currentUser.mbti}
-                        onChange={(e) =>
-                          handleInputChange('mbti', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="font-semibold">{currentUser.mbti || '-'}</p>
-                    )}
-                  </div>
-                )}
               </div>
               {(isManager || isPendingManager) && (
                 <p className="text-sm text-muted-foreground text-right">
@@ -883,13 +916,13 @@ export default function ProfilePage() {
           {/* 스탭 전용 정보 */}
           {isMember && (
             <>
-              {/* 신체 정보 */}
+              {/* 개인 정보 */}
               <Card>
                 <CardHeader>
-                  <CardTitle>신체 정보</CardTitle>
+                  <CardTitle>개인 정보</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-muted-foreground mb-2">나이</Label>
                       {isEditing ? (
@@ -929,88 +962,6 @@ export default function ProfilePage() {
                         <p className="font-semibold">{currentUser.gender}</p>
                       )}
                     </div>
-                    <div>
-                      <Label className="flex items-center gap-2 text-muted-foreground mb-2">
-                        <Ruler className="size-4" />키
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          value={currentUser.height}
-                          type="number"
-                          onChange={(e) =>
-                            handleInputChange('height', Number(e.target.value))
-                          }
-                        />
-                      ) : (
-                        <p className="font-semibold">{currentUser.height}cm</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-2 text-muted-foreground mb-2">
-                        <Weight className="size-4" />
-                        몸무게
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          value={currentUser.weight}
-                          type="number"
-                          onChange={(e) =>
-                            handleInputChange('weight', Number(e.target.value))
-                          }
-                        />
-                      ) : (
-                        <p className="font-semibold">{currentUser.weight}kg</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 성격 및 특징 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>성격 및 특징</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
-                      <Smile className="size-4" />
-                      성격
-                    </Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={currentUser.personality}
-                        placeholder="성격을 입력하세요"
-                        rows={2}
-                        onChange={(e) =>
-                          handleInputChange('personality', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="text-sm leading-relaxed">
-                        {currentUser.personality || '-'}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label className="flex items-center gap-2 text-muted-foreground mb-2">
-                      <Star className="size-4" />
-                      특징
-                    </Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={currentUser.features}
-                        placeholder="특징을 입력하세요"
-                        rows={2}
-                        onChange={(e) =>
-                          handleInputChange('features', e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="text-sm leading-relaxed">
-                        {currentUser.features || '-'}
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -21,7 +21,11 @@ export default function AuthPage() {
         </section>
         <section className="flex flex-col gap-3 w-full">
           <KakaoLoginButton />
-          <Button variant="default" asChild className="w-full h-12 text-sm font-normal hover:bg-primary/90">
+          <Button
+            variant="default"
+            asChild
+            className="w-full h-12 text-sm font-normal hover:bg-primary/90"
+          >
             <Link href="/auth/login">이메일로 계속하기</Link>
           </Button>
         </section>
@@ -38,7 +42,7 @@ export default function AuthPage() {
           <Link href="/privacy">개인정보처리방침</Link>
         </section>
         <span>
-          copyright {new Date().getFullYear()} Staff-MOA. All rights reserved.
+          copyright {new Date().getFullYear()} 고인력. All rights reserved.
         </span>
       </footer>
     </div>

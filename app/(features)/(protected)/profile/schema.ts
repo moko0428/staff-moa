@@ -76,7 +76,18 @@ export const profiles = pgTable('profiles', {
   views:jsonb(),
   attendance_score:integer('attendance_score').notNull().default(50), 
   favorites:jsonb('favorites'),
-  created_at:timestamp('created_at').defaultNow().notNull(), 
+  profile_visibility:jsonb('profile_visibility').default(sql`'{"email":true,"phone":true,"kakaoId":true,"age":true,"gender":true,"experiences":true,"documents":true,"certificates":true,"languages":true}'::jsonb`).$type<{
+    email?: boolean;
+    phone?: boolean;
+    kakaoId?: boolean;
+    age?: boolean;
+    gender?: boolean;
+    experiences?: boolean;
+    documents?: boolean;
+    certificates?: boolean;
+    languages?: boolean;
+  }>(),
+  created_at:timestamp('created_at').defaultNow().notNull(),
   updated_at:timestamp('updated_at').defaultNow().notNull(),
 });
 

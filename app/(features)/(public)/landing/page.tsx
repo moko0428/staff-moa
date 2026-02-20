@@ -429,7 +429,7 @@ export default function LandingPage() {
             whileInView="visible"
             viewport={{ once: true, margin: '-100px' }}
             variants={staggerContainer}
-            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:items-stretch"
           >
             {steps.map((step, idx) => (
               <motion.div
@@ -438,9 +438,10 @@ export default function LandingPage() {
                 whileHover="hover"
                 initial="rest"
                 animate="rest"
+                className="h-full min-h-0 flex flex-col"
               >
-                <motion.div variants={scaleOnHover}>
-                  <Card className="h-full relative overflow-visible">
+                <motion.div variants={scaleOnHover} className="h-full flex flex-col">
+                  <Card className="h-full min-h-0 flex flex-col relative overflow-visible">
                     {idx < 3 && (
                       <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
                         <div className="size-7 rounded-full bg-background border border-border flex items-center justify-center">
@@ -448,7 +449,7 @@ export default function LandingPage() {
                         </div>
                       </div>
                     )}
-                    <CardContent className="p-4 space-y-2">
+                    <CardContent className="p-4 space-y-2 flex-1 flex flex-col min-h-0">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center size-10 bg-primary rounded-lg">
                           <span className="text-xl font-semibold text-primary-foreground">
@@ -579,7 +580,7 @@ export default function LandingPage() {
               실제 사용자들의 이야기
             </h2>
             <small className="text-sm text-muted-foreground">
-              많은 분들이 스탭알바와 함께하고 있습니다
+              많은 분들이 고인력과 함께하고 있습니다
             </small>
           </motion.div>
         </div>
@@ -692,10 +693,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
             <Briefcase className="size-4 text-white" />
-            <span className="text-sm font-semibold text-white">스탭알바</span>
+            <span className="text-sm font-semibold text-white">고인력</span>
           </div>
           <div className="text-xs text-zinc-400">
-            © {new Date().getFullYear()} Staff-MOA. All rights reserved.
+            © {new Date().getFullYear()} 고인력. All rights reserved.
           </div>
         </div>
       </motion.footer>
