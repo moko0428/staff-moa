@@ -1,6 +1,26 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { headers } from 'next/headers';
+
+async function sendPushToUser(
+  userId: string,
+  payload: { title: string; message: string; link?: string },
+) {
+  const headersList = await headers();
+  const host = headersList.get('host') ?? 'localhost:3000';
+  const protocol = host.startsWith('localhost') ? 'http' : 'https';
+  const baseUrl = `${protocol}://${host}`;
+
+  await fetch(`${baseUrl}/api/push/send`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
+    },
+    body: JSON.stringify({ userId, ...payload }),
+  });
+}
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -51,6 +71,13 @@ export async function createNotificationAction(data: {
       return { ok: false, message: '알림 생성에 실패했습니다.' };
     }
 
+    // 비동기 fire-and-forget (푸시 실패해도 인앱 알림은 저장됨)
+    sendPushToUser(data.userId, {
+      title: data.title,
+      message: data.message,
+      link: data.link,
+    }).catch((err) => console.error('[createNotificationAction] Push error', err));
+
     return { ok: true, message: '알림이 생성되었습니다.' };
   } catch (err) {
     console.error('[createNotificationAction] Unexpected error', err);
@@ -86,6 +113,15 @@ export async function createBulkNotificationsAction(
       console.error('[createBulkNotificationsAction] Insert error', error);
       return { ok: false, message: '알림 일괄 생성에 실패했습니다.', data: 0 };
     }
+
+    // 각 사용자에게 웹 푸시 (fire-and-forget)
+    Promise.all(
+      notifications.map((n) =>
+        sendPushToUser(n.userId, { title: n.title, message: n.message, link: n.link }).catch(
+          (err) => console.error('[createBulkNotificationsAction] Push error', err),
+        ),
+      ),
+    ).catch(() => {});
 
     return { ok: true, message: `${notifications.length}개의 알림이 생성되었습니다.`, data: notifications.length };
   } catch (err) {

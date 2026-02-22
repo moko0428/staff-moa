@@ -7,10 +7,17 @@ import Script from 'next/script';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from './components/ui/sonner';
 import GoogleAnalyticsRouteTracker from '@/app/components/GoogleAnalyticsRouteTracker';
+import SwRegister from '@/app/components/SwRegister';
 
 export const metadata: Metadata = {
   title: '고인력',
   description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '고인력',
+  },
 };
 
 const GA_ID = process.env.GA_ID!;
@@ -57,6 +64,7 @@ export default function RootLayout({
           <main>{children}</main>
           <Toaster />
           <Analytics />
+          <SwRegister />
         </ThemeProvider>
       </body>
     </html>

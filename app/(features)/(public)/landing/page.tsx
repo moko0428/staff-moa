@@ -20,8 +20,14 @@ import {
   Target,
   Gem,
   CircleCheckBig,
+  History,
 } from 'lucide-react';
-import { getLandingStatsAction, getTopReviewsAction, type LandingStats, type LandingReview } from './actions';
+import {
+  getLandingStatsAction,
+  getTopReviewsAction,
+  type LandingStats,
+  type LandingReview,
+} from './actions';
 import SectionBadge from './components/section-badge';
 import {
   Avatar,
@@ -97,23 +103,23 @@ const levelColorClasses: Record<string, string> = {
 
 const steps = [
   {
-    title: '회원가입',
-    desc: '알바생 또는 매니저로 간편하게 가입하세요',
+    title: '스탭 · 매니저 가입',
+    desc: '역할을 선택하고 신뢰 기반 프로필을 완성하세요.',
     icon: <Users className="size-6" />,
   },
   {
-    title: '공고 탐색',
-    desc: '다양한 필터로 원하는 조건의 스탭 공고를 찾아보세요.',
+    title: '공고 등록 및 탐색',
+    desc: '매니저는 인재를 찾고, 스탭은 조건에 맞는 공고를 발견합니다.',
     icon: <Search className="size-6" />,
   },
   {
     title: '지원 및 매칭',
-    desc: '마음에 드는 공고에 지원하고 빠른 응답을 받으세요.',
+    desc: '검증된 정보 기반으로 빠르고 정확하게 연결됩니다.',
     icon: <CircleCheckBig className="size-6" />,
   },
   {
-    title: '근무 및 평가',
-    desc: '성실하게 근무하고 좋은 평가를 쌓아가세요.',
+    title: '근무 · 평가 · 경력 축적',
+    desc: '근무 이력과 평판이 기록되어 다음 기회로 이어집니다.',
     icon: <Gem className="size-6" />,
   },
 ];
@@ -121,17 +127,31 @@ const steps = [
 const features = [
   {
     icon: <Search className="size-6" />,
-    title: '맞춤 공고 검색',
+    title: '맞춤 공고 탐색',
     level: '스탭',
-    desc: '지역, 급여, 날짜별로 원하는 조건의 스탭 알바를 쉽게 찾아보세요.',
+    desc: '키워드, 관심 매니저, 조건 설정을 통해 나에게 최적화된 공고를 받아보세요.',
     color: 'blue',
   },
   {
     icon: <Calendar className="size-6" />,
-    title: '스케줄 관리',
+    title: '통합 스케줄·수익 관리',
     level: '스탭',
-    desc: '내 근무 일정을 한눈에 확인하고 급여 정산 현황을 실시간으로 추적하세요',
+    desc: '누적 수익과 근무 일정을 한눈에 관리하세요.',
     color: 'pink',
+  },
+  {
+    icon: <History className="size-6" />,
+    title: '경력 자동 기록 시스템',
+    level: '스탭',
+    desc: '근무 이력이 자동 저장되고 프로필에 반영되어 나만의 경력 자산이 됩니다.',
+    color: 'blue',
+  },
+  {
+    icon: <Target className="size-6" />,
+    title: '근태 신뢰 점수',
+    desc: '출결과 평가가 점수로 누적되어 매칭 승인 확률이 높아집니다.',
+    level: '스탭',
+    color: 'orange',
   },
   {
     icon: <Users className="size-6" />,
@@ -140,13 +160,7 @@ const features = [
     desc: '공고별 지원자를 효율적으로 관리하고 근태 점수를 부여하세요',
     color: 'green',
   },
-  {
-    icon: <Target className="size-6" />,
-    title: '근태 평가 시스템',
-    desc: '스탭의 출결과 근무 태도를 평가하여 신뢰도 높은 인력풀을 구축하세요',
-    level: '매니저',
-    color: 'orange',
-  },
+
   {
     icon: <Shield className="size-6" />,
     title: '안전한 신고 시스템',
@@ -217,7 +231,7 @@ export default function LandingPage() {
   };
 
   const toCountTicker = (
-    count: number
+    count: number,
   ): { tickerValue: number; suffix?: string } => {
     if (count >= 1000)
       return { tickerValue: Math.floor(count / 1000), suffix: 'K+' };
@@ -317,7 +331,7 @@ export default function LandingPage() {
             >
               <Zap className="size-4 text-white" />
               <span className="text-xs font-semibold text-white">
-                신뢰할 수 있는 스탭 구인 플랫폼
+                기업과 인재를 잇는 신뢰형 매칭 플랫폼
               </span>
             </motion.div>
 
@@ -326,12 +340,12 @@ export default function LandingPage() {
               className="space-y-4 w-full max-w-xl mx-auto"
             >
               <h1 className="text-4xl font-bold leading-tight text-white text-center">
-                스탭 알바, <br />
-                이제 더 쉽고 빠르게
+                사람을 찾는 기업과 <br /> 기회를 찾는 인재를 연결하다
               </h1>
               <p className="text-white text-lg text-center w-full">
-                맞춤형 공고 검색부터 스케줄 관리, 경력 관리까지
-                <br /> 모든 과정을 한 곳에서 해결하세요.
+                정교한 매칭 시스템과 통합 스케줄·경력 관리 솔루션으로
+                <br />
+                채용의 모든 단계를 하나로.
               </p>
             </motion.div>
 
@@ -440,7 +454,10 @@ export default function LandingPage() {
                 animate="rest"
                 className="h-full min-h-0 flex flex-col"
               >
-                <motion.div variants={scaleOnHover} className="h-full flex flex-col">
+                <motion.div
+                  variants={scaleOnHover}
+                  className="h-full flex flex-col"
+                >
                   <Card className="h-full min-h-0 flex flex-col relative overflow-visible">
                     {idx < 3 && (
                       <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
@@ -596,7 +613,8 @@ export default function LandingPage() {
             <div className="max-w-6xl mx-auto px-4 pb-10">
               <Card className="bg-card">
                 <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  아직 노출 중인 후기가 없습니다. (관리자 대시보드에서 후기를 선택할 수 있어요)
+                  아직 노출 중인 후기가 없습니다. (관리자 대시보드에서 후기를
+                  선택할 수 있어요)
                 </CardContent>
               </Card>
             </div>
@@ -636,7 +654,9 @@ export default function LandingPage() {
                           <p className="text-sm font-medium text-foreground">
                             {maskedName}
                           </p>
-                          <p className="text-xs text-muted-foreground">사용자</p>
+                          <p className="text-xs text-muted-foreground">
+                            사용자
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -696,7 +716,7 @@ export default function LandingPage() {
             <span className="text-sm font-semibold text-white">고인력</span>
           </div>
           <div className="text-xs text-zinc-400">
-            © {new Date().getFullYear()} 고인력. All rights reserved.
+            © {new Date().getFullYear()} goinlyeog All rights reserved.
           </div>
         </div>
       </motion.footer>

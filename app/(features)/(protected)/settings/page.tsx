@@ -76,6 +76,11 @@ export default function SettingsPage() {
   useTheme();
   const [mounted, setMounted] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | null>(null);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [isPushLoading, setIsPushLoading] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [userProfile, setUserProfile] = useState<{
     name: string | null;
     avatar: string | null;
@@ -134,6 +139,24 @@ export default function SettingsPage() {
     );
     if (savedNotificationSetting !== null) {
       setNotificationsEnabled(savedNotificationSetting === 'true');
+    }
+
+    // iOS 및 standalone 감지
+    const ua = navigator.userAgent;
+    const ios = /iphone|ipad|ipod/i.test(ua);
+    setIsIos(ios);
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
+
+    // 푸시 알림 권한 및 구독 상태 확인
+    if ('Notification' in window) {
+      setPushPermission(Notification.permission);
+    }
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setPushSubscribed(!!sub);
+        });
+      });
     }
 
     // 프로필 정보 및 공개 설정 불러오기
@@ -211,6 +234,73 @@ export default function SettingsPage() {
     };
     loadMyReview();
   }, [isReviewModalOpen]);
+
+  // 푸시 알림 토글 핸들러
+  const handlePushToggle = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('이 브라우저는 푸시 알림을 지원하지 않습니다.');
+      return;
+    }
+
+    setIsPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+
+      if (pushSubscribed) {
+        // 구독 해제
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+        }
+        setPushSubscribed(false);
+        toast.success('푸시 알림 구독이 해제되었습니다.');
+      } else {
+        // 권한 요청
+        const permission = await Notification.requestPermission();
+        setPushPermission(permission);
+
+        if (permission !== 'granted') {
+          toast.error('알림 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.');
+          return;
+        }
+
+        // 구독
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) {
+          toast.error('푸시 알림 설정이 올바르지 않습니다.');
+          return;
+        }
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        });
+
+        const subJson = sub.toJSON();
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            endpoint: subJson.endpoint,
+            keys: subJson.keys,
+          }),
+        });
+
+        setPushSubscribed(true);
+        toast.success('푸시 알림이 활성화되었습니다.');
+      }
+    } catch (err) {
+      console.error('[PushToggle] Error:', err);
+      toast.error('푸시 알림 설정 중 오류가 발생했습니다.');
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
 
   // 알림 설정 변경 핸들러
   const handleNotificationToggle = (enabled: boolean) => {
@@ -792,6 +882,38 @@ export default function SettingsPage() {
                         checked={notificationsEnabled}
                         onCheckedChange={handleNotificationToggle}
                       />
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5 flex-1">
+                          <Label className="font-medium">푸시 알림</Label>
+                          <p className="text-xs text-muted-foreground">
+                            앱을 열지 않아도 알림을 받습니다
+                          </p>
+                          {pushPermission === 'denied' && (
+                            <p className="text-xs text-destructive mt-1">
+                              알림이 차단되어 있습니다. 브라우저 설정에서 허용해주세요.
+                            </p>
+                          )}
+                        </div>
+                        <Switch
+                          checked={pushSubscribed}
+                          disabled={isPushLoading || pushPermission === 'denied'}
+                          onCheckedChange={handlePushToggle}
+                        />
+                      </div>
+
+                      {isIos && !isStandalone && (
+                        <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                            iOS 푸시 알림 사용 방법
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            Safari 하단의 공유 버튼 → &quot;홈 화면에 추가&quot;로 앱을 설치한 후 다시 열어주세요.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </AccordionContent>
