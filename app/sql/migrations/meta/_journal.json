@@ -127,6 +127,13 @@
       "when": 1771440000000,
       "tag": "0017_remove_profile_visibility_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1771756163308,
+      "tag": "0018_famous_warhawk",
+      "breakpoints": true
     }
   ]
 }

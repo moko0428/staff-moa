@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ALTER COLUMN "profile_visibility" SET DEFAULT '{"email":true,"phone":true,"kakaoId":true,"age":true,"gender":true,"experiences":true,"documents":true,"certificates":true,"languages":true}'::jsonb;
