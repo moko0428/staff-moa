@@ -17,6 +17,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: '고인력',
+    startupImage: '/logo.png',
+  },
+  icons: {
+    apple: '/logo.png',
   },
 };
 
