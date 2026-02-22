@@ -81,7 +81,6 @@ export default function SettingsPage() {
   const [isPushLoading, setIsPushLoading] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  // const [isSendingTest, setIsSendingTest] = useState(false);
   const [userProfile, setUserProfile] = useState<{
     name: string | null;
     avatar: string | null;
@@ -236,23 +235,6 @@ export default function SettingsPage() {
     loadMyReview();
   }, [isReviewModalOpen]);
 
-  // // 테스트 푸시 알림 전송
-  // const handleSendTestPush = async () => {
-  //   setIsSendingTest(true);
-  //   try {
-  //     const res = await fetch('/api/push/test');
-  //     const data = await res.json();
-  //     if (data.ok) {
-  //       toast.success('테스트 알림을 전송했습니다. 알림을 확인하세요!');
-  //     } else {
-  //       toast.error(data.error || '테스트 전송 실패');
-  //     }
-  //   } catch {
-  //     toast.error('테스트 알림 전송 중 오류가 발생했습니다.');
-  //   } finally {
-  //     setIsSendingTest(false);
-  //   }
-  // };
 
   // 푸시 알림 토글 핸들러
   const handlePushToggle = async () => {
@@ -923,21 +905,6 @@ export default function SettingsPage() {
                         />
                       </div>
 
-                      {/* 테스트 버튼 (개발용)
-                      {pushSubscribed && (
-                        <div className="mt-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSendTestPush}
-                            disabled={isSendingTest}
-                            className="w-full text-xs"
-                          >
-                            {isSendingTest ? '전송 중...' : '테스트 알림 보내기'}
-                          </Button>
-                        </div>
-                      )}
-                      */}
 
                       {isIos && !isStandalone && (
                         <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
