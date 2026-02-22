@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import db from '@/app/db';
-import { pushSubscriptions } from '@/app/(features)/(protected)/notification/push-schema';
-import { eq } from 'drizzle-orm';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -24,22 +22,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await db
-    .insert(pushSubscriptions)
-    .values({
-      userId: user.id,
-      endpoint,
-      auth: keys.auth,
-      p256dh: keys.p256dh,
-    })
-    .onConflictDoUpdate({
-      target: pushSubscriptions.endpoint,
-      set: {
-        userId: user.id,
-        auth: keys.auth,
-        p256dh: keys.p256dh,
-      },
-    });
+  const service = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const { error } = await service
+    .from('push_subscriptions')
+    .upsert(
+      { user_id: user.id, endpoint, auth: keys.auth, p256dh: keys.p256dh },
+      { onConflict: 'endpoint' },
+    );
+
+  if (error) {
+    console.error('[push/subscribe POST]', error);
+    return NextResponse.json({ error: '구독 저장 실패' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
@@ -58,15 +56,24 @@ export async function DELETE(request: NextRequest) {
   const { endpoint } = body;
 
   if (!endpoint) {
-    return NextResponse.json(
-      { error: 'endpoint가 필요합니다.' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'endpoint가 필요합니다.' }, { status: 400 });
   }
 
-  await db
-    .delete(pushSubscriptions)
-    .where(eq(pushSubscriptions.endpoint, endpoint));
+  const service = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const { error } = await service
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('[push/subscribe DELETE]', error);
+    return NextResponse.json({ error: '구독 삭제 실패' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
