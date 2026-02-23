@@ -1519,10 +1519,10 @@ export default function AdminPage() {
               <CardContent>
                 <div className="flex items-center justify-center bg-black/30 rounded-xl p-4 min-h-[300px]">
                   {popupForm.title || popupForm.content || popupForm.image_url ? (
-                    <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
                       {/* 이미지 */}
                       {popupForm.image_url && (
-                        <div className="w-full aspect-video overflow-hidden bg-muted">
+                        <div className="w-full aspect-video overflow-hidden bg-gray-100">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={popupForm.image_url}
@@ -1534,12 +1534,12 @@ export default function AdminPage() {
                       {/* 콘텐츠 */}
                       <div className="px-5 pt-5 pb-3 space-y-2">
                         {popupForm.title && (
-                          <h2 className="text-sm font-bold text-foreground leading-snug">
+                          <h2 className="text-sm font-bold text-gray-900 leading-snug">
                             {popupForm.title}
                           </h2>
                         )}
                         {popupForm.content && (
-                          <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed">
+                          <p className="text-xs text-gray-500 whitespace-pre-line leading-relaxed">
                             {popupForm.content}
                           </p>
                         )}
@@ -1552,12 +1552,12 @@ export default function AdminPage() {
                         )}
                       </div>
                       {/* 하단 버튼 */}
-                      <div className="flex items-center border-t border-border">
-                        <div className="flex-1 py-2.5 text-center text-[10px] text-muted-foreground">
+                      <div className="flex items-center border-t border-gray-200">
+                        <div className="flex-1 py-2.5 text-center text-[10px] text-gray-400">
                           하루 동안 보지 않기
                         </div>
-                        <div className="w-px h-4 bg-border" />
-                        <div className="flex-1 py-2.5 text-center text-[10px] text-muted-foreground">
+                        <div className="w-px h-4 bg-gray-200" />
+                        <div className="flex-1 py-2.5 text-center text-[10px] text-gray-400">
                           닫기
                         </div>
                       </div>
