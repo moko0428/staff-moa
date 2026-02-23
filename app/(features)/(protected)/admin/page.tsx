@@ -48,6 +48,7 @@ import {
   fetchPendingManagersAction,
   updateManagerStatusAction,
 } from './manager-actions';
+import { sendSystemNotificationAction } from '@/app/(features)/(protected)/notification/actions';
 import {
   fetchMembersAction,
   fetchPostsAction,
@@ -72,7 +73,7 @@ import {
   type ReviewStats,
 } from './review-actions';
 
-type AdminTab = 'members' | 'posts' | 'reports' | 'reviews' | 'manager-approval';
+type AdminTab = 'members' | 'posts' | 'reports' | 'reviews' | 'manager-approval' | 'system-notification';
 
 interface PendingManager {
   id: string;
@@ -422,6 +423,38 @@ export default function AdminPage() {
 
   const [selectedPost, setSelectedPost] = useState<AdminPostItem | null>(null);
 
+  // 시스템 공지 발송
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifTargetRole, setNotifTargetRole] = useState<'all' | 'manager' | 'member'>('all');
+  const [notifSending, setNotifSending] = useState(false);
+
+  const handleSendSystemNotification = async () => {
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      toast.error('제목과 내용을 모두 입력해주세요.');
+      return;
+    }
+    setNotifSending(true);
+    try {
+      const result = await sendSystemNotificationAction({
+        title: notifTitle.trim(),
+        message: notifMessage.trim(),
+        targetRole: notifTargetRole,
+      });
+      if (result.ok) {
+        toast.success(result.message);
+        setNotifTitle('');
+        setNotifMessage('');
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('시스템 공지 발송에 실패했습니다.');
+    } finally {
+      setNotifSending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Hero
@@ -465,6 +498,13 @@ export default function AdminPage() {
           onClick={() => setActiveTab('manager-approval')}
         >
           매니저 승인 관리
+        </Button>
+        <Button
+          variant={activeTab === 'system-notification' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('system-notification')}
+        >
+          시스템 공지
         </Button>
       </div>
 
@@ -1027,6 +1067,63 @@ export default function AdminPage() {
                 </div>
               ))
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 시스템 공지 발송 */}
+      {activeTab === 'system-notification' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">시스템 공지 발송</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">수신 대상</label>
+              <Select
+                value={notifTargetRole}
+                onValueChange={(v) => setNotifTargetRole(v as 'all' | 'manager' | 'member')}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="manager">매니저</SelectItem>
+                  <SelectItem value="member">스탭 (멤버)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">제목</label>
+              <Input
+                placeholder="공지 제목을 입력하세요"
+                value={notifTitle}
+                onChange={(e) => setNotifTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">내용</label>
+              <textarea
+                className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="공지 내용을 입력하세요"
+                value={notifMessage}
+                onChange={(e) => setNotifMessage(e.target.value)}
+              />
+            </div>
+            <Button
+              onClick={handleSendSystemNotification}
+              disabled={notifSending || !notifTitle.trim() || !notifMessage.trim()}
+            >
+              {notifSending ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  발송 중...
+                </>
+              ) : (
+                '공지 발송'
+              )}
+            </Button>
           </CardContent>
         </Card>
       )}

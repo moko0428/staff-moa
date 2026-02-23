@@ -13,7 +13,6 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
-import { Switch } from '@/app/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -125,15 +124,6 @@ export default function PostDetailPage({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [applicationMessage, setApplicationMessage] = useState('');
-  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
-    {
-      personal: true,
-      experiences: true,
-      documents: true,
-      certificates: true,
-      languages: true,
-    }
-  );
   const [hasApplied, setHasApplied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [hasReported, setHasReported] = useState(false);
@@ -319,43 +309,16 @@ export default function PostDetailPage({
     }
   };
 
-  const handleToggleField = (key: string) => {
-    setSelectedFields((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleSubmitApplication = async () => {
     if (!currentUser || !post) {
       toast.error('로그인이 필요합니다.');
       return;
     }
 
-    let message = applicationMessage.trim();
-    const selectedInfo: string[] = [];
-
-    if (selectedFields.personal) selectedInfo.push('개인정보');
-    if (selectedFields.experiences && currentUser.experiences?.length)
-      selectedInfo.push(`경력(${currentUser.experiences.length}개)`);
-    if (selectedFields.documents && currentUser.documents)
-      selectedInfo.push('서류');
-    if (
-      selectedFields.certificates &&
-      currentUser.documents?.certificates?.length
-    )
-      selectedInfo.push(
-        `자격증(${currentUser.documents.certificates.length}개)`
-      );
-    if (selectedFields.languages && currentUser.documents?.language?.length)
-      selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
-
-    if (selectedInfo.length > 0) {
-      const infoText = `\n\n[전달 정보: ${selectedInfo.join(', ')}]`;
-      message = message ? message + infoText : infoText.trim();
-    }
-
     try {
       const result = await applyToPostAction(
         post.post_id,
-        message || undefined
+        applicationMessage.trim() || undefined
       );
       if (result.ok) {
         toast.success(result.message || '지원이 완료되었습니다.');
@@ -922,76 +885,22 @@ export default function PostDetailPage({
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
-              <p className="text-xs text-muted-foreground">
-                아래 항목 중 지원 시 전달할 정보를 선택해주세요.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="font-medium">개인정보</p>
-                  </div>
-                  <Switch
-                    checked={selectedFields.personal}
-                    onCheckedChange={() => handleToggleField('personal')}
-                  />
-                </div>
-                {currentUser.experiences &&
-                  currentUser.experiences.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">경력</p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.experiences}
-                        onCheckedChange={() => handleToggleField('experiences')}
-                      />
-                    </div>
-                  )}
-                {currentUser.documents &&
-                  Object.values(currentUser.documents).some(Boolean) && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">서류</p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.documents}
-                        onCheckedChange={() => handleToggleField('documents')}
-                      />
-                    </div>
-                  )}
-                {currentUser.documents?.certificates &&
-                  currentUser.documents.certificates.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">자격증</p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.certificates}
-                        onCheckedChange={() =>
-                          handleToggleField('certificates')
-                        }
-                      />
-                    </div>
-                  )}
-                {currentUser.documents?.language &&
-                  currentUser.documents.language.length > 0 && (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">어학 능력</p>
-                      </div>
-                      <Switch
-                        checked={selectedFields.languages}
-                        onCheckedChange={() => handleToggleField('languages')}
-                      />
-                    </div>
-                  )}
+              {/* 기본 정보 전달 안내 */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{currentUser.name}</span>님의 기본 정보가 함께 전달됩니다.
+                </p>
+                <Link
+                  href="/settings"
+                  className="text-xs text-primary underline underline-offset-2 shrink-0 ml-2"
+                  onClick={() => setApplyOpen(false)}
+                >
+                  정보 설정
+                </Link>
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="application-message"
-                  className="text-sm font-medium"
-                >
+                <Label htmlFor="application-message" className="text-sm font-medium">
                   지원 메시지 (선택)
                 </Label>
                 <Textarea
@@ -1002,6 +911,9 @@ export default function PostDetailPage({
                   rows={4}
                   className="resize-none"
                 />
+                <p className="text-xs text-muted-foreground">
+                  지원 동기, 경력 설명 등을 자유롭게 작성할 수 있습니다.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

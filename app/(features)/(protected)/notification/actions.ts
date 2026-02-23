@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { headers } from 'next/headers';
 
 async function sendPushToUser(
@@ -300,6 +301,68 @@ export async function markAllNotificationsAsReadAction(): Promise<ActionResult> 
     console.error('[markAllNotificationsAsReadAction] Unexpected error', err);
     return { ok: false, message: '모든 알림 읽음 처리 중 오류가 발생했습니다.' };
   }
+}
+
+// 모든 어드민에게 알림 발송 공통 유틸 (service role 사용 - RLS 우회)
+export async function notifyAdminsAction(payload: {
+  title: string;
+  message: string;
+  link?: string;
+}): Promise<void> {
+  try {
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+
+    const { data: admins } = await serviceClient
+      .from('profiles')
+      .select('user_id')
+      .eq('role', 'admin');
+
+    if (!admins || admins.length === 0) return;
+
+    await serviceClient.from('notifications').insert(
+      admins.map((admin) => ({
+        user_id: admin.user_id,
+        type: 'system',
+        title: payload.title,
+        message: payload.message,
+        link: payload.link ?? null,
+        is_read: false,
+      })),
+    );
+
+    // 웹 푸시 (fire-and-forget)
+    Promise.all(
+      admins.map((admin) =>
+        sendPushToUser(admin.user_id, {
+          title: payload.title,
+          message: payload.message,
+          link: payload.link,
+        }).catch((err) =>
+          console.error('[notifyAdminsAction] Push error', err),
+        ),
+      ),
+    ).catch(() => {});
+  } catch (err) {
+    console.error('[notifyAdminsAction] Error', err);
+  }
+}
+
+// 신규 가입 시 모든 어드민에게 알림 발송
+export async function notifyAdminsNewUserAction(data: {
+  userName: string;
+  userRole: 'member' | 'pending_manager';
+}): Promise<void> {
+  const roleLabel =
+    data.userRole === 'pending_manager' ? '매니저 (승인 대기)' : '스탭 (멤버)';
+  await notifyAdminsAction({
+    title: '새 회원이 가입했습니다',
+    message: `${data.userName}님이 ${roleLabel}으로 가입하였습니다.`,
+    link: '/admin',
+  });
 }
 
 // 알림 삭제

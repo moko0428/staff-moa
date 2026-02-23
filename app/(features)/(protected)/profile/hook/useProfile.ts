@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useUpload } from '@/hooks/useUpload';
 import { useUserStore } from '@/store/useUserStore';
 import { importExperiencesAction } from '@/app/(features)/(protected)/worker/schedule/actions';
+import { reRequestManagerApprovalAction } from '@/app/(features)/(protected)/profile/actions';
 import { toast } from 'sonner';
 
 type ExperienceItem = User['experiences'] extends Array<infer E> ? E : never;
@@ -590,14 +591,8 @@ export const useProfile = () => {
     if (!currentUser) return;
     setIsReRequesting(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          company_verify_status: 'pending',
-          role: 'pending_manager',
-        })
-        .eq('user_id', currentUser.id);
-      if (error) throw error;
+      const result = await reRequestManagerApprovalAction();
+      if (!result.ok) throw new Error(result.message);
 
       setCurrentUser({
         ...currentUser,
@@ -605,10 +600,10 @@ export const useProfile = () => {
         role: 'pending_manager',
       });
       setRole('pending_manager');
-      toast.success('재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.');
+      toast.success(result.message);
     } catch (err) {
       console.error('재요청 실패', err);
-      toast.error('재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      toast.error(err instanceof Error ? err.message : '재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsReRequesting(false);
     }

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createNotificationAction } from '@/app/(features)/(protected)/notification/actions';
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -111,10 +112,10 @@ export async function applyToPostAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    // profiles에서 role 확인
+    // profiles에서 role, name 확인
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, name')
       .eq('user_id', userData.user.id)
       .single();
 
@@ -134,6 +135,13 @@ export async function applyToPostAction(
       return { ok: false, message: '이미 지원한 공고입니다.' };
     }
 
+    // 공고 정보 조회 (매니저 알림용)
+    const { data: post } = await supabase
+      .from('posts')
+      .select('author_id, title')
+      .eq('post_id', postId)
+      .single();
+
     // 지원 등록
     const { error } = await supabase.from('member_schedules').insert({
       post_id: postId,
@@ -145,6 +153,18 @@ export async function applyToPostAction(
     if (error) {
       console.error('[applyToPostAction] Insert error', error);
       return { ok: false, message: '지원 등록에 실패했습니다.' };
+    }
+
+    // 매니저에게 알림 발송 (fire-and-forget)
+    if (post?.author_id) {
+      const memberName = profile?.name || '스탭';
+      createNotificationAction({
+        userId: post.author_id,
+        type: 'new_application',
+        title: '새 지원자가 있습니다',
+        message: `${memberName}님이 '${post.title}' 공고에 지원하였습니다. 지금 바로 확인해보세요.`,
+        link: '/manager/worker',
+      }).catch((err) => console.error('[applyToPostAction] Notification error', err));
     }
 
     return { ok: true, message: '지원이 완료되었습니다.' };

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -33,7 +34,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
-import { Switch } from '@/app/components/ui/switch';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Label } from '@/app/components/ui/label';
 import { User } from '@/types/mockData';
@@ -88,15 +88,6 @@ export function JobCard({ item }: JobCardProps) {
   const [isApplied, setIsApplied] = useState<boolean>(!!item.applied);
   const [isCheckingApplied, setIsCheckingApplied] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
-  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
-    {
-      personal: true, // 이름/전화/카톡/성별/MBTI
-      experiences: true,
-      documents: true,
-      certificates: true,
-      languages: true,
-    }
-  );
 
   useEffect(() => {
     // 현재 사용자 ID 가져오기
@@ -264,10 +255,6 @@ export function JobCard({ item }: JobCardProps) {
     return numeric.toLocaleString('ko-KR');
   };
 
-  const handleToggleField = (key: string) => {
-    setSelectedFields((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleCardClick = () => {
     router.push(`/post/${item.id}`);
   };
@@ -303,38 +290,6 @@ export function JobCard({ item }: JobCardProps) {
       return;
     }
 
-    // 사용자가 입력한 메시지를 기본으로 사용
-    let message = applicationMessage.trim();
-
-    // 선택한 정보를 메시지에 추가
-    const selectedInfo: string[] = [];
-    if (selectedFields.personal) {
-      selectedInfo.push('개인정보');
-    }
-    if (selectedFields.experiences && currentUser.experiences?.length) {
-      selectedInfo.push(`경력(${currentUser.experiences.length}개)`);
-    }
-    if (selectedFields.documents && currentUser.documents) {
-      selectedInfo.push('서류');
-    }
-    if (
-      selectedFields.certificates &&
-      currentUser.documents?.certificates?.length
-    ) {
-      selectedInfo.push(
-        `자격증(${currentUser.documents.certificates.length}개)`
-      );
-    }
-    if (selectedFields.languages && currentUser.documents?.language?.length) {
-      selectedInfo.push(`어학(${currentUser.documents.language.length}개)`);
-    }
-
-    // 선택한 정보가 있으면 메시지에 추가
-    if (selectedInfo.length > 0) {
-      const infoText = `\n\n[전달 정보: ${selectedInfo.join(', ')}]`;
-      message = message ? message + infoText : infoText.trim();
-    }
-
     try {
       // post_id가 string일 수 있으므로 number로 변환
       const postId = typeof item.id === 'string' ? parseInt(item.id) : item.id;
@@ -344,7 +299,7 @@ export function JobCard({ item }: JobCardProps) {
         return;
       }
 
-      const result = await applyToPostAction(postId, message || undefined);
+      const result = await applyToPostAction(postId, applicationMessage.trim() || undefined);
 
       if (result.ok) {
         toast.success(result.message || '지원이 완료되었습니다.');
@@ -575,6 +530,20 @@ export function JobCard({ item }: JobCardProps) {
           </DialogHeader>
           {currentUser ? (
             <div className="mt-2 space-y-4 text-sm">
+              {/* 기본 정보 전달 안내 */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{currentUser.name}</span>님의 기본 정보가 함께 전달됩니다.
+                </p>
+                <Link
+                  href="/settings"
+                  className="text-xs text-primary underline underline-offset-2 shrink-0 ml-2"
+                  onClick={() => setApplyOpen(false)}
+                >
+                  정보 설정
+                </Link>
+              </div>
+
               {/* 지원 메시지 입력 */}
               <div className="space-y-2">
                 <Label

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { notifyAdminsAction } from '@/app/(features)/(protected)/notification/actions';
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -350,3 +351,53 @@ export async function getProfileForModalAction(
   }
 }
 
+// 거절된 매니저의 승인 재요청
+export async function reRequestManagerApprovalAction(): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, name, company_verify_status')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (profile?.role !== 'pending_manager') {
+      return { ok: false, message: '승인 요청 권한이 없습니다.' };
+    }
+
+    if (profile?.company_verify_status !== 'rejected') {
+      return { ok: false, message: '거절된 경우에만 재요청이 가능합니다.' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ company_verify_status: 'pending' })
+      .eq('user_id', userData.user.id);
+
+    if (error) {
+      console.error('[reRequestManagerApprovalAction] Update error', error);
+      return { ok: false, message: '재요청에 실패했습니다.' };
+    }
+
+    // 어드민에게 알림 발송 (fire-and-forget)
+    const managerName = (profile?.name as string | null) || '매니저';
+    notifyAdminsAction({
+      title: '매니저 승인 재요청이 있습니다',
+      message: `${managerName}님이 매니저 승인을 재요청하였습니다. 지금 바로 확인해보세요.`,
+      link: '/admin',
+    }).catch((err) =>
+      console.error('[reRequestManagerApprovalAction] Notification error', err),
+    );
+
+    return { ok: true, message: '재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.' };
+  } catch (err) {
+    console.error('[reRequestManagerApprovalAction] Unexpected error', err);
+    return { ok: false, message: '재요청 중 오류가 발생했습니다.' };
+  }
+}

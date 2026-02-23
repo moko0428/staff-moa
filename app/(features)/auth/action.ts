@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { errorMessages, successMessages } from './messages';
+import { notifyAdminsNewUserAction } from '@/app/(features)/(protected)/notification/actions';
 
 type ActionResult = {
   ok: boolean;
@@ -230,6 +231,12 @@ export async function signUpAction(
         );
         // 회원가입 자체는 성공 → throw 하지 않음
       }
+
+      // 어드민에게 신규 가입 알림 발송 (fire-and-forget)
+      notifyAdminsNewUserAction({
+        userName: payload.name,
+        userRole: payload.role,
+      }).catch((err) => console.error('[signUpAction] Admin notification error', err));
     }
 
     return {

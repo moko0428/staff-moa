@@ -727,10 +727,10 @@ export async function deletePostAction(
         }
       }
 
-      const acceptedMembers = Array.from(
+      // 거절되지 않은 모든 지원자(승인 + 대기)에게 알림
+      const allApplicantIds = Array.from(
         new Set(
           schedules
-            .filter((s) => s.status === 'accepted')
             .map((s) => s.member_id)
             .filter(Boolean),
         ),
@@ -740,9 +740,9 @@ export async function deletePostAction(
         const p = Array.isArray(first?.posts) ? first?.posts[0] : first?.posts;
         return p?.title || '삭제된 공고';
       })();
-      if (acceptedMembers.length > 0) {
+      if (allApplicantIds.length > 0) {
         await createBulkNotificationsAction(
-          acceptedMembers.map((userId) => ({
+          allApplicantIds.map((userId) => ({
             userId,
             type: 'system',
             title: '공고가 삭제되었습니다',
