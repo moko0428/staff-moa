@@ -6,7 +6,6 @@ import { useMemo, useState, useEffect } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import {
   getAllPostsAction,
-  getAllProfilesAction,
   getManagerPostsAction,
   getMyAcceptedSchedulesAction,
 } from './actions';
@@ -17,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/app/components/ui/card';
-import { Badge } from '@/app/components/ui/badge';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
@@ -205,7 +203,6 @@ export default function PostPage() {
     searchTerm: '',
   });
   const [posts, setPosts] = useState<Post[]>([]);
-  const [profiles, setProfiles] = useState<Array<Record<string, unknown>>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [managerPosts, setManagerPosts] = useState<Post[]>([]);
@@ -257,23 +254,6 @@ export default function PostPage() {
 
     fetchPosts();
   }, []);
-
-  // 프로필 데이터 가져오기 (관리자 페이지용)
-  useEffect(() => {
-    if (hash === '#admin' && role === 'admin') {
-      const fetchProfiles = async () => {
-        try {
-          const result = await getAllProfilesAction();
-          if (result.ok && result.data) {
-            setProfiles(result.data);
-          }
-        } catch (error) {
-          console.error('Failed to fetch profiles:', error);
-        }
-      };
-      fetchProfiles();
-    }
-  }, [hash, role]);
 
   // 매니저 공고 가져오기
   useEffect(() => {
@@ -449,95 +429,6 @@ export default function PostPage() {
         return dateB - dateA; // 최신순
       });
   }, [filters, jobPostings]);
-
-  // 관리자 페이지 (#admin)
-  if (hash === '#admin') {
-    return (
-      <div className="flex flex-col gap-6">
-        <h2 className="text-2xl font-bold">관리자 페이지</h2>
-
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>사용자 관리</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {profiles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">사용자 데이터를 불러오는 중...</p>
-                ) : (
-                  profiles.map((profile) => (
-                    <div
-                      key={profile.user_id as string}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div>
-                        <p className="font-semibold">
-                          {(profile.name as string) || '이름 없음'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {profile.email as string}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          역할: {profile.role as string}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {profile.attendance_score as number}점
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>공고 관리</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {isLoading ? (
-                  <p className="text-sm text-muted-foreground">공고 데이터를 불러오는 중...</p>
-                ) : posts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">등록된 공고가 없습니다.</p>
-                ) : (
-                  posts.map((post) => (
-                    <div key={post.id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="font-semibold">{post.title}</p>
-                        <Badge>{post.status}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {post.location} - {post.date}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        모집: {post.currentApplicants}/{post.recruitCount}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>지원서 관리</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  지원서 관리 기능은 준비 중입니다.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   // 매니저 페이지 - 내 공고 (#my-posting)
   if (hash === '/manager/my-post') {

@@ -11,7 +11,6 @@ import {
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { signUpAction } from '../action';
-import { cn } from '@/lib/utils';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
@@ -35,10 +34,6 @@ export default function JoinPage() {
   const router = useRouter();
   const [state, formAction] = useActionState(signUpAction, initialState);
   const [role, setRole] = useState<RoleOption>('member');
-  // const [activeTab, setActiveTab] = useState<'integrated' | 'social'>('social');
-  const [activeTab, setActiveTab] = useState<'integrated' | 'social'>(
-    'integrated'
-  );
   const [formValues, setFormValues] = useState({
     name: '',
     email: '',
@@ -89,37 +84,7 @@ export default function JoinPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={'ghost'}
-                onClick={() => setActiveTab('social')}
-                className={cn(
-                  'border-b-2 border-border rounded-none',
-                  activeTab === 'social'
-                    ? 'border-b-primary text-primary'
-                    : 'bg-transparent text-foreground'
-                )}
-              >
-                간편로그인
-              </Button>
-              <Button
-                type="button"
-                variant={'ghost'}
-                onClick={() => setActiveTab('integrated')}
-                className={cn(
-                  'border-b-2 border-border rounded-none',
-                  activeTab === 'integrated'
-                    ? 'border-b-primary text-primary'
-                    : 'bg-transparent text-foreground'
-                )}
-              >
-                통합 회원가입
-              </Button>
-            </div>
-
-            {activeTab === 'integrated' && (
-              <form className="space-y-4" action={formAction}>
+            <form className="space-y-4" action={formAction}>
                 <div className="space-y-2">
                   <Label htmlFor="name">이름</Label>
                   <Input
@@ -249,29 +214,6 @@ export default function JoinPage() {
                   회원가입
                 </Button>
               </form>
-            )}
-
-            {activeTab === 'social' && (
-              // <div className="space-y-3">
-              //   <Button
-              //     type="button"
-              //     variant="outline"
-              //     className="w-full bg-[#FEE500] text-black"
-              //   >
-              //     카카오로 계속하기
-              //   </Button>
-              //   <Button
-              //     type="button"
-              //     variant="outline"
-              //     className="w-full bg-[#4285F4] text-white"
-              //   >
-              //     구글로 계속하기
-              //   </Button>
-              // </div>
-              <div className="text-center text-sm text-muted-foreground">
-                소셜 로그인 기능은 준비 중입니다.
-              </div>
-            )}
           </div>
           <div className="text-sm text-muted-foreground mt-2 text-center">
             <span>이미 계정이 있으신가요?</span>{' '}

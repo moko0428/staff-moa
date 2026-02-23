@@ -48,23 +48,10 @@ export async function getApplicantsAction(): Promise<
     }
 
     if (!myPosts || myPosts.length === 0) {
-      console.log('[getApplicantsAction] No posts found for manager');
       return { ok: true, message: '', data: [] };
     }
 
     const postIds = myPosts.map((p) => p.post_id);
-    console.log('[getApplicantsAction] Post IDs:', postIds);
-
-    // 먼저 간단한 쿼리로 데이터가 있는지 확인
-    const { data: simpleCheck, error: simpleError } = await supabase
-      .from('member_schedules')
-      .select('member_schedule_id, post_id, member_id')
-      .in('post_id', postIds);
-
-    console.log('[getApplicantsAction] Simple check:', simpleCheck?.length || 0, 'records');
-    if (simpleError) {
-      console.error('[getApplicantsAction] Simple check error:', simpleError);
-    }
 
     // 2. 해당 공고들에 지원한 member_schedules 조회
     // profiles는 별도로 조회 (foreign key 이름 문제 회피)
@@ -105,7 +92,6 @@ export async function getApplicantsAction(): Promise<
     }
 
     if (!schedules || schedules.length === 0) {
-      console.log('[getApplicantsAction] No schedules found');
       return { ok: true, message: '', data: [] };
     }
 
@@ -149,11 +135,6 @@ export async function getApplicantsAction(): Promise<
         profiles: profile || null,
       };
     });
-
-    console.log('[getApplicantsAction] Applicants found:', applicants?.length || 0);
-    if (applicants && applicants.length > 0) {
-      console.log('[getApplicantsAction] First applicant:', JSON.stringify(applicants[0], null, 2));
-    }
 
     return { ok: true, message: '', data: applicants || [] };
   } catch (err) {

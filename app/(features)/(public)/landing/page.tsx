@@ -28,7 +28,9 @@ import {
   type LandingStats,
   type LandingReview,
 } from './actions';
+import { getActivePopupAction, type LandingPopup } from './popup-actions';
 import SectionBadge from './components/section-badge';
+import LandingPopupModal from './components/LandingPopup';
 import {
   Avatar,
   AvatarFallback,
@@ -197,6 +199,7 @@ export default function LandingPage() {
   const router = useRouter();
   const [stats, setStats] = useState<LandingStats | null>(null);
   const [topReviews, setTopReviews] = useState<LandingReview[]>([]);
+  const [activePopup, setActivePopup] = useState<LandingPopup | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -207,15 +210,19 @@ export default function LandingPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [statsResult, reviewsResult] = await Promise.all([
+      const [statsResult, reviewsResult, popupResult] = await Promise.all([
         getLandingStatsAction(),
         getTopReviewsAction(),
+        getActivePopupAction(),
       ]);
       if (statsResult.ok && statsResult.data) {
         setStats(statsResult.data);
       }
       if (reviewsResult.ok && reviewsResult.data) {
         setTopReviews(reviewsResult.data);
+      }
+      if (popupResult.ok && popupResult.data) {
+        setActivePopup(popupResult.data);
       }
     };
     fetchData();
@@ -276,6 +283,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col bg-gradient-to-b from-primary/90 to-background overflow-hidden">
+      {activePopup && <LandingPopupModal popup={activePopup} />}
       {/* 플로팅 배경 요소 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <motion.div
