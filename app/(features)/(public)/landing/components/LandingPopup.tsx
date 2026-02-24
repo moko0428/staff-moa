@@ -8,11 +8,9 @@ import type { LandingPopup as LandingPopupType } from '../popup-actions';
 
 const DISMISS_PREFIX = 'popup_dismiss_until_';
 
-function getDismissKey(popupId: string) {
-  return DISMISS_PREFIX + popupId;
-}
+const getDismissKey = (popupId: string) => DISMISS_PREFIX + popupId;
 
-function isDismissedForToday(popupId: string): boolean {
+const isDismissedForToday = (popupId: string): boolean => {
   try {
     const until = localStorage.getItem(getDismissKey(popupId));
     if (!until) return false;
@@ -20,22 +18,22 @@ function isDismissedForToday(popupId: string): boolean {
   } catch {
     return false;
   }
-}
+};
 
-function dismissForDay(popupId: string) {
+const dismissForDay = (popupId: string) => {
   try {
     const until = Date.now() + 24 * 60 * 60 * 1000;
     localStorage.setItem(getDismissKey(popupId), String(until));
   } catch {
     // ignore
   }
-}
+};
 
 interface Props {
   popup: LandingPopupType;
 }
 
-export default function LandingPopup({ popup }: Props) {
+const LandingPopup = ({ popup }: Props) => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -62,7 +60,6 @@ export default function LandingPopup({ popup }: Props) {
       }}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* 이미지 */}
         {popup.image_url && (
           <div className="w-full aspect-video overflow-hidden bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -74,14 +71,12 @@ export default function LandingPopup({ popup }: Props) {
           </div>
         )}
 
-        {/* 콘텐츠 */}
         <div className="px-5 pt-5 pb-3 space-y-2">
           <h2 className="text-base font-bold text-gray-900 leading-snug">{popup.title}</h2>
           <p className="text-sm text-gray-500 whitespace-pre-line leading-relaxed">
             {popup.content}
           </p>
 
-          {/* CTA 링크 */}
           {popup.link_url && (
             <div className="pt-1">
               <Button asChild className="w-full" size="sm">
@@ -93,7 +88,6 @@ export default function LandingPopup({ popup }: Props) {
           )}
         </div>
 
-        {/* 하단 버튼 */}
         <div className="flex items-center border-t border-gray-200">
           <button
             onClick={handleDismissForDay}
@@ -110,7 +104,6 @@ export default function LandingPopup({ popup }: Props) {
           </button>
         </div>
 
-        {/* X 버튼 */}
         <button
           onClick={handleClose}
           className="absolute top-2.5 right-2.5 size-7 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
@@ -121,4 +114,6 @@ export default function LandingPopup({ popup }: Props) {
       </div>
     </div>
   );
-}
+};
+
+export default LandingPopup;

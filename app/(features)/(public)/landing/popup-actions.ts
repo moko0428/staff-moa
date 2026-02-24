@@ -21,16 +21,17 @@ type ActionResult<T = void> = {
   data?: T;
 };
 
-function getServiceClient() {
-  return createServiceClient(
+const getServiceClient = () =>
+  createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-}
 
-async function assertAdmin() {
+const assertAdmin = async () => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error('로그인이 필요합니다.');
 
   const { data: profile } = await supabase
@@ -40,10 +41,9 @@ async function assertAdmin() {
     .single();
 
   if (profile?.role !== 'admin') throw new Error('관리자만 접근할 수 있습니다.');
-}
+};
 
-// Public: active popup for landing page (anon-safe)
-export async function getActivePopupAction(): Promise<ActionResult<LandingPopup | null>> {
+export const getActivePopupAction = async (): Promise<ActionResult<LandingPopup | null>> => {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -60,10 +60,9 @@ export async function getActivePopupAction(): Promise<ActionResult<LandingPopup 
     console.error('[getActivePopupAction]', err);
     return { ok: false, message: '팝업 조회 중 오류가 발생했습니다.', data: null };
   }
-}
+};
 
-// Admin: list all popups
-export async function getPopupsAction(): Promise<ActionResult<LandingPopup[]>> {
+export const getPopupsAction = async (): Promise<ActionResult<LandingPopup[]>> => {
   try {
     await assertAdmin();
     const service = getServiceClient();
@@ -78,22 +77,20 @@ export async function getPopupsAction(): Promise<ActionResult<LandingPopup[]>> {
     console.error('[getPopupsAction]', err);
     return { ok: false, message: '팝업 목록 조회 중 오류가 발생했습니다.', data: [] };
   }
-}
+};
 
-// Admin: create popup
-export async function createPopupAction(payload: {
+export const createPopupAction = async (payload: {
   title: string;
   content: string;
   image_url?: string;
   link_url?: string;
   link_text?: string;
   is_active: boolean;
-}): Promise<ActionResult<LandingPopup>> {
+}): Promise<ActionResult<LandingPopup>> => {
   try {
     await assertAdmin();
     const service = getServiceClient();
 
-    // If activating, deactivate all others first
     if (payload.is_active) {
       await service.from('landing_popups').update({ is_active: false }).eq('is_active', true);
     }
@@ -117,10 +114,9 @@ export async function createPopupAction(payload: {
     console.error('[createPopupAction]', err);
     return { ok: false, message: '팝업 생성 중 오류가 발생했습니다.' };
   }
-}
+};
 
-// Admin: update popup
-export async function updatePopupAction(
+export const updatePopupAction = async (
   popupId: string,
   payload: {
     title: string;
@@ -130,7 +126,7 @@ export async function updatePopupAction(
     link_text?: string;
     is_active: boolean;
   }
-): Promise<ActionResult<LandingPopup>> {
+): Promise<ActionResult<LandingPopup>> => {
   try {
     await assertAdmin();
     const service = getServiceClient();
@@ -164,10 +160,9 @@ export async function updatePopupAction(
     console.error('[updatePopupAction]', err);
     return { ok: false, message: '팝업 수정 중 오류가 발생했습니다.' };
   }
-}
+};
 
-// Admin: delete popup
-export async function deletePopupAction(popupId: string): Promise<ActionResult> {
+export const deletePopupAction = async (popupId: string): Promise<ActionResult> => {
   try {
     await assertAdmin();
     const service = getServiceClient();
@@ -182,19 +177,17 @@ export async function deletePopupAction(popupId: string): Promise<ActionResult> 
     console.error('[deletePopupAction]', err);
     return { ok: false, message: '팝업 삭제 중 오류가 발생했습니다.' };
   }
-}
+};
 
-// Admin: toggle active (activate one, deactivate others)
-export async function togglePopupActiveAction(
+export const togglePopupActiveAction = async (
   popupId: string,
   activate: boolean
-): Promise<ActionResult> {
+): Promise<ActionResult> => {
   try {
     await assertAdmin();
     const service = getServiceClient();
 
     if (activate) {
-      // Deactivate all, then activate target
       await service.from('landing_popups').update({ is_active: false }).eq('is_active', true);
     }
 
@@ -212,4 +205,4 @@ export async function togglePopupActiveAction(
     console.error('[togglePopupActiveAction]', err);
     return { ok: false, message: '팝업 상태 변경 중 오류가 발생했습니다.' };
   }
-}
+};
