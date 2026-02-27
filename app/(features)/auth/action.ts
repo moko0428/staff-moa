@@ -77,10 +77,10 @@ const signUpSchema = z
    Sign In
 ========================= */
 
-export async function signInAction(
+export const signInAction = async (
   _prevState: ActionResult | undefined,
   formData: FormData
-): Promise<ActionResult> {
+): Promise<ActionResult> => {
   const parsed = signInSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -137,10 +137,10 @@ export async function signInAction(
    Sign Up
 ========================= */
 
-export async function signUpAction(
+export const signUpAction = async (
   _prevState: ActionResult | undefined,
   formData: FormData
-): Promise<ActionResult> {
+): Promise<ActionResult> => {
   const parsed = signUpSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -253,7 +253,7 @@ export async function signUpAction(
    Kakao OAuth
 ========================= */
 
-export async function signInWithKakaoAction(): Promise<ActionResult> {
+export const signInWithKakaoAction = async (): Promise<ActionResult> => {
   const supabase = await createClient();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -286,7 +286,7 @@ export async function signInWithKakaoAction(): Promise<ActionResult> {
    Sign Out
 ========================= */
 
-export async function signOutAction() {
+export const signOutAction = async () => {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
 

@@ -242,25 +242,21 @@ interface TermsBottomSheetProps {
   onClose: () => void;
 }
 
-function TermsBottomSheet({ open, termsType, onClose }: TermsBottomSheetProps) {
+const TermsBottomSheet = ({ open, termsType, onClose }: TermsBottomSheetProps) => {
   const terms = TERMS_DATA[termsType];
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 animate-in fade-in-0 duration-200"
         onClick={onClose}
       />
-      {/* Bottom Sheet */}
       <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] bg-background rounded-t-2xl border-t shadow-lg animate-in slide-in-from-bottom duration-300 flex flex-col">
-        {/* Handle */}
         <div className="flex items-center justify-center pt-3 pb-1 shrink-0">
           <div className="h-1.5 w-10 rounded-full bg-muted" />
         </div>
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pb-3 border-b shrink-0">
           <h3 className="text-lg font-semibold">{terms.title}</h3>
           <button
@@ -271,7 +267,6 @@ function TermsBottomSheet({ open, termsType, onClose }: TermsBottomSheetProps) {
             <X className="size-5" />
           </button>
         </div>
-        {/* Content */}
         <div className="flex-1 overflow-y-auto overscroll-none px-4 py-4 pb-safe">
           <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">
             {terms.content}
@@ -280,7 +275,7 @@ function TermsBottomSheet({ open, termsType, onClose }: TermsBottomSheetProps) {
       </div>
     </div>
   );
-}
+};
 
 interface TermsAgreeSectionProps {
   serviceChecked: boolean;
@@ -290,20 +285,19 @@ interface TermsAgreeSectionProps {
   fieldError?: string;
 }
 
-export function TermsAgreeSection({
+export const TermsAgreeSection = ({
   serviceChecked,
   privacyChecked,
   onServiceChange,
   onPrivacyChange,
   fieldError,
-}: TermsAgreeSectionProps) {
+}: TermsAgreeSectionProps) => {
   const [openTerms, setOpenTerms] = useState<TermsType | null>(null);
   const allChecked = serviceChecked && privacyChecked;
 
   return (
     <>
       <div className="space-y-3">
-        {/* 서비스 이용약관 */}
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -324,7 +318,6 @@ export function TermsAgreeSection({
           </button>
         </div>
 
-        {/* 개인정보 처리방침 */}
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -345,14 +338,9 @@ export function TermsAgreeSection({
           </button>
         </div>
 
-        {/* 서버 액션에 전달할 hidden input: 둘 다 체크되어야 on */}
-        {allChecked && (
-          <input type="hidden" name="termsAgree" value="on" />
-        )}
+        {allChecked && <input type="hidden" name="termsAgree" value="on" />}
 
-        {fieldError && (
-          <p className="text-xs text-red-500">{fieldError}</p>
-        )}
+        {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
       </div>
 
       <TermsBottomSheet
@@ -362,4 +350,4 @@ export function TermsAgreeSection({
       />
     </>
   );
-}
+};

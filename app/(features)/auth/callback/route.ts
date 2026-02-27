@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-async function ensureProfile(supabase: SupabaseClient) {
+const ensureProfile = async (supabase: SupabaseClient) => {
   try {
     const {
       data: { user },
@@ -47,9 +47,9 @@ async function ensureProfile(supabase: SupabaseClient) {
   } catch (err) {
     console.error('[ensureProfile] unexpected error', err);
   }
-}
+};
 
-export async function GET(request: NextRequest) {
+export const GET = async (request: NextRequest) => {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const token_hash = searchParams.get('token_hash');
@@ -78,4 +78,4 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(`${origin}/auth/login`);
-}
+};
