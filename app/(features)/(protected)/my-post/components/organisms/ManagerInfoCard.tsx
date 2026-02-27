@@ -1,0 +1,108 @@
+'use client';
+
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/app/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+
+interface ManagerInfoCardProps {
+  managerName: string;
+  setManagerName: (v: string) => void;
+  managerContactType: 'phone' | 'kakao' | 'email' | 'other';
+  setManagerContactType: (
+    v: 'phone' | 'kakao' | 'email' | 'other',
+  ) => void;
+  managerPhone: string;
+  setManagerPhone: (v: string) => void;
+}
+
+export const ManagerInfoCard = ({
+  managerName,
+  setManagerName,
+  managerContactType,
+  setManagerContactType,
+  managerPhone,
+  setManagerPhone,
+}: ManagerInfoCardProps) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>담당자 정보</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="manager_name">
+            담당자 이름 <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="manager_name"
+            value={managerName}
+            onChange={(e) => setManagerName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="manager_contact_type">
+            연락처 유형 <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            value={managerContactType}
+            onValueChange={(value) =>
+              setManagerContactType(
+                value as 'phone' | 'kakao' | 'email' | 'other',
+              )
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="phone">전화번호</SelectItem>
+              <SelectItem value="kakao">카카오톡 ID</SelectItem>
+              <SelectItem value="email">이메일</SelectItem>
+              <SelectItem value="other">기타</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="manager_phone">
+            담당자 연락처 <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="manager_phone"
+            type={
+              managerContactType === 'email'
+                ? 'email'
+                : managerContactType === 'phone'
+                  ? 'tel'
+                  : 'text'
+            }
+            value={managerPhone}
+            onChange={(e) => setManagerPhone(e.target.value)}
+            placeholder={
+              managerContactType === 'phone'
+                ? '010-1234-5678'
+                : managerContactType === 'kakao'
+                  ? '카카오톡 ID'
+                  : managerContactType === 'email'
+                    ? 'example@email.com'
+                    : '연락처 정보'
+            }
+            required
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

@@ -1,43 +1,16 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useActionState } from 'react';
-import Hero from '@/app/components/Hero';
-import { toast } from 'sonner';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
-import { Textarea } from '@/app/components/ui/textarea';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card';
-import { Badge } from '@/app/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
-import { Plus, X, Loader2 } from 'lucide-react';
-import { updatePostAction, getPostByIdAction } from '../../actions';
+import { useParams, useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
-
-type WorkSlot = {
-  date: string;
-  start: string;
-  end: string;
-  location: string;
-  pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
-  pay_amount: number;
-  tax_withholding: boolean;
-};
-
-const initialState = { ok: false, message: '', data: undefined };
+import Hero from '@/app/components/Hero';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { useEditPost } from '../../hooks/useEditPost';
+import { BasicInfoCard } from '../../components/organisms/BasicInfoCard';
+import { ManagerInfoCard } from '../../components/organisms/ManagerInfoCard';
+import { AdditionalInfoCard } from '../../components/organisms/AdditionalInfoCard';
+import { EditWorkSlotsCard } from '../components/organisms/EditWorkSlotsCard';
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -47,139 +20,47 @@ export default function EditPostPage() {
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isManager = role === 'manager';
 
-  const [state, formAction, isPending] = useActionState(
-    updatePostAction,
-    initialState,
-  );
-  const [, startTransition] = useTransition();
-  const [loading, setLoading] = useState(true);
-
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [workSlots, setWorkSlots] = useState<WorkSlot[]>([]);
-  const [recruitCount, setRecruitCount] = useState(1);
-  const [managerName, setManagerName] = useState('');
-  const [managerContactType, setManagerContactType] = useState<'phone' | 'kakao' | 'email' | 'other'>('phone');
-  const [managerPhone, setManagerPhone] = useState('');
-  const [equipments, setEquipments] = useState('');
-  const [qualifications, setQualifications] = useState('');
-  const [preferences, setPreferences] = useState('');
-  const [notes, setNotes] = useState('');
-  const [externalLink, setExternalLink] = useState('');
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [newKeyword, setNewKeyword] = useState('');
-  const [status, setStatus] = useState<'recruiting' | 'completed' | 'urgent'>(
-    'recruiting',
-  );
-  const [formType, setFormType] = useState<'basic' | 'free'>('basic');
-
-  useEffect(() => {
-    const fetchPost = async () => {
-      setLoading(true);
-      try {
-        const result = await getPostByIdAction(postId);
-        if (result.ok && result.data) {
-          const post = result.data as Record<string, unknown>;
-          setTitle((post.title as string) || '');
-          setDescription((post.description as string) || '');
-          setRecruitCount((post.recruit_count as number) || 1);
-          setManagerName((post.manager_name as string) || '');
-          if (post.manager_contact_type) {
-            setManagerContactType(post.manager_contact_type as 'phone' | 'kakao' | 'email' | 'other');
-          }
-          setManagerPhone((post.manager_phone as string) || '');
-          setEquipments((post.equipments as string) || '');
-          setQualifications((post.qualifications as string) || '');
-          setPreferences((post.preferences as string) || '');
-          setNotes((post.notes as string) || '');
-          setExternalLink((post.external_link as string) || '');
-          setKeywords((post.keywords as string[]) || []);
-          setStatus(
-            (post.status as 'recruiting' | 'completed' | 'urgent') ||
-              'recruiting',
-          );
-          setFormType((post.form_type as 'basic' | 'free') || 'basic');
-
-          // work_slots 변환: Supabase 형식(start_time, end_time) → 클라이언트 형식(start, end)
-          if (
-            post.work_slots &&
-            Array.isArray(post.work_slots) &&
-            post.work_slots.length > 0
-          ) {
-            const convertedWorkSlots: WorkSlot[] = (
-              post.work_slots as Array<Record<string, unknown>>
-            ).map((slot) => ({
-              date: (slot.date as string) || (post.work_date as string) || '',
-              start:
-                (slot.start_time as string) ||
-                (slot.start as string) ||
-                (post.work_time_start as string) ||
-                '',
-              end:
-                (slot.end_time as string) ||
-                (slot.end as string) ||
-                (post.work_time_end as string) ||
-                '',
-              location:
-                (slot.location as string) || (post.location as string) || '',
-              pay_type: (slot.pay_type || post.pay_type || 'hourly') as
-                | 'hourly'
-                | 'daily'
-                | 'weekly'
-                | 'monthly',
-              pay_amount:
-                (slot.pay_amount as number) || Number(post.pay_amount) || 0,
-              tax_withholding: (slot.tax_withholding !== undefined
-                ? slot.tax_withholding
-                : post.tax_withholding || false) as boolean,
-            }));
-            setWorkSlots(convertedWorkSlots);
-          } else {
-            // work_slots가 없으면 테이블 레벨 데이터로 기본값 생성
-            setWorkSlots([
-              {
-                date: (post.work_date as string) || '',
-                start: (post.work_time_start as string) || '',
-                end: (post.work_time_end as string) || '',
-                location: (post.location as string) || '',
-                pay_type: (post.pay_type || 'hourly') as
-                  | 'hourly'
-                  | 'daily'
-                  | 'weekly'
-                  | 'monthly',
-                pay_amount: Number(post.pay_amount) || 0,
-                tax_withholding: (post.tax_withholding as boolean) || false,
-              },
-            ]);
-          }
-        } else {
-          toast.error('공고를 불러오는데 실패했습니다.');
-          router.push('/my-post');
-        }
-      } catch (err) {
-        console.error('Failed to fetch post', err);
-        toast.error('공고를 불러오는 중 오류가 발생했습니다.');
-        router.push('/my-post');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (postId && isManager) {
-      fetchPost();
-    }
-  }, [postId, isManager, router]);
-
-  useEffect(() => {
-    if (state.ok) {
-      // 수정 성공 후 약간의 딜레이를 두고 리다이렉트 (사용자가 성공 메시지를 볼 수 있도록)
-      const timer = setTimeout(() => {
-        router.push('/my-post');
-        router.refresh(); // 페이지 새로고침하여 최신 데이터 로드
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [state, router]);
+  const {
+    state,
+    isPending,
+    loading,
+    formType,
+    setFormType,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    workSlots,
+    recruitCount,
+    setRecruitCount,
+    managerName,
+    setManagerName,
+    managerContactType,
+    setManagerContactType,
+    managerPhone,
+    setManagerPhone,
+    equipments,
+    setEquipments,
+    qualifications,
+    setQualifications,
+    preferences,
+    setPreferences,
+    notes,
+    setNotes,
+    externalLink,
+    setExternalLink,
+    keywords,
+    newKeyword,
+    setNewKeyword,
+    status,
+    setStatus,
+    handleAddWorkSlot,
+    handleRemoveWorkSlot,
+    handleWorkSlotChange,
+    handleAddKeyword,
+    handleRemoveKeyword,
+    handleSubmit,
+  } = useEditPost(postId, isManager);
 
   if (!roleHydrated) {
     return (
@@ -223,75 +104,6 @@ export default function EditPostPage() {
     );
   }
 
-  const handleAddWorkSlot = () => {
-    setWorkSlots([
-      ...workSlots,
-      {
-        date: '',
-        start: '',
-        end: '',
-        location: workSlots[0]?.location || '',
-        pay_type: workSlots[0]?.pay_type || 'hourly',
-        pay_amount: workSlots[0]?.pay_amount || 0,
-        tax_withholding: workSlots[0]?.tax_withholding || false,
-      },
-    ]);
-  };
-
-  const handleRemoveWorkSlot = (index: number) => {
-    if (workSlots.length > 1) {
-      setWorkSlots(workSlots.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleWorkSlotChange = (
-    index: number,
-    field: keyof WorkSlot,
-    value: string | number | boolean,
-  ) => {
-    const updated = [...workSlots];
-    updated[index] = { ...updated[index], [field]: value };
-    setWorkSlots(updated);
-  };
-
-  const handleAddKeyword = () => {
-    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
-      setKeywords([...keywords, newKeyword.trim()]);
-      setNewKeyword('');
-    }
-  };
-
-  const handleRemoveKeyword = (keyword: string) => {
-    setKeywords(keywords.filter((k) => k !== keyword));
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const formData = new FormData();
-    formData.append('id', postId);
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('work_slots', JSON.stringify(workSlots));
-    formData.append('recruit_count', recruitCount.toString());
-    formData.append('manager_name', managerName);
-    formData.append('manager_contact_type', managerContactType);
-    formData.append('manager_phone', managerPhone);
-    if (equipments) formData.append('equipments', equipments);
-    if (qualifications) formData.append('qualifications', qualifications);
-    if (preferences) formData.append('preferences', preferences);
-    if (notes) formData.append('notes', notes);
-    if (externalLink) formData.append('external_link', externalLink);
-    formData.append('keywords', JSON.stringify(keywords));
-    formData.append('status', status);
-    formData.append('form_type', formType);
-
-    // formAction을 transition 내에서 호출
-    startTransition(() => {
-      formAction(formData);
-    });
-  };
-
   return (
     <div>
       <Hero title="공고 수정" description="공고 정보를 수정하세요" />
@@ -316,383 +128,52 @@ export default function EditPostPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>기본 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="title">
-                제목 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-              {state.fieldErrors?.title && (
-                <p className="text-sm text-red-500 mt-1">
-                  {state.fieldErrors.title}
-                </p>
-              )}
-            </div>
+        <BasicInfoCard
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          recruitCount={recruitCount}
+          setRecruitCount={setRecruitCount}
+          fieldErrors={state.fieldErrors}
+        />
 
-            <div>
-              <Label htmlFor="description">
-                업무 내용 <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={5}
-                required
-              />
-              {state.fieldErrors?.description && (
-                <p className="text-sm text-red-500 mt-1">
-                  {state.fieldErrors.description}
-                </p>
-              )}
-            </div>
+        <EditWorkSlotsCard
+          workSlots={workSlots}
+          fieldErrors={state.fieldErrors}
+          onAddWorkSlot={handleAddWorkSlot}
+          onRemoveWorkSlot={handleRemoveWorkSlot}
+          onWorkSlotChange={handleWorkSlotChange}
+        />
 
-            <div>
-              <Label htmlFor="recruit_count">
-                모집인원 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="recruit_count"
-                type="number"
-                min="1"
-                value={recruitCount}
-                onChange={(e) => setRecruitCount(Number(e.target.value))}
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <ManagerInfoCard
+          managerName={managerName}
+          setManagerName={setManagerName}
+          managerContactType={managerContactType}
+          setManagerContactType={setManagerContactType}
+          managerPhone={managerPhone}
+          setManagerPhone={setManagerPhone}
+        />
 
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>날짜/시간/급여 정보</CardTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddWorkSlot}
-            >
-              <Plus className="size-4 mr-2" />
-              추가
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {workSlots.map((slot, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">슬롯 {index + 1}</span>
-                  {workSlots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveWorkSlot(index)}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label>
-                      날짜 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="date"
-                      value={slot.date}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'date', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      시작 시간 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="time"
-                      value={slot.start}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'start', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      종료 시간 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="time"
-                      value={slot.end}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'end', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      장소 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      value={slot.location}
-                      onChange={(e) =>
-                        handleWorkSlotChange(index, 'location', e.target.value)
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      급여 유형 <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={slot.pay_type}
-                      onValueChange={(v) =>
-                        handleWorkSlotChange(
-                          index,
-                          'pay_type',
-                          v as WorkSlot['pay_type'],
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hourly">시급</SelectItem>
-                        <SelectItem value="daily">일급</SelectItem>
-                        <SelectItem value="weekly">주급</SelectItem>
-                        <SelectItem value="monthly">월급</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>
-                      급여 금액 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={slot.pay_amount || ''}
-                      onChange={(e) =>
-                        handleWorkSlotChange(
-                          index,
-                          'pay_amount',
-                          Number(e.target.value),
-                        )
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="md:col-span-2 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`tax-${index}`}
-                      checked={slot.tax_withholding}
-                      onChange={(e) =>
-                        handleWorkSlotChange(
-                          index,
-                          'tax_withholding',
-                          e.target.checked,
-                        )
-                      }
-                      className="size-4"
-                    />
-                    <Label htmlFor={`tax-${index}`} className="cursor-pointer">
-                      3.3% 원천징수 공제
-                    </Label>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {state.fieldErrors?.['work_slots'] && (
-              <p className="text-sm text-red-500">
-                {state.fieldErrors['work_slots']}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>담당자 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="manager_name">
-                담당자 이름 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="manager_name"
-                value={managerName}
-                onChange={(e) => setManagerName(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="manager_contact_type">
-                연락처 유형 <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={managerContactType}
-                onValueChange={(value) =>
-                  setManagerContactType(value as 'phone' | 'kakao' | 'email' | 'other')
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="phone">전화번호</SelectItem>
-                  <SelectItem value="kakao">카카오톡 ID</SelectItem>
-                  <SelectItem value="email">이메일</SelectItem>
-                  <SelectItem value="other">기타</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="manager_phone">
-                담당자 연락처 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="manager_phone"
-                type={managerContactType === 'email' ? 'email' : managerContactType === 'phone' ? 'tel' : 'text'}
-                value={managerPhone}
-                onChange={(e) => setManagerPhone(e.target.value)}
-                placeholder={
-                  managerContactType === 'phone' ? '010-1234-5678'
-                  : managerContactType === 'kakao' ? '카카오톡 ID'
-                  : managerContactType === 'email' ? 'example@email.com'
-                  : '연락처 정보'
-                }
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>추가 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="equipments">준비물 (복장 등)</Label>
-              <Input
-                id="equipments"
-                value={equipments}
-                onChange={(e) => setEquipments(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="qualifications">자격 요건</Label>
-              <Textarea
-                id="qualifications"
-                value={qualifications}
-                onChange={(e) => setQualifications(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="preferences">우대 사항</Label>
-              <Textarea
-                id="preferences"
-                value={preferences}
-                onChange={(e) => setPreferences(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">기타 사항</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="external_link">링크 (선택사항)</Label>
-              <Input
-                id="external_link"
-                type="url"
-                value={externalLink}
-                onChange={(e) => setExternalLink(e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
-            <div>
-              <Label>키워드</Label>
-              <small className="text-sm text-muted-foreground">
-                효율적인 매칭을 위해 키워드를 입력해주세요.
-              </small>
-              <div className="flex gap-2 mb-2">
-                <Input
-                  value={newKeyword}
-                  onChange={(e) => setNewKeyword(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddKeyword();
-                    }
-                  }}
-                  placeholder="키워드 입력 후 Enter"
-                />
-                <Button type="button" onClick={handleAddKeyword}>
-                  추가
-                </Button>
-              </div>
-              {keywords.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {keywords.map((kw) => (
-                    <Badge
-                      key={kw}
-                      variant="secondary"
-                      className="flex items-center gap-1"
-                    >
-                      {kw}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveKeyword(kw)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="status">공고 상태</Label>
-              <Select
-                value={status}
-                onValueChange={(v) => setStatus(v as typeof status)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="recruiting">모집중</SelectItem>
-                  <SelectItem value="urgent">급구</SelectItem>
-                  <SelectItem value="completed">모집완료</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        <AdditionalInfoCard
+          equipments={equipments}
+          setEquipments={setEquipments}
+          qualifications={qualifications}
+          setQualifications={setQualifications}
+          preferences={preferences}
+          setPreferences={setPreferences}
+          notes={notes}
+          setNotes={setNotes}
+          externalLink={externalLink}
+          setExternalLink={setExternalLink}
+          keywords={keywords}
+          newKeyword={newKeyword}
+          setNewKeyword={setNewKeyword}
+          handleAddKeyword={handleAddKeyword}
+          handleRemoveKeyword={handleRemoveKeyword}
+          status={status}
+          setStatus={setStatus}
+        />
 
         {state.message && (
           <div
