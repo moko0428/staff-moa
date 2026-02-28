@@ -165,12 +165,6 @@ export async function deleteAccountAction(): Promise<{
 
     const userId = user.id;
 
-    await supabase.from('personal_schedules').delete().eq('user_id', userId);
-    await supabase.from('member_schedules').delete().eq('member_id', userId);
-    await supabase.from('app_reviews').delete().eq('user_id', userId);
-    await supabase.from('posts').delete().eq('author_id', userId);
-    await supabase.from('profiles').delete().eq('user_id', userId);
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -181,6 +175,31 @@ export async function deleteAccountAction(): Promise<{
     const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Storage 파일 삭제 (프로필 이미지, 문서 등)
+    const deleteStorageFolder = async (prefix: string) => {
+      const { data: files } = await adminClient.storage
+        .from('profiles')
+        .list(prefix);
+      if (files && files.length > 0) {
+        const paths = files
+          .filter((f) => f.name !== '.emptyFolderPlaceholder')
+          .map((f) => `${prefix}/${f.name}`);
+        if (paths.length > 0) {
+          await adminClient.storage.from('profiles').remove(paths);
+        }
+      }
+    };
+
+    await deleteStorageFolder(userId);
+    await deleteStorageFolder(`${userId}/documents`);
+
+    // DB 데이터 삭제 (profiles 삭제 시 CASCADE로 연관 데이터 자동 삭제)
+    await supabase.from('personal_schedules').delete().eq('user_id', userId);
+    await supabase.from('member_schedules').delete().eq('member_id', userId);
+    await supabase.from('app_reviews').delete().eq('user_id', userId);
+    await supabase.from('posts').delete().eq('author_id', userId);
+    await supabase.from('profiles').delete().eq('user_id', userId);
 
     const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
     if (deleteUserError) {

@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/Separator';
 import {
@@ -129,6 +130,8 @@ export default function SettingsPage() {
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // 다크모드 hydration 방지 및 설정 로드
   useEffect(() => {
@@ -396,16 +399,14 @@ export default function SettingsPage() {
     }
   };
 
-  // 계정 탈퇴 핸들러
-  const handleDeleteAccount = async () => {
-    if (
-      !confirm(
-        '정말 계정을 탈퇴하시겠습니까?\n\n모든 데이터(프로필, 공고, 지원 내역, 스케줄 등)가 영구 삭제되며 복구할 수 없습니다.',
-      )
-    ) {
-      return;
-    }
+  // 계정 탈퇴 다이얼로그 열기
+  const handleDeleteAccount = () => {
+    setDeleteConfirmText('');
+    setShowDeleteDialog(true);
+  };
 
+  // 계정 탈퇴 실행
+  const handleDeleteAccountConfirm = async () => {
     setIsDeletingAccount(true);
     try {
       const result = await deleteAccountAction();
@@ -414,9 +415,11 @@ export default function SettingsPage() {
         window.location.href = '/auth';
       } else {
         toast.error(result.message);
+        setShowDeleteDialog(false);
       }
     } catch {
       toast.error('계정 삭제 중 오류가 발생했습니다.');
+      setShowDeleteDialog(false);
     } finally {
       setIsDeletingAccount(false);
     }
@@ -803,11 +806,59 @@ export default function SettingsPage() {
                           disabled={isDeletingAccount}
                           className="ml-4 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md border border-destructive/20 transition-colors disabled:opacity-50"
                         >
-                          {isDeletingAccount ? '처리중...' : '탈퇴하기'}
+                          탈퇴하기
                         </button>
                       </div>
                     </div>
                   </div>
+
+                  {/* 탈퇴 확인 다이얼로그 */}
+                  <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+                    if (!isDeletingAccount) setShowDeleteDialog(open);
+                  }}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="text-destructive">계정 탈퇴</DialogTitle>
+                        <DialogDescription>
+                          이 작업은 되돌릴 수 없습니다.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                          <li>프로필 및 개인 정보</li>
+                          <li>작성한 공고 및 지원 내역</li>
+                          <li>스케줄 및 근태 기록</li>
+                          <li>업로드한 이미지 및 문서</li>
+                        </ul>
+                        <p className="text-sm text-muted-foreground">
+                          위 데이터가 모두 영구 삭제됩니다. 계속하려면 아래에{' '}
+                          <strong className="text-foreground">탈퇴</strong>를 입력하세요.
+                        </p>
+                        <Input
+                          placeholder="탈퇴"
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          disabled={isDeletingAccount}
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={isDeletingAccount}
+                          >
+                            취소
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteAccountConfirm}
+                            disabled={deleteConfirmText !== '탈퇴' || isDeletingAccount}
+                          >
+                            {isDeletingAccount ? '처리중...' : '탈퇴 확인'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
