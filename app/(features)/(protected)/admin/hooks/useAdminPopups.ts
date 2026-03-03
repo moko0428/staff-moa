@@ -10,7 +10,7 @@ import {
   deletePopupAction,
   togglePopupActiveAction,
   type LandingPopup,
-} from '@/app/(features)/(public)/landing/popup-actions';
+} from '@/app/(features)/(landing)/landing/popup-actions';
 import type { PopupFormState } from '../types';
 
 const EMPTY_FORM: PopupFormState = {

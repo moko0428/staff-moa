@@ -21,7 +21,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const requireAuthPaths = [
-     '/manager', '/my-post', '/admin', '/worker'
+     '/manager', '/my-post', '/admin', '/worker', '/settings', '/profile'
   ];
   const isProtectedPath = requireAuthPaths.some(path => pathname.startsWith(path));
 
@@ -81,6 +81,8 @@ export const config = {
     '/manager/:path*',
     '/my-post/:path*',
     '/worker/:path*',
-    '/auth/login', 
+    '/settings/:path*',
+    '/profile/:path*',
+    '/auth/login',
   ],
 };

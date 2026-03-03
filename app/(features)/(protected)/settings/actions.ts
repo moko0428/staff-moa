@@ -194,20 +194,22 @@ export async function deleteAccountAction(): Promise<{
     await deleteStorageFolder(userId);
     await deleteStorageFolder(`${userId}/documents`);
 
-    // DB 데이터 삭제 (profiles 삭제 시 CASCADE로 연관 데이터 자동 삭제)
-    await supabase.from('personal_schedules').delete().eq('user_id', userId);
-    await supabase.from('member_schedules').delete().eq('member_id', userId);
-    await supabase.from('app_reviews').delete().eq('user_id', userId);
-    await supabase.from('posts').delete().eq('author_id', userId);
-    await supabase.from('profiles').delete().eq('user_id', userId);
+    // DB 데이터 삭제: adminClient(service role) 사용으로 RLS 우회
+    // profiles는 수동 삭제하지 않음 — auth.users 삭제 시 CASCADE로 자동 삭제됨
+    await adminClient.from('personal_schedules').delete().eq('user_id', userId);
+    await adminClient.from('member_schedules').delete().eq('member_id', userId);
+    await adminClient.from('app_reviews').delete().eq('user_id', userId);
+    await adminClient.from('posts').delete().eq('author_id', userId);
 
+    // auth.users 삭제 → profiles CASCADE 삭제
     const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(userId);
     if (deleteUserError) {
       console.error('[deleteAccountAction] auth delete error:', deleteUserError);
       return { ok: false, message: '계정 삭제에 실패했습니다. 관리자에게 문의하세요.' };
     }
 
-    await supabase.auth.signOut();
+    // 세션 정리 (이미 auth.users가 삭제됐으므로 에러 무시)
+    await supabase.auth.signOut().catch(() => {});
 
     return { ok: true, message: '계정이 삭제되었습니다.' };
   } catch (error) {

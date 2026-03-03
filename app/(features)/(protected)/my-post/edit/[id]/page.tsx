@@ -4,12 +4,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
-import { Card, CardContent } from '@/app/components/ui/card';
-import { Loader2 } from 'lucide-react';
 import { useEditPost } from '../../hooks/useEditPost';
 import { BasicInfoCard } from '../../components/organisms/BasicInfoCard';
 import { ManagerInfoCard } from '../../components/organisms/ManagerInfoCard';
 import { AdditionalInfoCard } from '../../components/organisms/AdditionalInfoCard';
+import { AccessGuard } from '../../components/molecules/AccessGuard';
+import { FormStatusMessage } from '../../components/molecules/FormStatusMessage';
+import { FormActionBar } from '../../components/molecules/FormActionBar';
 import { EditWorkSlotsCard } from '../components/organisms/EditWorkSlotsCard';
 
 export default function EditPostPage() {
@@ -62,145 +63,88 @@ export default function EditPostPage() {
     handleSubmit,
   } = useEditPost(postId, isManager);
 
-  if (!roleHydrated) {
-    return (
-      <div className="space-y-4">
-        <Hero title="공고 수정" description="매니저 전용 페이지" />
-        <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            역할 정보를 불러오는 중입니다...
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!isManager) {
-    return (
-      <div className="space-y-4">
-        <Hero title="공고 수정" description="매니저 전용 페이지" />
-        <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            관리자 승인이 필요한 매니저 전용 페이지입니다.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Hero title="공고 수정" description="공고를 불러오는 중..." />
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Loader2 className="size-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              공고를 불러오는 중...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <Hero title="공고 수정" description="공고 정보를 수정하세요" />
+    <AccessGuard title="공고 수정" roleHydrated={roleHydrated} isManager={isManager} loading={loading}>
+      <div>
+        <Hero title="공고 수정" description="공고 정보를 수정하세요" />
 
-      <div className="mb-4 flex gap-2">
-        <Button
-          type="button"
-          variant={formType === 'basic' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFormType('basic')}
-        >
-          기본 양식
-        </Button>
-        <Button
-          type="button"
-          variant={formType === 'free' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFormType('free')}
-        >
-          자유 양식
-        </Button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <BasicInfoCard
-          title={title}
-          setTitle={setTitle}
-          description={description}
-          setDescription={setDescription}
-          recruitCount={recruitCount}
-          setRecruitCount={setRecruitCount}
-          fieldErrors={state.fieldErrors}
-        />
-
-        <EditWorkSlotsCard
-          workSlots={workSlots}
-          fieldErrors={state.fieldErrors}
-          onAddWorkSlot={handleAddWorkSlot}
-          onRemoveWorkSlot={handleRemoveWorkSlot}
-          onWorkSlotChange={handleWorkSlotChange}
-        />
-
-        <ManagerInfoCard
-          managerName={managerName}
-          setManagerName={setManagerName}
-          managerContactType={managerContactType}
-          setManagerContactType={setManagerContactType}
-          managerPhone={managerPhone}
-          setManagerPhone={setManagerPhone}
-        />
-
-        <AdditionalInfoCard
-          equipments={equipments}
-          setEquipments={setEquipments}
-          qualifications={qualifications}
-          setQualifications={setQualifications}
-          preferences={preferences}
-          setPreferences={setPreferences}
-          notes={notes}
-          setNotes={setNotes}
-          externalLink={externalLink}
-          setExternalLink={setExternalLink}
-          keywords={keywords}
-          newKeyword={newKeyword}
-          setNewKeyword={setNewKeyword}
-          handleAddKeyword={handleAddKeyword}
-          handleRemoveKeyword={handleRemoveKeyword}
-          status={status}
-          setStatus={setStatus}
-        />
-
-        {state.message && (
-          <div
-            className={`p-3 rounded-md ${
-              state.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}
+        <div className="mb-4 flex gap-2">
+          <Button
+            type="button"
+            variant={formType === 'basic' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFormType('basic')}
           >
-            {state.message}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            취소
+            기본 양식
           </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                수정 중...
-              </>
-            ) : (
-              '수정하기'
-            )}
+          <Button
+            type="button"
+            variant={formType === 'free' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFormType('free')}
+          >
+            자유 양식
           </Button>
         </div>
-      </form>
-    </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <BasicInfoCard
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            recruitCount={recruitCount}
+            setRecruitCount={setRecruitCount}
+            fieldErrors={state.fieldErrors}
+          />
+
+          <EditWorkSlotsCard
+            workSlots={workSlots}
+            fieldErrors={state.fieldErrors}
+            onAddWorkSlot={handleAddWorkSlot}
+            onRemoveWorkSlot={handleRemoveWorkSlot}
+            onWorkSlotChange={handleWorkSlotChange}
+          />
+
+          <ManagerInfoCard
+            managerName={managerName}
+            setManagerName={setManagerName}
+            managerContactType={managerContactType}
+            setManagerContactType={setManagerContactType}
+            managerPhone={managerPhone}
+            setManagerPhone={setManagerPhone}
+          />
+
+          <AdditionalInfoCard
+            equipments={equipments}
+            setEquipments={setEquipments}
+            qualifications={qualifications}
+            setQualifications={setQualifications}
+            preferences={preferences}
+            setPreferences={setPreferences}
+            notes={notes}
+            setNotes={setNotes}
+            externalLink={externalLink}
+            setExternalLink={setExternalLink}
+            keywords={keywords}
+            newKeyword={newKeyword}
+            setNewKeyword={setNewKeyword}
+            handleAddKeyword={handleAddKeyword}
+            handleRemoveKeyword={handleRemoveKeyword}
+            status={status}
+            setStatus={setStatus}
+          />
+
+          <FormStatusMessage message={state.message} ok={state.ok} />
+
+          <FormActionBar
+            isPending={isPending}
+            submitLabel="수정하기"
+            pendingLabel="수정 중..."
+            onCancel={() => router.back()}
+          />
+        </form>
+      </div>
+    </AccessGuard>
   );
 }
