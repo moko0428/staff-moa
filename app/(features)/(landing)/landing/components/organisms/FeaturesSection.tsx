@@ -6,7 +6,7 @@ import { features } from '../../data/landing-data';
 
 const FeaturesSection = () => (
   <section className="h-full w-full overflow-hidden bg-background border-t border-border relative z-10 flex flex-col justify-center">
-    <div className="max-w-6xl mx-auto px-4 py-3 sm:py-8 space-y-3 sm:space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <SectionHeader
         badge="주요 기능"
         badgeTextColor="text-purple-500"
@@ -18,7 +18,7 @@ const FeaturesSection = () => (
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
-        className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3"
+        className="grid grid-cols-2 lg:grid-cols-3 gap-3"
       >
         {features.map((feature) => (
           <FeatureCard key={feature.title} feature={feature} />

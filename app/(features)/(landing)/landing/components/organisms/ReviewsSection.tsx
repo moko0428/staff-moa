@@ -14,7 +14,7 @@ interface ReviewsSectionProps {
 
 const ReviewsSection = ({ reviews, isLoading }: ReviewsSectionProps) => (
   <section className="h-full w-full overflow-hidden bg-background border-t border-border relative z-10 flex flex-col justify-center">
-    <div className="max-w-6xl mx-auto px-4 py-3 sm:py-8 space-y-3 sm:space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <SectionHeader
         badge="사용자 후기"
         badgeTextColor="text-purple-500"

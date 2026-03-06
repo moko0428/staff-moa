@@ -9,6 +9,7 @@ import FeaturesSection from './components/organisms/FeaturesSection';
 import ReviewsSection from './components/organisms/ReviewsSection';
 import CtaSection from './components/organisms/CtaSection';
 import LandingPopupModal from './components/LandingPopup';
+import { HeroStats } from './components/molecules/HeroStats';
 
 const LandingPage = () => {
   const { stats, topReviews, activePopup, isLoading } = useLandingData();
@@ -18,19 +19,22 @@ const LandingPage = () => {
     <>
       {activePopup && <LandingPopupModal popup={activePopup} />}
       <FloatingBackground />
-      <div className="h-[calc(100dvh-4rem)]">
-        <HeroSection stats={stats} isLoading={isLoading} shouldReduceMotion={shouldReduceMotion} />
+      <div className="h-[60vh]">
+        <HeroSection shouldReduceMotion={shouldReduceMotion} />
       </div>
-      <div className="h-[calc(100dvh-4rem)]">
-        <HowItWorksSection />
+      <div className="h-[50vh]">
+        <HeroStats stats={stats} isLoading={isLoading} />
       </div>
-      <div className="h-[calc(100dvh-4rem)]">
+      <div className="h-[100vh]">
         <FeaturesSection />
       </div>
-      <div className="h-[calc(100dvh-4rem)]">
+      <div className="lg:h-[80dvh] h-[120dvh]">
+        <HowItWorksSection />
+      </div>
+      <div className="h-[50vh]">
         <ReviewsSection reviews={topReviews} isLoading={isLoading} />
       </div>
-      <div className="h-[calc(100dvh-4rem)]">
+      <div className="h-[45vh]">
         <CtaSection />
       </div>
     </>

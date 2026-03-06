@@ -10,12 +10,12 @@ const CtaSection = () => (
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
-      className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 py-12 sm:py-14 text-background space-y-4 text-center"
+      className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 py-14 text-background space-y-4 text-center"
     >
-      <motion.h3 variants={fadeInUp} className="text-2xl sm:text-3xl font-bold">
+      <motion.h3 variants={fadeInUp} className="text-3xl font-bold">
         지금 바로 시작해보세요
       </motion.h3>
-      <motion.p variants={fadeInUp} className="text-sm sm:text-base text-background/80">
+      <motion.p variants={fadeInUp} className="text-base text-background/80">
         가입 후 공고를 등록하거나 원하는 공고에 지원해보세요.
       </motion.p>
       <motion.div variants={fadeInUp} className="flex flex-wrap gap-3 justify-center">

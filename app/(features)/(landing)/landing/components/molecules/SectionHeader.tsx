@@ -28,7 +28,7 @@ export const SectionHeader = ({
       variants={fadeInUp}
       className="flex flex-col items-center justify-center gap-2"
     >
-      <h2 className="text-xl sm:text-4xl font-bold text-foreground">{title}</h2>
+      <h2 className="text-4xl font-bold text-foreground">{title}</h2>
       <small className="text-sm text-muted-foreground">{subtitle}</small>
     </motion.div>
   </>

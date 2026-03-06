@@ -1,5 +1,4 @@
 import { Card, CardContent } from '@/app/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { StarRating } from '../atoms/StarRating';
 import type { LandingReview } from '../../actions';
 
@@ -13,30 +12,35 @@ const maskName = (name: string | null): string => {
   return first + 'O'.repeat(trimmed.length - 2) + last;
 };
 
+const roleLabel: Record<string, string> = {
+  member: '스탭',
+  manager: '매니저',
+  pending_manager: '매니저',
+  admin: '관리자',
+};
+
 interface ReviewCardProps {
   review: LandingReview;
 }
 
 export const ReviewCard = ({ review }: ReviewCardProps) => {
   const maskedName = maskName(review.user_name);
+  const role = review.user_role ? (roleLabel[review.user_role] ?? review.user_role) : null;
+
   return (
-    <Card className="w-80 shrink-0 bg-card hover:shadow-lg transition-shadow duration-300">
-      <CardContent className="p-5 space-y-4">
+    <Card className="w-64 shrink-0 bg-card hover:shadow-lg transition-shadow duration-300">
+      <CardContent className="p-4 space-y-3">
         <StarRating rating={review.rating} />
-        <p className="text-sm text-foreground leading-relaxed line-clamp-3">
+        <p className="text-xs text-foreground leading-relaxed line-clamp-3">
           &ldquo;{review.content}&rdquo;
         </p>
-        <div className="flex items-center gap-3 pt-2 border-t">
-          <Avatar className="size-10">
-            <AvatarImage src={review.user_avatar ?? undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-              {maskedName.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium text-foreground">{maskedName}</p>
-            <p className="text-xs text-muted-foreground">사용자</p>
-          </div>
+        <div className="flex items-center justify-between pt-2 border-t">
+          <p className="text-sm font-medium text-foreground">{maskedName}</p>
+          {role && (
+            <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              {role}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

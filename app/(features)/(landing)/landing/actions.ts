@@ -1,12 +1,20 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+
+const getServiceClient = () =>
+  createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 
 export type LandingStats = {
   memberCount: number;
   activePostCount: number;
   managerCount: number;
   averageRating: number | null;
+  averageAttendanceScore: number | null;
 };
 
 export type LandingReview = {
@@ -15,7 +23,7 @@ export type LandingReview = {
   content: string;
   created_at: string;
   user_name: string | null;
-  user_avatar: string | null;
+  user_role: string | null;
 };
 
 export const getLandingStatsAction = async (): Promise<{
@@ -26,26 +34,39 @@ export const getLandingStatsAction = async (): Promise<{
   try {
     const supabase = await createClient();
 
-    const [memberResult, postResult, managerResult, reviewResult] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'member'),
-      supabase
-        .from('posts')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['recruiting', 'urgent']),
-      supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'manager'),
-      supabase.from('app_reviews').select('rating'),
-    ]);
+    const [memberResult, postResult, managerResult, reviewResult, attendanceResult] =
+      await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'member'),
+        supabase
+          .from('posts')
+          .select('*', { count: 'exact', head: true })
+          .in('status', ['recruiting', 'urgent']),
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'manager'),
+        supabase.from('app_reviews').select('rating'),
+        getServiceClient().from('profiles').select('attendance_score').eq('role', 'member'),
+      ]);
 
     let averageRating: number | null = null;
     if (reviewResult.data && reviewResult.data.length > 0) {
       const sum = reviewResult.data.reduce((acc, review) => acc + review.rating, 0);
       averageRating = Math.round((sum / reviewResult.data.length) * 10) / 10;
+    }
+
+    let averageAttendanceScore: number | null = null;
+    if (attendanceResult.data && attendanceResult.data.length > 0) {
+      const scores = attendanceResult.data
+        .map((p) => p.attendance_score)
+        .filter((s): s is number => typeof s === 'number');
+      if (scores.length > 0) {
+        const sum = scores.reduce((acc, s) => acc + s, 0);
+        averageAttendanceScore = Math.round((sum / scores.length) * 10) / 10;
+      }
     }
 
     return {
@@ -56,6 +77,7 @@ export const getLandingStatsAction = async (): Promise<{
         activePostCount: postResult.count ?? 0,
         managerCount: managerResult.count ?? 0,
         averageRating,
+        averageAttendanceScore,
       },
     };
   } catch (error) {
@@ -89,9 +111,9 @@ export const getTopReviewsAction = async (): Promise<{
     }
 
     const userIds = reviews.map((r) => r.user_id);
-    const { data: users } = await supabase
+    const { data: users } = await getServiceClient()
       .from('profiles')
-      .select('user_id, name, avatar')
+      .select('user_id, name, role')
       .in('user_id', userIds);
 
     const usersMap = new Map(users?.map((u) => [u.user_id, u]) || []);
@@ -104,7 +126,7 @@ export const getTopReviewsAction = async (): Promise<{
         content: review.content,
         created_at: review.created_at,
         user_name: user?.name || null,
-        user_avatar: user?.avatar || null,
+        user_role: user?.role || null,
       };
     });
 

@@ -33,21 +33,21 @@ export const FeatureCard = ({ feature }: FeatureCardProps) => (
   <motion.div variants={staggerItem} whileHover="hover" initial="rest" animate="rest">
     <motion.div variants={scaleOnHover}>
       <Card className="h-full border-none shadow-md hover:shadow-xl transition-shadow duration-300">
-        <CardContent className="p-2 sm:p-4 space-y-1 sm:space-y-2">
+        <CardContent className="p-4 space-y-2">
           <div
-            className={`flex items-center justify-center size-7 sm:size-10 ${featureColorClasses[feature.color]} rounded-lg text-white`}
+            className={`flex items-center justify-center size-10 ${featureColorClasses[feature.color]} rounded-lg text-white`}
           >
             {feature.icon}
           </div>
           <div className="flex gap-1 items-center flex-wrap">
-            <p className="font-bold text-foreground text-sm sm:text-base">{feature.title}</p>
+            <p className="font-bold text-foreground text-base">{feature.title}</p>
             <p
               className={`text-xs leading-relaxed ${levelColorClasses[feature.level]} rounded-full px-2 py-0.5`}
             >
               {feature.level}
             </p>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
         </CardContent>
       </Card>
     </motion.div>
