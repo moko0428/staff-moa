@@ -17,10 +17,14 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: '고인력',
-    startupImage: '/logo.png',
+    startupImage: '/assets/primary_logo_512.png',
   },
   icons: {
-    apple: '/logo.png',
+    apple: [{ url: '/assets/primary_logo_192.png', sizes: '192x192' }],
+    icon: [
+      { url: '/assets/primary_logo_192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/assets/primary_logo_512.png', sizes: '512x512', type: 'image/png' },
+    ],
   },
 };
 
