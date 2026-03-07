@@ -59,9 +59,9 @@ const LandingPopup = ({ popup }: Props) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {popup.image_url && (
-          <div className="w-full aspect-video overflow-hidden bg-gray-100">
+          <div className="w-full aspect-video overflow-hidden bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={popup.image_url}
@@ -72,8 +72,8 @@ const LandingPopup = ({ popup }: Props) => {
         )}
 
         <div className="px-5 pt-5 pb-3 space-y-2">
-          <h2 className="text-base font-bold text-gray-900 leading-snug">{popup.title}</h2>
-          <p className="text-sm text-gray-500 whitespace-pre-line leading-relaxed">
+          <h2 className="text-base font-bold text-card-foreground leading-snug">{popup.title}</h2>
+          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
             {popup.content}
           </p>
 
@@ -88,17 +88,17 @@ const LandingPopup = ({ popup }: Props) => {
           )}
         </div>
 
-        <div className="flex items-center border-t border-gray-200">
+        <div className="flex items-center border-t border-border">
           <button
             onClick={handleDismissForDay}
-            className="flex-1 py-3 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex-1 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             하루 동안 보지 않기
           </button>
-          <div className="w-px h-5 bg-gray-200" />
+          <div className="w-px h-5 bg-border" />
           <button
             onClick={handleClose}
-            className="flex-1 py-3 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex-1 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             닫기
           </button>

@@ -32,22 +32,19 @@ const ReviewsSection = ({ reviews, isLoading }: ReviewsSectionProps) => (
     >
       {isLoading ? (
         <div className="flex gap-4 px-4 overflow-hidden">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="w-80 shrink-0 rounded-xl border bg-card p-5 space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="w-64 shrink-0 rounded-xl border bg-card p-4 space-y-3">
               <div className="flex gap-1">
                 {Array.from({ length: 5 }).map((_, j) => (
                   <Skeleton key={j} className="size-4 rounded-full" />
                 ))}
               </div>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
-              <Skeleton className="h-4 w-3/5" />
-              <div className="flex items-center gap-3 pt-2 border-t">
-                <Skeleton className="size-10 rounded-full" />
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className="h-3 w-3/5" />
+              <div className="flex items-center justify-between pt-2 border-t">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-5 w-12 rounded-full" />
               </div>
             </div>
           ))}

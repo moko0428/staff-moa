@@ -10,12 +10,12 @@ const CtaSection = () => (
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
-      className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 py-14 text-background space-y-4 text-center"
+      className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 py-14 text-primary-foreground space-y-4 text-center"
     >
       <motion.h3 variants={fadeInUp} className="text-3xl font-bold">
         지금 바로 시작해보세요
       </motion.h3>
-      <motion.p variants={fadeInUp} className="text-base text-background/80">
+      <motion.p variants={fadeInUp} className="text-base text-primary-foreground/80">
         가입 후 공고를 등록하거나 원하는 공고에 지원해보세요.
       </motion.p>
       <motion.div variants={fadeInUp} className="flex flex-wrap gap-3 justify-center">
@@ -25,13 +25,13 @@ const CtaSection = () => (
       </motion.div>
     </motion.div>
 
-    <footer className="bg-zinc-900/80 text-zinc-300">
+    <footer className="bg-black/30 text-primary-foreground/70">
       <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Briefcase className="size-4 text-white" />
-          <span className="text-sm font-semibold text-white">고인력</span>
+          <Briefcase className="size-4 text-primary-foreground" />
+          <span className="text-sm font-semibold text-primary-foreground">고인력</span>
         </div>
-        <div className="text-xs text-zinc-400">
+        <div className="text-xs text-primary-foreground/50">
           © {new Date().getFullYear()} goinlyeog All rights reserved.
         </div>
       </div>

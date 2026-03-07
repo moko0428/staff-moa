@@ -63,17 +63,23 @@ export const HeroStats = ({ stats, isLoading }: HeroStatsProps) => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 gap-4 md:gap-6 pt-4 w-full">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/30 bg-white/20 px-4 py-5 md:px-5 md:py-6 min-h-[150px] md:min-h-[170px] backdrop-blur-sm"
-          >
-            <Skeleton className="size-16 rounded-xl bg-white/30" />
-            <Skeleton className="h-9 w-20 bg-white/30" />
-            <Skeleton className="h-5 w-16 bg-white/30" />
-          </div>
-        ))}
+      <div className="flex flex-col items-center gap-4 w-full max-w-4xl mx-auto px-4 py-10">
+        <div className="flex flex-col items-center justify-center gap-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+        <div className="grid grid-cols-3 gap-4 md:gap-6 pt-4 w-full">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-background px-4 py-5 md:px-5 md:py-6 min-h-[150px] md:min-h-[170px]"
+            >
+              <Skeleton className="size-14 rounded-xl" />
+              <Skeleton className="h-9 w-20" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

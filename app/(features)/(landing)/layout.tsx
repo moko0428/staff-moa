@@ -1,4 +1,3 @@
-import HeaderNav from '@/app/components/HeaderNav';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -13,7 +12,6 @@ export default function LandingLayout({
 }) {
   return (
     <div className="bg-gradient-to-b from-primary/60 to-background">
-      <HeaderNav />
       {children}
     </div>
   );
