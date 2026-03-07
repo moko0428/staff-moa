@@ -5,7 +5,7 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { fadeInUp, staggerContainer } from '../atoms/animations';
 
 const CtaSection = () => (
-  <section className="h-full w-full bg-gradient-to-b from-primary/60 to-primary relative z-10 flex flex-col justify-between pb-[env(safe-area-inset-bottom)]">
+  <section className="w-full bg-gradient-to-b from-primary/60 to-primary relative z-10 flex flex-col pb-[env(safe-area-inset-bottom)]">
     <motion.div
       initial="hidden"
       animate="visible"

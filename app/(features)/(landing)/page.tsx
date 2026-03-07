@@ -19,24 +19,14 @@ const LandingPage = () => {
     <>
       {activePopup && <LandingPopupModal popup={activePopup} />}
       <FloatingBackground />
-      <div className="h-[60vh]">
-        <HeroSection shouldReduceMotion={shouldReduceMotion} />
-      </div>
-      <div className="h-[50vh]">
+      <HeroSection shouldReduceMotion={shouldReduceMotion} />
+      <section className="bg-background border-t border-border">
         <HeroStats stats={stats} isLoading={isLoading} />
-      </div>
-      <div className="h-[100vh]">
-        <FeaturesSection />
-      </div>
-      <div className="lg:h-[80dvh] h-[120dvh]">
-        <HowItWorksSection />
-      </div>
-      <div className="h-[50vh]">
-        <ReviewsSection reviews={topReviews} isLoading={isLoading} />
-      </div>
-      <div className="h-[45vh]">
-        <CtaSection />
-      </div>
+      </section>
+      <FeaturesSection />
+      <HowItWorksSection />
+      <ReviewsSection reviews={topReviews} isLoading={isLoading} />
+      <CtaSection />
     </>
   );
 };

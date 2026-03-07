@@ -30,8 +30,8 @@ const HowItWorksSection = () => {
   const current = steps[selected];
 
   return (
-    <section className="h-full w-full bg-background border-t border-border relative z-10 flex flex-col justify-center overflow-hidden">
-      <div className="max-w-5xl mx-auto px-4 py-4 w-full flex flex-col gap-4 overflow-y-auto lg:overflow-visible lg:py-6 lg:gap-5">
+    <section className="w-full bg-background border-t border-border relative z-10">
+      <div className="max-w-5xl mx-auto px-4 py-8 w-full flex flex-col gap-4 lg:py-12 lg:gap-6">
         <SectionHeader
           badge="시작하기"
           badgeTextColor="text-primary"
@@ -65,7 +65,7 @@ const HowItWorksSection = () => {
         </div>
 
         {/* 콘텐츠 — 모바일: flex-col, 데스크톱: 1:2:1 그리드 */}
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_1fr_1fr] lg:gap-6 lg:h-[58dvh] lg:min-h-0">
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_1fr_1fr] lg:gap-6 lg:h-[520px]">
           {/* 데스크톱: 수직 탭 목록 */}
           <div className="hidden lg:flex flex-col gap-1 border-r border-border pr-10 justify-center overflow-hidden">
             {steps.map((step, i) => {

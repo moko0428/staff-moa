@@ -15,8 +15,8 @@ interface HeroSectionProps {
 const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
   return (
     <MotionConfig reducedMotion={shouldReduceMotion ? 'always' : 'never'}>
-      <section className="h-full w-full flex flex-col items-center justify-start relative z-10 bg-primary/90">
-        <div className="max-w-3xl w-full h-full mx-auto flex flex-col items-center pt-10">
+      <section className="w-full flex flex-col items-center relative z-10 bg-primary/90 py-20 lg:py-28">
+        <div className="max-w-3xl w-full mx-auto flex flex-col items-center">
           <motion.div
             className="space-y-10"
             initial="hidden"

@@ -5,8 +5,8 @@ import { FeatureCard } from '../molecules/FeatureCard';
 import { features } from '../../data/landing-data';
 
 const FeaturesSection = () => (
-  <section className="h-full w-full overflow-hidden bg-background border-t border-border relative z-10 flex flex-col justify-center">
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+  <section className="w-full overflow-hidden bg-background border-t border-border relative z-10">
+    <div className="max-w-6xl mx-auto px-4 py-16 space-y-8">
       <SectionHeader
         badge="주요 기능"
         badgeTextColor="text-purple-500"
