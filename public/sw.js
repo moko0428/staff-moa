@@ -13,8 +13,8 @@ self.addEventListener('push', function (event) {
   const title = payload.title || '고인력';
   const options = {
     body: payload.message || '',
-    icon: '/logo.png',
-    badge: '/logo.png',
+    icon: '/assets/primary_logo_192.png',
+    badge: '/assets/primary_logo_192.png',
     data: { link: payload.link || '/' },
   };
 
@@ -40,13 +40,5 @@ self.addEventListener('notificationclick', function (event) {
           return clients.openWindow(link);
         }
       }),
-  );
-});
-
-self.addEventListener('fetch', function (event) {
-  event.respondWith(
-    fetch(event.request).catch(function () {
-      return caches.match(event.request);
-    }),
   );
 });
