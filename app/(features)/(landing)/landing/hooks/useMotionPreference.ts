@@ -8,10 +8,12 @@ export function useMotionPreference() {
   const [isSlowNetwork, setIsSlowNetwork] = useState(false);
 
   useEffect(() => {
-    const conn =
-      (navigator as any).connection ??
-      (navigator as any).mozConnection ??
-      (navigator as any).webkitConnection;
+    const nav = navigator as Navigator & {
+      connection?: { effectiveType: string; saveData: boolean; addEventListener: (e: string, fn: () => void) => void; removeEventListener: (e: string, fn: () => void) => void };
+      mozConnection?: typeof nav.connection;
+      webkitConnection?: typeof nav.connection;
+    };
+    const conn = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
 
     if (!conn) return;
 
