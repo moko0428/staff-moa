@@ -9,7 +9,7 @@ export async function middleware(req: NextRequest) {
   const authed = Boolean(user);
   const user_role = user?.role || user?.app_metadata?.role || user?.user_metadata?.role; 
 
-  if (authed && (pathname === '/' || pathname.startsWith('/landing'))) {
+  if (authed && pathname === '/') {
     const url = req.nextUrl.clone();
     url.pathname = '/post'; 
     
@@ -76,7 +76,6 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/',
-    '/landing/:path*',
     '/admin/:path*',
     '/manager/:path*',
     '/my-post/:path*',

@@ -1,15 +1,15 @@
 'use client';
 
-import { useLandingData } from './hooks/useLandingData';
-import { useMotionPreference } from './hooks/useMotionPreference';
-import FloatingBackground from './components/organisms/FloatingBackground';
-import HeroSection from './components/organisms/HeroSection';
-import HowItWorksSection from './components/organisms/HowItWorksSection';
-import FeaturesSection from './components/organisms/FeaturesSection';
-import ReviewsSection from './components/organisms/ReviewsSection';
-import CtaSection from './components/organisms/CtaSection';
-import LandingPopupModal from './components/LandingPopup';
-import { HeroStats } from './components/molecules/HeroStats';
+import { useLandingData } from './landing/hooks/useLandingData';
+import { useMotionPreference } from './landing/hooks/useMotionPreference';
+import FloatingBackground from './landing/components/organisms/FloatingBackground';
+import HeroSection from './landing/components/organisms/HeroSection';
+import HowItWorksSection from './landing/components/organisms/HowItWorksSection';
+import FeaturesSection from './landing/components/organisms/FeaturesSection';
+import ReviewsSection from './landing/components/organisms/ReviewsSection';
+import CtaSection from './landing/components/organisms/CtaSection';
+import LandingPopupModal from './landing/components/LandingPopup';
+import { HeroStats } from './landing/components/molecules/HeroStats';
 
 const LandingPage = () => {
   const { stats, topReviews, activePopup, isLoading } = useLandingData();
