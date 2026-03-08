@@ -65,6 +65,28 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <GoogleAnalyticsRouteTracker gaId={GA_ID} />
         </Suspense>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'WebSite',
+                  name: '고인력',
+                  alternateName: 'goinlyeog',
+                  url: 'https://www.goinlyeog.com',
+                },
+                {
+                  '@type': 'Organization',
+                  name: '고인력',
+                  url: 'https://www.goinlyeog.com',
+                  logo: 'https://www.goinlyeog.com/assets/primary_logo_512.png',
+                },
+              ],
+            }),
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
