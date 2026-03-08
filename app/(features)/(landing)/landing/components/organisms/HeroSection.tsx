@@ -72,7 +72,7 @@ const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
               </Button>
               <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
                 <Link href="/auth">
-                  <span className="text-white text-sm">스탭 구인하기</span>
+                  <span className="text-white text-sm">공고 작성하기</span>
                 </Link>
               </InteractiveHoverButton>
             </motion.div>
