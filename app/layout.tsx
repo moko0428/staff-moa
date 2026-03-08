@@ -11,33 +11,21 @@ import SwRegister from '@/app/components/SwRegister';
 
 export const metadata: Metadata = {
   title: '고인력',
-  description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
+  description: '스탭 구인은 고인력에서 시작됩니다.',
   manifest: '/manifest.json',
-  openGraph: {
-    type: 'website',
-    url: 'https://www.goinlyeog.com',
-    title: '고인력',
-    description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
-    siteName: '고인력',
-    images: [{ url: 'https://www.goinlyeog.com/assets/primary_logo_512.png' }],
-  },
-  twitter: {
-    card: 'summary',
-    title: '고인력',
-    description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
-    images: ['https://www.goinlyeog.com/assets/primary_logo_512.png'],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: '고인력',
-    startupImage: '/assets/primary_logo_512.png',
-  },
   icons: {
     apple: [{ url: '/assets/primary_logo_192.png', sizes: '192x192' }],
     icon: [
-      { url: '/assets/primary_logo_192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/assets/primary_logo_512.png', sizes: '512x512', type: 'image/png' },
+      {
+        url: '/assets/primary_logo_192.png',
+        sizes: '192x192',
+        type: 'image/png',
+      },
+      {
+        url: '/assets/primary_logo_512.png',
+        sizes: '512x512',
+        type: 'image/png',
+      },
     ],
   },
 };
