@@ -34,8 +34,8 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 
 import { useUserStore } from '@/store/useUserStore';
-import { signOutAction } from '../(features)/auth/action';
-import { getUnreadNotificationCountAction } from '../(features)/(protected)/notification/actions';
+import { signOutAction } from '../auth/action';
+import { getUnreadNotificationCountAction } from '../(protected)/notification/actions';
 import AuthButtons from './AuthButtons';
 
 export default function HeaderNav() {

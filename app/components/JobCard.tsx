@@ -43,11 +43,11 @@ import {
   addFavoriteAction,
   removeFavoriteAction,
   checkFavoriteAction,
-} from '@/app/(features)/(protected)/worker/favorit/actions';
+} from '@/app/(protected)/worker/favorit/actions';
 import {
   applyToPostAction,
   checkAppliedToPostAction,
-} from '@/app/(features)/(protected)/worker/schedule/actions';
+} from '@/app/(protected)/worker/schedule/actions';
 
 export interface JobItem {
   id: number | string;

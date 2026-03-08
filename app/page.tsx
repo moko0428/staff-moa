@@ -1,15 +1,15 @@
 'use client';
 
-import { useLandingData } from './(features)/(landing)/landing/hooks/useLandingData';
-import { useMotionPreference } from './(features)/(landing)/landing/hooks/useMotionPreference';
-import FloatingBackground from './(features)/(landing)/landing/components/organisms/FloatingBackground';
-import HeroSection from './(features)/(landing)/landing/components/organisms/HeroSection';
-import HowItWorksSection from './(features)/(landing)/landing/components/organisms/HowItWorksSection';
-import FeaturesSection from './(features)/(landing)/landing/components/organisms/FeaturesSection';
-import ReviewsSection from './(features)/(landing)/landing/components/organisms/ReviewsSection';
-import CtaSection from './(features)/(landing)/landing/components/organisms/CtaSection';
-import LandingPopupModal from './(features)/(landing)/landing/components/LandingPopup';
-import { HeroStats } from './(features)/(landing)/landing/components/molecules/HeroStats';
+import { useLandingData } from './(landing)/landing/hooks/useLandingData';
+import { useMotionPreference } from './(landing)/landing/hooks/useMotionPreference';
+import FloatingBackground from './(landing)/landing/components/organisms/FloatingBackground';
+import HeroSection from './(landing)/landing/components/organisms/HeroSection';
+import HowItWorksSection from './(landing)/landing/components/organisms/HowItWorksSection';
+import FeaturesSection from './(landing)/landing/components/organisms/FeaturesSection';
+import ReviewsSection from './(landing)/landing/components/organisms/ReviewsSection';
+import CtaSection from './(landing)/landing/components/organisms/CtaSection';
+import LandingPopupModal from './(landing)/landing/components/LandingPopup';
+import { HeroStats } from './(landing)/landing/components/molecules/HeroStats';
 
 const LandingPage = () => {
   const { stats, topReviews, activePopup, isLoading } = useLandingData();

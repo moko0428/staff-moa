@@ -14,11 +14,11 @@ import { Label } from '@/app/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createReportAction } from '@/app/(features)/(protected)/admin/report-actions';
+import { createReportAction } from '@/app/(protected)/admin/report-actions';
 import {
   ReportReason,
   REPORT_REASON_LABELS,
-} from '@/app/(features)/(protected)/admin/report-constants';
+} from '@/app/(protected)/admin/report-constants';
 
 interface ReportModalProps {
   open: boolean;

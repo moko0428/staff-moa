@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
-import { signOutAction } from '../(features)/auth/action';
+import { signOutAction } from '../auth/action';
 
 export default function AuthButtons({ isHome }: { isHome: boolean }) {
   const supabase = useMemo(() => createClient(), []);
