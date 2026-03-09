@@ -9,7 +9,11 @@ import { useUserStore } from '@/store/useUserStore';
 import { useProfile } from './hook/useProfile';
 import { useFollows } from './hooks/useFollows';
 import { getProfileForModalAction } from './actions';
-import { getCompanyBadge, getCompanyInfoFilled, getMissingFields } from './utils/profileUtils';
+import {
+  getCompanyBadge,
+  getCompanyInfoFilled,
+  getMissingFields,
+} from './utils/profileUtils';
 import { ProfileSideCard } from './components/organisms/ProfileSideCard';
 import { BasicInfoCard } from './components/organisms/BasicInfoCard';
 import { CompanyInfoCard } from './components/organisms/CompanyInfoCard';
@@ -28,14 +32,22 @@ export default function ProfilePage() {
     currentUser,
     isEditing,
     setIsEditing,
-    newLanguage, setNewLanguage,
-    newCertificate, setNewCertificate,
-    newDocumentLabel, setNewDocumentLabel,
-    newExperience, setNewExperience,
-    showCertificateInput, setShowCertificateInput,
-    showLanguageInput, setShowLanguageInput,
-    showDocumentInput, setShowDocumentInput,
-    showExperienceInput, setShowExperienceInput,
+    newLanguage,
+    setNewLanguage,
+    newCertificate,
+    setNewCertificate,
+    newDocumentLabel,
+    setNewDocumentLabel,
+    newExperience,
+    setNewExperience,
+    showCertificateInput,
+    setShowCertificateInput,
+    showLanguageInput,
+    setShowLanguageInput,
+    showDocumentInput,
+    setShowDocumentInput,
+    showExperienceInput,
+    setShowExperienceInput,
     isLoadingExperiences,
     isUploadingPhoto,
     isReRequesting,
@@ -44,10 +56,14 @@ export default function ProfilePage() {
     handleBirthDateChange,
     handleSaveProfile,
     handleInputChange,
-    addLanguage, removeLanguage,
-    addCertificate, removeCertificate,
-    addDocumentItem, removeDocumentItem,
-    addExperienceManual, removeExperience,
+    addLanguage,
+    removeLanguage,
+    addCertificate,
+    removeCertificate,
+    addDocumentItem,
+    removeDocumentItem,
+    addExperienceManual,
+    removeExperience,
     loadExperiencesFromSchedules,
     handleCompanyCertUpload,
     handleProfileImageUpload,
@@ -63,14 +79,30 @@ export default function ProfilePage() {
   const isAdmin = effectiveRole === 'admin';
 
   const {
-    followerCount, followers, isLoadingFollowers, followerSearch, setFollowerSearch, handleRemoveFollower,
-    followingCount, followings, isLoadingFollowings, followingSearch, setFollowingSearch, handleRemoveFollowing,
+    followerCount,
+    followers,
+    isLoadingFollowers,
+    followerSearch,
+    setFollowerSearch,
+    handleRemoveFollower,
+    followingCount,
+    followings,
+    isLoadingFollowings,
+    followingSearch,
+    setFollowingSearch,
+    handleRemoveFollowing,
   } = useFollows({ isManager, isMember });
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalUser, setProfileModalUser] = useState<{
-    id: string; name: string | null; email: string | null; photo?: string | null;
-    role: string; introduction?: string | null; attendanceScore?: number | null; followerCount?: number;
+    id: string;
+    name: string | null;
+    email: string | null;
+    photo?: string | null;
+    role: string;
+    introduction?: string | null;
+    attendanceScore?: number | null;
+    followerCount?: number;
   } | null>(null);
 
   const openProfileModal = async (userId: string) => {
@@ -101,16 +133,23 @@ export default function ProfilePage() {
         <div className="flex flex-col items-center justify-center gap-4 min-h-[400px] text-muted-foreground">
           <p>로그인이 필요합니다.</p>
           <div className="flex gap-2">
-            <Link href="/auth/login" className="text-primary underline">로그인</Link>
+            <Link href="/auth/login" className="text-primary underline">
+              로그인
+            </Link>
             <span className="text-muted-foreground">|</span>
-            <Link href="/auth/join" className="text-primary underline">회원가입</Link>
+            <Link href="/auth/join" className="text-primary underline">
+              회원가입
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  const companyStatusRaw = (currentUser.companyVerifyStatus ?? 'pending') as 'pending' | 'approved' | 'rejected';
+  const companyStatusRaw = (currentUser.companyVerifyStatus ?? 'pending') as
+    | 'pending'
+    | 'approved'
+    | 'rejected';
   const companyInfoFilled = getCompanyInfoFilled({
     companyName: currentUser.companyName,
     businessNumber: currentUser.businessNumber,
@@ -130,16 +169,19 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <Hero title="프로필" description={isMember ? '내 프로필 정보를 관리하세요' : '매니저 프로필 정보'} />
-
       {!isAdmin && missingFields.length > 0 && (
         <Card className="mb-6 border-amber-200 bg-amber-50">
           <CardContent className="py-4">
             <div className="flex flex-col gap-2 text-sm text-amber-900">
               <p className="font-semibold">
-                {isMember ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.' : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
+                {isMember
+                  ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.'
+                  : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
               </p>
-              <p>아직 입력되지 않은 항목: {missingFields.join(', ')}{missingFields.length >= 3 && ' 등'}</p>
+              <p>
+                아직 입력되지 않은 항목: {missingFields.join(', ')}
+                {missingFields.length >= 3 && ' 등'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -151,7 +193,14 @@ export default function ProfilePage() {
           <ProfileSideCard
             name={currentUser.name}
             photo={currentUser.photo}
-            effectiveRole={effectiveRole as 'member' | 'manager' | 'admin' | 'pending_manager' | null}
+            effectiveRole={
+              effectiveRole as
+                | 'member'
+                | 'manager'
+                | 'admin'
+                | 'pending_manager'
+                | null
+            }
             attendanceScore={currentUser.attendanceScore}
             introduction={currentUser.introduction}
             isMember={isMember}
@@ -207,8 +256,17 @@ export default function ProfilePage() {
 
           {isAdmin && isEditing && (
             <div className="flex justify-end gap-2">
-              <button className="border rounded px-4 py-2 text-sm" onClick={() => setIsEditing(false)}>취소</button>
-              <button className="bg-primary text-primary-foreground rounded px-4 py-2 text-sm" onClick={handleSaveProfile} disabled={isSaving}>
+              <button
+                className="border rounded px-4 py-2 text-sm"
+                onClick={() => setIsEditing(false)}
+              >
+                취소
+              </button>
+              <button
+                className="bg-primary text-primary-foreground rounded px-4 py-2 text-sm"
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+              >
                 {isSaving ? '저장 중...' : '저장'}
               </button>
             </div>
@@ -227,11 +285,17 @@ export default function ProfilePage() {
               isAdmin={isAdmin}
               isSaving={isSaving}
               isReRequesting={isReRequesting}
-              isPendingManagerRejected={isPendingManager && companyStatusRaw === 'rejected'}
+              isPendingManagerRejected={
+                isPendingManager && companyStatusRaw === 'rejected'
+              }
               onCompanyNameChange={(v) => handleInputChange('companyName', v)}
-              onBusinessNumberChange={(v) => handleInputChange('businessNumber', v)}
+              onBusinessNumberChange={(v) =>
+                handleInputChange('businessNumber', v)
+              }
               onCompanyCertUpload={handleCompanyCertUpload}
-              onVerifyStatusChange={(v) => handleInputChange('companyVerifyStatus', v)}
+              onVerifyStatusChange={(v) =>
+                handleInputChange('companyVerifyStatus', v)
+              }
               onSave={handleSaveProfile}
               onCancelEdit={() => setIsEditing(false)}
               onReRequest={handleReRequestManagerApproval}
