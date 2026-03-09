@@ -2,18 +2,20 @@ import Logo from '@/app/components/Logo';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import { KakaoLoginButton } from './components/KakaoLoginButton';
+import Footer from '../components/Footer';
 
 const AuthPage = () => (
-  <div className="flex flex-col items-center p-4 w-full h-screen bg-background">
-    <header className="flex justify-center w-full p-4 md:max-w-7xl md:p-0 md:justify-start max-w-md mx-auto">
+  <div className="flex flex-col items-center w-full min-h-screen bg-background">
+    <header className="w-full -mt-0 max-w-md mx-auto px-4">
       <Logo />
     </header>
-
-    <main className="flex-1 flex flex-col justify-start items-center w-full max-w-md p-4 mx-auto space-y-8 pt-24">
+    <main className="-mt-20 flex-1 flex flex-col justify-start items-center w-full max-w-md mx-auto space-y-8 pt-24">
       <section className="flex flex-col gap-2 items-center w-full">
-        <h2 className="text-2xl text-center font-bold">나에게 딱 맞는 스탭알바</h2>
+        <h2 className="text-2xl text-center font-bold">
+          사람과 기회를 연결하다
+        </h2>
         <p className="text-sm text-muted-foreground w-full text-center">
-          원하는 공고를 찾아보세요.
+          당신에게 맞는 기회를 찾으세요
         </p>
       </section>
       <section className="flex flex-col gap-3 w-full">
@@ -34,13 +36,7 @@ const AuthPage = () => (
       </section>
     </main>
 
-    <footer className="fixed bottom-0 left-0 right-0 text-sm text-muted-foreground mt-3 text-center flex flex-col gap-2 p-4 border-t border-border bg-background">
-      <section className="flex justify-center gap-2">
-        <Link href="/terms">이용약관</Link>
-        <Link href="/privacy">개인정보처리방침</Link>
-      </section>
-      <span>copyright {new Date().getFullYear()} 고인력. All rights reserved.</span>
-    </footer>
+    <Footer />
   </div>
 );
 
