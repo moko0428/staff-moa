@@ -13,7 +13,7 @@ import {
 export const steps = [
   {
     title: '스탭·매니저 가입',
-    desc: '역할을 선택하고 간편하게 가입하세요.',
+    desc: '스탭은 소셜 로그인, 매니저는 매니저 회원가입 버튼을 눌러주세요.',
     icon: <Users className="size-6" />,
     iconName: 'Users',
     color: 'blue',

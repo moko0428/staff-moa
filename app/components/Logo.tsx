@@ -1,11 +1,16 @@
-import { Briefcase } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2 shrink-0">
-      <Briefcase className="size-6 text-primary" />
-      <span className="text-2xl font-bold">고인력</span>
+    <Link href="/" className="w-full h-full flex items-center justify-center">
+      <Image
+        src="/assets/primary_text_logo.png"
+        alt="고인력"
+        width={100}
+        height={100}
+        className="w-60 h-auto"
+      />
     </Link>
   );
 }

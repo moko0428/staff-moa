@@ -15,7 +15,7 @@ interface HeroSectionProps {
 const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
   return (
     <MotionConfig reducedMotion={shouldReduceMotion ? 'always' : 'never'}>
-      <section className="w-full flex flex-col items-center relative z-10 bg-primary/90 py-20 lg:py-28">
+      <section className="w-full flex flex-col items-center relative z-10 bg-primary py-20 lg:py-28">
         <div className="max-w-3xl w-full mx-auto flex flex-col items-center">
           <motion.div
             className="space-y-10"
@@ -70,11 +70,14 @@ const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
                   <span className="text-white text-sm">공고 찾기</span>
                 </Link>
               </Button>
-              <InteractiveHoverButton className="border border-white/50 rounded-lg px-6 py-1 hover:bg-white/10 bg-primary/10 text-white">
-                <Link href="/auth">
+              <Button variant="ghost" size="lg" asChild>
+                <Link
+                  href="/auth"
+                  className="border border-white/50 rounded-full px-4 py-2 hover:bg-white/10"
+                >
                   <span className="text-white text-sm">공고 작성하기</span>
                 </Link>
-              </InteractiveHoverButton>
+              </Button>
             </motion.div>
           </motion.div>
         </div>
