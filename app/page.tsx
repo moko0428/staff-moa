@@ -10,6 +10,7 @@ import ReviewsSection from './(landing)/landing/components/organisms/ReviewsSect
 import CtaSection from './(landing)/landing/components/organisms/CtaSection';
 import LandingPopupModal from './(landing)/landing/components/LandingPopup';
 import { HeroStats } from './(landing)/landing/components/molecules/HeroStats';
+import Footer from './components/Footer';
 
 const LandingPage = () => {
   const { stats, topReviews, activePopup, isLoading } = useLandingData();
@@ -27,6 +28,7 @@ const LandingPage = () => {
       <HowItWorksSection />
       <ReviewsSection reviews={topReviews} isLoading={isLoading} />
       <CtaSection />
+      <Footer />
     </div>
   );
 };

@@ -1,8 +1,9 @@
 import HeaderNav from '@/app/components/HeaderNav';
+import Footer from '@/app/components/Footer';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '고인력',
+  title: '고인력 | 공고',
   description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
 };
 
@@ -12,9 +13,10 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="bg-accent">
+    <div className="min-h-screen flex flex-col bg-background">
       <HeaderNav />
-      <main className="max-w-7xl mx-auto px-4 py-4">{children}</main>
+      <main className="flex-1 max-w-7xl w-full mx-auto ">{children}</main>
+      <Footer />
     </div>
   );
 }

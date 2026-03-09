@@ -47,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <body
-        className={`min-h-screen bg-accent text-foreground overscroll-none antialiased ${pretendard.variable} ${pretendard.className}`}
+        className={`min-h-screen bg-background text-foreground overscroll-none antialiased ${pretendard.variable} ${pretendard.className}`}
       >
         {/* Google tag (gtag.js) */}
         <Script
