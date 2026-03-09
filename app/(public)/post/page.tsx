@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
-import PostingFilter, { type Filters } from '@/app/components/PostingFilter';
-import Hero from '@/app/common/components/Hero';
+import PostingFilter, { type Filters } from './components/organisms/PostingFilter';
 import { usePostList } from './hooks/usePostList';
 import PostList from './components/organisms/PostList';
 import { PlusIcon } from 'lucide-react';
@@ -22,9 +21,10 @@ const DEFAULT_FILTERS: Filters = {
   searchTerm: '',
 };
 
+
 const PostPage = () => {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const { filtered, isLoading, allCategories, allLocations, allSalaries } =
+  const { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates } =
     usePostList(filters);
 
   const role = useUserStore((state) => state.role);
@@ -33,17 +33,16 @@ const PostPage = () => {
 
   return (
     <div className="flex flex-col gap-2">
-      <Hero
-        title="스탭 알바 구인공고"
-        description="원하는 조건의 스탭 알바를 찾아보세요"
-      />
+      <div className="sticky top-0 z-40">
       <PostingFilter
         filters={filters}
         onChange={setFilters}
         allCategories={allCategories}
         allLocations={allLocations}
         allSalaries={allSalaries}
+        activeDates={activeDates}
       />
+      </div>
       <PostList items={filtered} isLoading={isLoading} />
 
       {roleHydrated && isManager && (

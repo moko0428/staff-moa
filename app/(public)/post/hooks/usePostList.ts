@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import type { Filters } from '@/app/components/PostingFilter';
+import type { Filters } from '../components/organisms/PostingFilter';
 import type { JobItem } from '@/app/components/JobCard';
 import { getAllPostsAction } from '../actions';
-import { supabasePostToPostItem, postItemToJobItem, type SupabasePost } from '../utils/post-transform';
+import { supabasePostToPostItem, postItemToJobItem, type SupabasePost, type PostItem } from '../utils/post-transform';
 
 const STATUS_PRIORITY: Record<JobItem['status'], number> = {
   급구: 0,
@@ -13,6 +13,7 @@ const STATUS_PRIORITY: Record<JobItem['status'], number> = {
 };
 
 export const usePostList = (filters: Filters) => {
+  const [postItems, setPostItems] = useState<PostItem[]>([]);
   const [jobItems, setJobItems] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,10 +23,11 @@ export const usePostList = (filters: Filters) => {
       try {
         const result = await getAllPostsAction();
         if (result.ok && result.data) {
-          const items = result.data.map((raw) =>
-            postItemToJobItem(supabasePostToPostItem(raw as SupabasePost))
+          const converted = result.data.map((raw) =>
+            supabasePostToPostItem(raw as SupabasePost)
           );
-          setJobItems(items);
+          setPostItems(converted);
+          setJobItems(converted.map(postItemToJobItem));
         }
       } finally {
         setIsLoading(false);
@@ -109,5 +111,21 @@ export const usePostList = (filters: Filters) => {
       });
   }, [jobItems, filters]);
 
-  return { filtered, isLoading, allCategories, allLocations, allSalaries };
+  const activeDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    postItems
+      .filter((item) => item.status !== 'completed')
+      .forEach((item) => {
+        if (item.work_slots?.length) {
+          item.work_slots.forEach((slot) => {
+            if (slot.date) dateSet.add(slot.date);
+          });
+        } else if (item.date) {
+          dateSet.add(item.date);
+        }
+      });
+    return Array.from(dateSet);
+  }, [postItems]);
+
+  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates };
 };

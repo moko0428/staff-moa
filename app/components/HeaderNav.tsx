@@ -8,7 +8,6 @@ import {
 } from '@/app/components/ui/navigation-menu';
 import {
   Bell,
-  Briefcase,
   Calendar,
   Heart,
   ListChecks,
@@ -37,6 +36,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { signOutAction } from '../auth/action';
 import { getUnreadNotificationCountAction } from '../(protected)/notification/actions';
 import AuthButtons from './AuthButtons';
+import Image from 'next/image';
 
 export default function HeaderNav() {
   const role = useUserStore((state) => state.role);
@@ -47,6 +47,7 @@ export default function HeaderNav() {
   const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
   const isHome = pathname === '/';
+  const isPostPage = pathname === '/post';
   const isAuthPage =
     pathname.startsWith('/auth/login') || pathname.startsWith('/auth/join');
   const isAdmin = role === 'admin';
@@ -135,7 +136,10 @@ export default function HeaderNav() {
 
     window.addEventListener('notification-updated', handleNotificationUpdate);
     return () => {
-      window.removeEventListener('notification-updated', handleNotificationUpdate);
+      window.removeEventListener(
+        'notification-updated',
+        handleNotificationUpdate,
+      );
     };
   }, [fetchUnreadCount]);
 
@@ -153,34 +157,30 @@ export default function HeaderNav() {
   return (
     <nav
       className={cn(
-        'sticky top-0 z-50',
+        isPostPage ? 'relative' : 'sticky top-0 z-50',
         isHome
           ? 'bg-primary text-white'
-          : 'bg-background text-primary border-b border-border'
+          : 'bg-background text-primary border-b border-border',
       )}
     >
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* 로고 - 항상 표시 */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <Briefcase
-              className={cn('size-4', isHome ? 'text-white' : 'text-primary')}
+          <Link href="/" className="flex items-center shrink-0">
+            <Image
+              src="/assets/primary_logo_512.png"
+              alt="고인력"
+              width={100}
+              height={100}
+              className="w-10 h-10"
             />
-            <span
-              className={cn(
-                'text-sm font-medium',
-                isHome ? 'text-white' : 'text-primary'
-              )}
-            >
-              고인력
-            </span>
           </Link>
 
           {/* 데스크톱 네비게이션 - md 이상 (공고는 항상 노출) */}
           <NavigationMenu
             className={cn(
               'hidden md:flex justify-between items-center h-16',
-              isHome ? 'text-white' : 'text-foreground'
+              isHome ? 'text-white' : 'text-foreground',
             )}
           >
             <NavigationMenuList className="flex items-center gap-2">
@@ -255,7 +255,7 @@ export default function HeaderNav() {
                       'relative inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
                       isHome
                         ? 'text-white hover:text-white/80'
-                        : 'text-primary hover:text-primary/80'
+                        : 'text-primary hover:text-primary/80',
                     )}
                     aria-label="알림"
                     title="알림"
@@ -271,7 +271,7 @@ export default function HeaderNav() {
                       'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isHome
                         ? 'text-white hover:text-white/80'
-                        : 'text-primary hover:text-primary/80'
+                        : 'text-primary hover:text-primary/80',
                     )}
                     aria-label="프로필 관리"
                   >
@@ -285,7 +285,7 @@ export default function HeaderNav() {
                       'inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
                       isHome
                         ? 'text-white hover:text-white/80'
-                        : 'text-primary hover:text-primary/80'
+                        : 'text-primary hover:text-primary/80',
                     )}
                     aria-label="설정"
                     title="설정"
@@ -299,7 +299,7 @@ export default function HeaderNav() {
                       'inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors',
                       isHome
                         ? 'text-white hover:text-white/80'
-                        : 'text-primary hover:text-primary/80'
+                        : 'text-primary hover:text-primary/80',
                     )}
                     aria-label="로그아웃"
                     title="로그아웃"
@@ -325,7 +325,7 @@ export default function HeaderNav() {
                         'relative inline-flex items-center justify-center rounded-md p-2 transition-colors',
                         isHome
                           ? 'text-white hover:text-white/80'
-                          : 'text-primary hover:text-primary/80'
+                          : 'text-primary hover:text-primary/80',
                       )}
                       aria-label="메뉴 열기"
                     >
