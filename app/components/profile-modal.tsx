@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { User, UserPlus, UserMinus } from 'lucide-react';
+import Image from 'next/image';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -39,14 +40,26 @@ interface ProfileModalProps {
 const getRoleBadge = (role: string) => {
   switch (role) {
     case 'admin':
-      return { label: '관리자', className: 'bg-red-100 text-red-700 border-red-200' };
+      return {
+        label: '관리자',
+        className: 'bg-red-100 text-red-700 border-red-200',
+      };
     case 'manager':
-      return { label: '매니저', className: 'bg-blue-100 text-blue-700 border-blue-200' };
+      return {
+        label: '매니저',
+        className: 'bg-blue-100 text-blue-700 border-blue-200',
+      };
     case 'pending_manager':
-      return { label: '매니저 승인 대기', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+      return {
+        label: '매니저 승인 대기',
+        className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      };
     case 'member':
     default:
-      return { label: '스탭', className: 'bg-green-100 text-green-700 border-green-200' };
+      return {
+        label: '스탭',
+        className: 'bg-green-100 text-green-700 border-green-200',
+      };
   }
 };
 
@@ -77,12 +90,19 @@ export default function ProfileModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">프로필</DialogTitle>
+          <DialogTitle></DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-4 py-4">
+        <div className="flex flex-col gap-4 py-4">
           {/* 아바타 */}
-          <Avatar className="h-24 w-24">
+          {/* <Image
+            src={user.coverPhoto ?? '/images/primary_text_logo.png'}
+            alt={user.coverPhoto ?? 'cover image'}
+            width={96}
+            height={96}
+            className="w-full h-[200px] rounded-lg bg-background object-cover border border-border"
+          /> */}
+          <Avatar className="-mt-24 ml-2 shadow-lg h-24 w-24">
             <AvatarImage
               src={user.photo ?? undefined}
               alt={user.name ?? '사용자'}
@@ -93,7 +113,7 @@ export default function ProfileModal({
           </Avatar>
 
           {/* 이름과 역할 */}
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
             <h3 className="text-xl font-semibold">
               {user.name ?? '알 수 없음'}
             </h3>
@@ -117,19 +137,22 @@ export default function ProfileModal({
           )}
 
           {/* 팔로워 수 (매니저인 경우) */}
-          {user.role === 'manager' && typeof user.followerCount === 'number' && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                팔로워 {user.followerCount}명
-              </Badge>
-            </div>
-          )}
+          {user.role === 'manager' &&
+            typeof user.followerCount === 'number' && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  팔로워 {user.followerCount}명
+                </Badge>
+              </div>
+            )}
 
           {/* 회사 정보 (매니저인 경우) */}
           {user.role === 'manager' && user.companyName && (
             <div className="w-full mt-1 p-4 bg-muted rounded-lg space-y-2">
               <p className="text-sm font-medium">회사 정보</p>
-              <p className="text-sm text-muted-foreground">{user.companyName}</p>
+              <p className="text-sm text-muted-foreground">
+                {user.companyName}
+              </p>
             </div>
           )}
 
@@ -168,7 +191,9 @@ export default function ProfileModal({
 
           {/* 자신의 프로필인 경우 */}
           {isOwnProfile && (
-            <p className="text-xs text-muted-foreground mt-2">내 프로필입니다</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              내 프로필입니다
+            </p>
           )}
         </div>
       </DialogContent>

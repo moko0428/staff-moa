@@ -1,5 +1,4 @@
 import HeaderNav from '@/app/components/HeaderNav';
-import Footer from '@/app/components/Footer';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,8 +14,7 @@ export default function PublicLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <HeaderNav />
-      <main className="flex-1 max-w-7xl w-full mx-auto ">{children}</main>
-      <Footer />
+      <main className="flex-1 max-w-7xl w-full mx-auto">{children}</main>
     </div>
   );
 }

@@ -2,13 +2,8 @@
 
 import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
-import {
-  Card,
-  CardContent,
-} from '@/app/components/ui/card';
-import { Button } from '@/app/components/ui/button';
+import { Card, CardContent } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
-import { Badge } from '@/app/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -24,7 +19,6 @@ import {
   Search,
   Filter,
   FileText,
-  Star,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWorkerManagement } from './hooks/useWorkerManagement';
@@ -109,7 +103,9 @@ export default function WorkerManagementPage() {
         <Card className="min-w-[132px] md:min-w-0">
           <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-muted-foreground leading-tight">지원자 수</p>
+              <p className="text-xs text-muted-foreground leading-tight">
+                지원자 수
+              </p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-base sm:text-xl font-bold tabular-nums whitespace-nowrap">
                   {formatStatCount(statistics.uniqueApplicants)}
@@ -123,7 +119,9 @@ export default function WorkerManagementPage() {
         <Card className="min-w-[132px] md:min-w-0">
           <CardContent className="py-2 px-3 sm:py-4">
             <div className="flex items-center justify-between gap-1">
-              <p className="text-xs text-muted-foreground leading-tight">지원 건수</p>
+              <p className="text-xs text-muted-foreground leading-tight">
+                지원 건수
+              </p>
               <div className="flex items-center justify-end gap-1 sm:gap-2">
                 <p className="text-base sm:text-xl font-bold tabular-nums whitespace-nowrap">
                   {formatStatCount(statistics.totalApplications)}

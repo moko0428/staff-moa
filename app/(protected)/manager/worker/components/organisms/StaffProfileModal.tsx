@@ -18,12 +18,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@/app/components/ui/avatar';
-import {
-  CheckCircle2,
-  Briefcase,
-  FileText,
-  MessageSquare,
-} from 'lucide-react';
+import { CheckCircle2, Briefcase, FileText, MessageSquare } from 'lucide-react';
 import { updateWorkerNotesAction } from '../../actions';
 import type { GroupedWorker } from '../../types';
 
@@ -65,8 +60,7 @@ export const StaffProfileModal = ({
   const hasBankbook = vis?.documents !== false && !!docs?.bankbook;
   const hasHealthCert = vis?.documents !== false && !!docs?.healthCertificate;
   const hasDriverLicense =
-    vis?.documents !== false &&
-    docs?.extraDocuments?.includes('driverLicense');
+    vis?.documents !== false && docs?.extraDocuments?.includes('driverLicense');
   const hasCertificates =
     vis?.certificates !== false &&
     docs?.certificates &&
@@ -103,9 +97,6 @@ export const StaffProfileModal = ({
           <div className="text-center">
             <h3 className="text-xl font-semibold">{worker.applicantName}</h3>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mt-1">
-              {vis?.age !== false && worker.applicantAge && (
-                <span>{worker.applicantAge}세</span>
-              )}
               {vis?.gender !== false && worker.applicantGender && (
                 <span>· {worker.applicantGender}</span>
               )}
@@ -164,7 +155,9 @@ export const StaffProfileModal = ({
                 </h4>
                 {info?.experiences && info.experiences.length > 0 && (
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">경력</Label>
+                    <Label className="text-xs text-muted-foreground">
+                      경력
+                    </Label>
                     {info.experiences.map((exp, idx) => (
                       <div
                         key={idx}
@@ -184,7 +177,9 @@ export const StaffProfileModal = ({
                     <Label className="text-xs text-muted-foreground">
                       자기소개
                     </Label>
-                    <p className="text-sm leading-relaxed">{info.introduction}</p>
+                    <p className="text-sm leading-relaxed">
+                      {info.introduction}
+                    </p>
                   </div>
                 )}
               </div>
@@ -224,7 +219,9 @@ export const StaffProfileModal = ({
               </div>
               {hasCertificates && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">자격증</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    자격증
+                  </Label>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {docs!.certificates!.map((cert, idx) => (
                       <Badge key={idx} variant="secondary" className="text-xs">
@@ -236,7 +233,9 @@ export const StaffProfileModal = ({
               )}
               {hasLanguage && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">어학 능력</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    어학 능력
+                  </Label>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {docs!.language!.map((lang, idx) => (
                       <Badge key={idx} variant="secondary" className="text-xs">
