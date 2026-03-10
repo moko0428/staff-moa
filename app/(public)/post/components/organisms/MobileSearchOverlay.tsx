@@ -8,19 +8,21 @@ import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CategoryTagList from '../molecules/CategoryTagList';
 import { Filters } from './PostingFilter';
+import { type JobItem } from '@/app/components/JobCard';
 
 interface MobileSearchOverlayProps {
   initialFilters: Filters;
   allCategories: string[];
   allLocations: string[];
   allSalaries: number[];
-  activeDates: string[];
+  allItems: JobItem[];
   onClose: () => void;
   onApply: (f: Filters) => void;
+  mode?: 'fullscreen' | 'panel';
 }
 
 export default function MobileSearchOverlay({
@@ -28,93 +30,96 @@ export default function MobileSearchOverlay({
   allCategories,
   allLocations,
   allSalaries,
-  activeDates,
+  allItems,
   onClose,
   onApply,
+  mode = 'fullscreen',
 }: MobileSearchOverlayProps) {
   const [draftFilters, setDraftFilters] = useState<Filters>(initialFilters);
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const set = (patch: Partial<Filters>) =>
     setDraftFilters((prev) => ({ ...prev, ...patch }));
 
-  const activeDateObjects = activeDates
-    .map((d) => new Date(d))
-    .filter((d) => !isNaN(d.getTime()));
-
-  const dateMode = draftFilters.dateMode ?? 'single';
+  const filteredActiveDates = useMemo(() => {
+    return allItems
+      .filter((job) => {
+        if (job.status === '모집완료') return false;
+        if (draftFilters.searchTerm?.trim()) {
+          const q = draftFilters.searchTerm.trim().toLowerCase();
+          const matched =
+            job.title.toLowerCase().includes(q) ||
+            (job.content ?? '').toLowerCase().includes(q) ||
+            (job.place ?? '').toLowerCase().includes(q) ||
+            job.categories.join(' ').toLowerCase().includes(q);
+          if (!matched) return false;
+        }
+        if (draftFilters.status && job.status !== draftFilters.status) return false;
+        if (draftFilters.payMin && Number(job.pay ?? 0) < Number(draftFilters.payMin)) return false;
+        if (draftFilters.placeText && !(job.place ?? '').includes(draftFilters.placeText)) return false;
+        if (
+          draftFilters.categories.length > 0 &&
+          !draftFilters.categories.every((c) => job.categories.includes(c))
+        ) return false;
+        return true;
+      })
+      .flatMap((job) => (job.date ? [new Date(job.date)] : []))
+      .filter((d) => !isNaN(d.getTime()));
+  }, [allItems, draftFilters.searchTerm, draftFilters.status, draftFilters.payMin, draftFilters.placeText, draftFilters.categories]);
 
   const fromDate = draftFilters.dateRange?.from
     ? new Date(draftFilters.dateRange.from)
     : undefined;
-  const toDateRaw = draftFilters.dateRange?.to
+  const toDate = draftFilters.dateRange?.to
     ? new Date(draftFilters.dateRange.to)
     : undefined;
-  const toDate =
-    dateMode === 'range'
-      ? (toDateRaw ?? fromDate)
-      : dateMode === 'single'
-        ? fromDate
-        : undefined;
 
-  const handleRangeApply = (range: DateRange | undefined) => {
+  const handleSelect = (range: DateRange | undefined) => {
     if (!range?.from) {
       set({ dateRange: undefined });
-      return;
-    }
-    if (dateMode === 'range') {
-      const end = range.to ?? range.from;
-      set({
-        dateRange: {
-          from: format(range.from, 'yyyy-MM-dd'),
-          to: format(end, 'yyyy-MM-dd'),
-        },
-      });
-      return;
-    }
-    if (dateMode === 'open-end') {
-      set({
-        dateRange: {
-          from: format(range.from, 'yyyy-MM-dd'),
-          to: undefined,
-        },
-      });
       return;
     }
     set({
       dateRange: {
         from: format(range.from, 'yyyy-MM-dd'),
-        to: format(range.from, 'yyyy-MM-dd'),
+        to: range.to ? format(range.to, 'yyyy-MM-dd') : undefined,
       },
     });
   };
 
-  const setDateMode = (mode: Filters['dateMode']) => {
-    const currentFrom = draftFilters.dateRange?.from;
-    const currentTo = draftFilters.dateRange?.to;
-    if (!currentFrom) {
-      set({ dateMode: mode, dateRange: undefined });
-      return;
-    }
-    if (mode === 'single') {
-      set({
-        dateMode: mode,
-        dateRange: { from: currentFrom, to: currentFrom },
-      });
-      return;
-    }
-    if (mode === 'range') {
-      set({
-        dateMode: mode,
-        dateRange: { from: currentFrom, to: currentTo ?? currentFrom },
-      });
-      return;
-    }
-    set({ dateMode: mode, dateRange: { from: currentFrom, to: undefined } });
-  };
+  const matchedItems = useMemo(() => {
+    return allItems.filter((job) => {
+      if (draftFilters.searchTerm?.trim()) {
+        const q = draftFilters.searchTerm.trim().toLowerCase();
+        const matched =
+          job.title.toLowerCase().includes(q) ||
+          (job.content ?? '').toLowerCase().includes(q) ||
+          (job.place ?? '').toLowerCase().includes(q) ||
+          job.categories.join(' ').toLowerCase().includes(q);
+        if (!matched) return false;
+      }
+      if (draftFilters.status && job.status !== draftFilters.status) return false;
+      if (draftFilters.payMin && Number(job.pay ?? 0) < Number(draftFilters.payMin)) return false;
+      if (draftFilters.dateRange?.from) {
+        const jobDate = new Date(job.date ?? '');
+        const from = new Date(draftFilters.dateRange.from);
+        const to = new Date(draftFilters.dateRange.to ?? draftFilters.dateRange.from);
+        if (jobDate.setHours(0, 0, 0, 0) < from.setHours(0, 0, 0, 0)) return false;
+        if (jobDate > to) return false;
+      }
+      if (draftFilters.placeText && !(job.place ?? '').includes(draftFilters.placeText)) return false;
+      if (
+        draftFilters.categories.length > 0 &&
+        !draftFilters.categories.every((c) => job.categories.includes(c))
+      ) return false;
+      return true;
+    });
+  }, [allItems, draftFilters]);
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+  const recruitCount = matchedItems.filter((j) => j.status === '모집').length;
+  const urgentCount = matchedItems.filter((j) => j.status === '급구').length;
+
+  const filterBody = (
+    <>
       {/* Top bar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <button
@@ -125,156 +130,93 @@ export default function MobileSearchOverlay({
         >
           <X className="size-5" />
         </button>
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-          <input
-            autoFocus
-            type="text"
-            value={draftFilters.searchTerm ?? ''}
-            onChange={(e) => set({ searchTerm: e.target.value })}
-            placeholder="원하는 공고를 검색해보세요"
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
+        {mode === 'fullscreen' ? (
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+            <input
+              autoFocus
+              type="text"
+              value={draftFilters.searchTerm ?? ''}
+              onChange={(e) => set({ searchTerm: e.target.value })}
+              placeholder="원하는 공고를 검색해보세요"
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+        ) : (
+          <span className="text-sm font-medium">필터</span>
+        )}
       </div>
 
       {/* Body */}
       <div className="flex-1 px-4 py-4 space-y-5 overflow-y-auto">
-        {/* Status */}
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="overlay-status" className="text-sm font-medium">
-            모집 상태
-          </Label>
-          <select
-            id="overlay-status"
-            className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            value={draftFilters.status}
-            onChange={(e) =>
-              set({ status: e.target.value as Filters['status'] })
-            }
-          >
-            <option value="">전체</option>
-            <option value="급구">급구</option>
-            <option value="모집">모집</option>
-            <option value="모집완료">모집완료</option>
-          </select>
-        </div>
-
-        {/* Pay */}
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="overlay-payMin" className="text-sm font-medium">
-            최소 급여
-          </Label>
-          <select
-            id="overlay-payMin"
-            className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            value={draftFilters.payMin ?? ''}
-            onChange={(e) => set({ payMin: e.target.value })}
-          >
-            <option value="">전체</option>
-            {allSalaries.map((salary) => (
-              <option key={salary} value={salary.toString()}>
-                {salary >= 10000
-                  ? `${(salary / 10000).toFixed(0)}만원 이상`
-                  : `${salary.toLocaleString()}원 이상`}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Date picker */}
-        <div className="flex flex-col gap-2">
-          {showDatePicker ? (
-            <div className="rounded-lg border p-4 space-y-4">
-              <div className="flex items-center">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="text-sm font-normal border border-border rounded-md"
-                  onClick={() => setShowDatePicker(false)}
-                >
-                  날짜 선택 취소
-                </Button>
-              </div>
-              <div className="flex flex-col gap-4">
-                {dateMode === 'range' ? (
-                  <Calendar
-                    locale={ko}
-                    mode="range"
-                    selected={{ from: fromDate, to: toDate ?? undefined }}
-                    onSelect={(value: DateRange | undefined) =>
-                      handleRangeApply(value)
-                    }
-                    numberOfMonths={1}
-                    modifiers={{ active: activeDateObjects }}
-                    modifiersClassNames={{ active: 'bg-accent' }}
-                  />
-                ) : (
-                  <Calendar
-                    locale={ko}
-                    mode="single"
-                    selected={fromDate}
-                    onSelect={(value: Date | undefined) =>
-                      handleRangeApply(
-                        value ? { from: value, to: value } : undefined,
-                      )
-                    }
-                    numberOfMonths={1}
-                    modifiers={{ active: activeDateObjects }}
-                    modifiersClassNames={{ active: 'bg-accent' }}
-                  />
-                )}
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-2">
-                    {(
-                      [
-                        { value: 'single', label: '하루만' },
-                        { value: 'range', label: '기간 지정' },
-                        { value: 'open-end', label: '시작일만' },
-                      ] as const
-                    ).map(({ value, label }) => (
-                      <Button
-                        key={value}
-                        type="button"
-                        size="sm"
-                        variant={dateMode === value ? 'default' : 'outline'}
-                        onClick={() => setDateMode(value)}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {dateMode === 'single' && '선택한 하루만 검색합니다.'}
-                    {dateMode === 'range' &&
-                      '시작일과 종료일을 선택해 기간을 검색합니다.'}
-                    {dateMode === 'open-end' &&
-                      '선택한 날짜 이후(종료일 없음)로 검색합니다.'}
-                  </p>
-                  <div className="text-sm text-muted-foreground">
-                    {fromDate
-                      ? dateMode === 'range' && toDate
-                        ? `${format(fromDate, 'PPP', { locale: ko })} ~ ${format(toDate, 'PPP', { locale: ko })}`
-                        : dateMode === 'open-end'
-                          ? `${format(fromDate, 'PPP', { locale: ko })} 이후`
-                          : format(fromDate, 'PPP', { locale: ko })
-                      : '선택된 날짜가 없습니다.'}
-                  </div>
-                </div>
+        {/* Date + Status/Pay grid */}
+        <div className="grid grid-cols-2 gap-3 items-start">
+          {/* Date picker */}
+          <div className="flex flex-col col-span-1 gap-1">
+            <div className="border rounded-lg overflow-hidden space-y-1 pb-2">
+              <Calendar
+                locale={ko}
+                mode="range"
+                selected={{ from: fromDate, to: toDate }}
+                onSelect={handleSelect}
+                numberOfMonths={1}
+                modifiers={{ active: filteredActiveDates }}
+                modifiersClassNames={{ active: 'bg-accent' }}
+                className="[--cell-size:--spacing(6)] p-2"
+                classNames={{ caption_label: 'text-xs' }}
+              />
+              <div className="text-xs text-muted-foreground px-3">
+                {fromDate
+                  ? toDate && toDate.getTime() !== fromDate.getTime()
+                    ? `${format(fromDate, 'M/d')} ~ ${format(toDate, 'M/d')}`
+                    : format(fromDate, 'PPP', { locale: ko })
+                  : '날짜 선택'}
               </div>
             </div>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="self-start text-sm font-normal border border-border rounded-md"
-              onClick={() => setShowDatePicker(true)}
-            >
-              날짜 선택
-            </Button>
-          )}
+          </div>
+
+          {/* Status + Pay */}
+          <div className="flex flex-col col-span-1 gap-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="overlay-status" className="text-sm font-medium">
+                모집 상태
+              </Label>
+              <select
+                id="overlay-status"
+                className="w-full px-2 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                value={draftFilters.status}
+                onChange={(e) =>
+                  set({ status: e.target.value as Filters['status'] })
+                }
+              >
+                <option value="">전체</option>
+                <option value="급구">급구</option>
+                <option value="모집">모집</option>
+                <option value="모집완료">모집완료</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="overlay-payMin" className="text-sm font-medium">
+                최소 급여
+              </Label>
+              <select
+                id="overlay-payMin"
+                className="w-full px-2 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                value={draftFilters.payMin ?? ''}
+                onChange={(e) => set({ payMin: e.target.value })}
+              >
+                <option value="">전체</option>
+                {allSalaries.map((salary) => (
+                  <option key={salary} value={salary.toString()}>
+                    {salary >= 10000
+                      ? `${(salary / 10000).toFixed(0)}만원↑`
+                      : `${salary.toLocaleString()}원↑`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Location */}
@@ -322,7 +264,22 @@ export default function MobileSearchOverlay({
       </div>
 
       {/* Sticky bottom CTA */}
-      <div className="shrink-0 px-4 py-3 border-t border-border">
+      <div className="shrink-0 px-4 pt-2 pb-3 border-t border-border space-y-2">
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+          <span>총 <strong className="text-foreground">{matchedItems.length}</strong>개</span>
+          {recruitCount > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-primary" />
+              모집 <strong className="text-foreground">{recruitCount}</strong>건
+            </span>
+          )}
+          {urgentCount > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-destructive" />
+              급구 <strong className="text-foreground">{urgentCount}</strong>건
+            </span>
+          )}
+        </div>
         <Button
           type="button"
           className="w-full"
@@ -331,6 +288,23 @@ export default function MobileSearchOverlay({
           검색하기
         </Button>
       </div>
+    </>
+  );
+
+  if (mode === 'panel') {
+    return (
+      <>
+        <div className="fixed inset-0 z-40" onClick={onClose} />
+        <div className="absolute top-full left-0 right-0 z-50 bg-background border-b shadow-lg flex flex-col max-h-[calc(100vh-4rem)] overflow-y-auto">
+          {filterBody}
+        </div>
+      </>
+    );
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {filterBody}
     </div>,
     document.body,
   );

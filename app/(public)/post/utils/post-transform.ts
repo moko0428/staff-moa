@@ -43,6 +43,7 @@ export type PostItem = {
   location: string;
   time: string;
   salary: number;
+  pay_type: string;
   equipments?: string;
   notes?: string;
   qualifications?: string;
@@ -76,6 +77,7 @@ export const supabasePostToPostItem = (raw: SupabasePost): PostItem => {
       ? `${firstSlot.start_time} - ${firstSlot.end_time}`
       : `${raw.work_time_start} - ${raw.work_time_end}`,
     salary: firstSlot?.pay_amount ?? Number(raw.pay_amount) ?? 0,
+    pay_type: raw.pay_type || '',
     equipments: raw.equipments || undefined,
     notes: raw.notes || undefined,
     qualifications: raw.qualifications || undefined,
@@ -88,6 +90,13 @@ export const supabasePostToPostItem = (raw: SupabasePost): PostItem => {
     created_at: raw.created_at,
     work_slots: raw.work_slots || undefined,
   };
+};
+
+const PAY_TYPE_KO: Record<string, string> = {
+  hourly: '시급',
+  daily: '일급',
+  weekly: '주급',
+  monthly: '월급',
 };
 
 const STATUS_MAP: Record<PostItem['status'], JobItem['status']> = {
@@ -113,6 +122,7 @@ export const postItemToJobItem = (post: PostItem): JobItem => {
     need: post.equipments || '',
     place: post.location,
     pay: post.salary.toString(),
+    payType: PAY_TYPE_KO[post.pay_type] || undefined,
     TO: `${remaining}명`,
     manager: post.manager_name,
     managerPhone: post.manager_phone,

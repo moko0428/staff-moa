@@ -19,6 +19,7 @@ import Link from 'next/link';
 import AuthButtons from '@/app/components/AuthButtons';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import { useUserStore } from '@/store/useUserStore';
+import { type JobItem } from '@/app/components/JobCard';
 import { signOutAction } from '@/app/auth/action';
 import {
   DropdownMenu,
@@ -37,7 +38,6 @@ export type Filters = {
     from?: string;
     to?: string;
   };
-  dateMode?: 'single' | 'range' | 'open-end';
   toText?: string;
   placeText?: string;
   categories: string[];
@@ -50,7 +50,7 @@ interface FilterBarProps {
   allCategories: string[];
   allLocations: string[];
   allSalaries: number[];
-  activeDates: string[];
+  allItems: JobItem[];
 }
 
 export default function PostingFilter({
@@ -59,10 +59,10 @@ export default function PostingFilter({
   allCategories,
   allLocations,
   allSalaries,
-  activeDates,
+  allItems,
 }: FilterBarProps) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const role = useUserStore((state) => state.role);
@@ -91,7 +91,7 @@ export default function PostingFilter({
   }, []);
 
   return (
-    <div className="bg-background w-full border-b border-border px-4 py-2">
+    <div className="relative bg-background w-full border-b border-border px-4 py-2">
       <div className="flex gap-2 items-center">
         {scrolled && (
           <Link href="/" className="shrink-0">
@@ -113,7 +113,7 @@ export default function PostingFilter({
             onFocus={(e) => {
               if (window.innerWidth < 640) {
                 e.currentTarget.blur();
-                setMobileSearchOpen(true);
+                setFilterOpen(true);
               }
             }}
             placeholder="원하는 공고를 검색해보세요"
@@ -217,17 +217,17 @@ export default function PostingFilter({
         )}
       </div>
 
-      {mobileSearchOpen && (
+      {filterOpen && (
         <MobileSearchOverlay
           initialFilters={filters}
           allCategories={allCategories}
           allLocations={allLocations}
           allSalaries={allSalaries}
-          activeDates={activeDates}
-          onClose={() => setMobileSearchOpen(false)}
+          allItems={allItems}
+          onClose={() => setFilterOpen(false)}
           onApply={(f) => {
             onChange(f);
-            setMobileSearchOpen(false);
+            setFilterOpen(false);
           }}
         />
       )}

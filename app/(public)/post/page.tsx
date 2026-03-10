@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import PostingFilter, { type Filters } from './components/organisms/PostingFilter';
+import DesktopFilterSidebar from './components/organisms/DesktopFilterSidebar';
 import { usePostList } from './hooks/usePostList';
 import PostList from './components/organisms/PostList';
 import { PlusIcon } from 'lucide-react';
@@ -14,7 +15,6 @@ const DEFAULT_FILTERS: Filters = {
   payMin: '',
   payMax: '',
   dateRange: undefined,
-  dateMode: 'single',
   toText: '',
   placeText: '',
   categories: [],
@@ -24,7 +24,7 @@ const DEFAULT_FILTERS: Filters = {
 
 const PostPage = () => {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates } =
+  const { filtered, isLoading, allCategories, allLocations, allSalaries, allItems } =
     usePostList(filters);
 
   const role = useUserStore((state) => state.role);
@@ -34,16 +34,28 @@ const PostPage = () => {
   return (
     <div className="flex flex-col gap-2">
       <div className="sticky top-0 z-40">
-      <PostingFilter
-        filters={filters}
-        onChange={setFilters}
-        allCategories={allCategories}
-        allLocations={allLocations}
-        allSalaries={allSalaries}
-        activeDates={activeDates}
-      />
+        <PostingFilter
+          filters={filters}
+          onChange={setFilters}
+          allCategories={allCategories}
+          allLocations={allLocations}
+          allSalaries={allSalaries}
+          allItems={allItems}
+        />
       </div>
-      <PostList items={filtered} isLoading={isLoading} />
+      <div className="flex gap-4 px-2">
+        <DesktopFilterSidebar
+          filters={filters}
+          onChange={setFilters}
+          allCategories={allCategories}
+          allLocations={allLocations}
+          allSalaries={allSalaries}
+          allItems={allItems}
+        />
+        <div className="flex-1 min-w-0">
+          <PostList items={filtered} isLoading={isLoading} />
+        </div>
+      </div>
 
       {roleHydrated && isManager && (
         <Button

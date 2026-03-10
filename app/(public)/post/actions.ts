@@ -116,7 +116,26 @@ export const getAllPostsAction = async (): Promise<
     const supabase = await createClient();
     const hiddenPostIds = await getHiddenPostIds(supabase);
 
-    let query = supabase.from('posts').select('*').order('created_at', { ascending: false });
+    const LIST_FIELDS = [
+      'post_id',
+      'title',
+      'description',
+      'status',
+      'pay_amount',
+      'pay_type',
+      'location',
+      'manager_name',
+      'keywords',
+      'work_slots',
+      'work_date',
+      'work_time_start',
+      'work_time_end',
+      'created_at',
+      'recruit_count',
+      'external_link',
+    ].join(', ');
+
+    let query = supabase.from('posts').select(LIST_FIELDS).order('created_at', { ascending: false });
     if (hiddenPostIds.length > 0) {
       query = query.not('post_id', 'in', `(${hiddenPostIds.join(',')})`);
     }

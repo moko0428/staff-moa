@@ -83,13 +83,10 @@ export const usePostList = (filters: Filters) => {
         if (filters.dateRange?.from) {
           const jobDate = new Date(job.date ?? '');
           const from = new Date(filters.dateRange.from);
-          const to =
-            filters.dateMode === 'open-end'
-              ? undefined
-              : new Date(filters.dateRange.to ?? filters.dateRange.from);
+          const to = new Date(filters.dateRange.to ?? filters.dateRange.from);
 
           if (jobDate.setHours(0, 0, 0, 0) < from.setHours(0, 0, 0, 0)) return false;
-          if (to && jobDate > to) return false;
+          if (jobDate > to) return false;
         }
 
         if (filters.toText && !(job.TO ?? '').includes(filters.toText)) return false;
@@ -127,5 +124,5 @@ export const usePostList = (filters: Filters) => {
     return Array.from(dateSet);
   }, [postItems]);
 
-  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates };
+  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems };
 };
