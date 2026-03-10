@@ -38,6 +38,7 @@ export const usePostDetail = (id: string) => {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
+  const isManager = role === 'manager';
 
   const [post, setPost] = useState<PostData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -310,6 +311,7 @@ export const usePostDetail = (id: string) => {
     setLoginPromptOpen,
     profileModalUser,
     isMember,
+    isManager,
     roleHydrated,
     toggleFavorite,
     handleSubmitApplication,

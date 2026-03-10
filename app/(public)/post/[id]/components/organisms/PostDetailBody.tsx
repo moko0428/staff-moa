@@ -59,6 +59,7 @@ const PostDetailBody = ({ post }: PostDetailBodyProps) => {
             qualifications={post.qualifications}
             preferences={post.preferences}
             notes={post.notes}
+            externalLink={post.external_link}
           />
         </CardContent>
       </Card>

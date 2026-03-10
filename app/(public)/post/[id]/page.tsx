@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import ReportModal from '@/app/components/ReportModal';
 import ProfileModal from '@/app/components/profile-modal';
 import PostActionBar from './components/molecules/PostActionBar';
+import BottomActionBar from './components/molecules/BottomActionBar';
 import PostHeader from './components/organisms/PostHeader';
 import PostDetailBody from './components/organisms/PostDetailBody';
 import PostSidebar from './components/organisms/PostSidebar';
@@ -40,6 +41,7 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     setLoginPromptOpen,
     profileModalUser,
     isMember,
+    isManager,
     roleHydrated,
     toggleFavorite,
     handleSubmitApplication,
@@ -63,17 +65,15 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   }
 
   return (
-    <div>
+    <div className="pb-20">
       <PostActionBar
         isMember={isMember}
         roleHydrated={roleHydrated}
         currentUserId={currentUserId}
         authorId={post.author_id}
-        isFavorite={isFavorite}
         hasReported={hasReported}
         onBack={() => router.back()}
         onDelete={handleDeletePost}
-        onToggleFavorite={toggleFavorite}
         onShare={handleShare}
         onReport={() => setReportOpen(true)}
       />
@@ -82,16 +82,10 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <PostDetailBody post={post} />
-        <PostSidebar
-          post={post}
-          isMember={isMember}
-          roleHydrated={roleHydrated}
-          currentUserId={currentUserId}
-          hasApplied={hasApplied}
-          onApply={() => setApplyOpen(true)}
-        />
+        <PostSidebar post={post} />
       </div>
 
+      {/* 지원하기 모달 */}
       <ApplyModal
         open={applyOpen}
         onOpenChange={setApplyOpen}
@@ -102,6 +96,7 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         onSubmit={handleSubmitApplication}
       />
 
+      {/* 신고하기 모달 */}
       <ReportModal
         open={reportOpen}
         onOpenChange={setReportOpen}
@@ -125,6 +120,18 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         currentUserId={currentUserId}
         onLogin={() => router.push('/auth')}
       />
+
+      {!isManager && (
+        <BottomActionBar
+          isMember={isMember}
+          roleHydrated={roleHydrated}
+          status={post.status}
+          hasApplied={hasApplied}
+          isFavorite={isFavorite}
+          onApply={() => setApplyOpen(true)}
+          onToggleFavorite={toggleFavorite}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { Button } from '@/app/components/ui/button';
-import { ArrowLeft, Heart, Share2, Flag, Trash2 } from 'lucide-react';
+import { ArrowLeft, Share2, Flag, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PostActionBarProps {
@@ -7,11 +7,9 @@ interface PostActionBarProps {
   roleHydrated: boolean;
   currentUserId: string | null;
   authorId: string;
-  isFavorite: boolean;
   hasReported: boolean;
   onBack: () => void;
   onDelete: () => void;
-  onToggleFavorite: () => void;
   onShare: () => void;
   onReport: () => void;
 }
@@ -21,11 +19,9 @@ const PostActionBar = ({
   roleHydrated,
   currentUserId,
   authorId,
-  isFavorite,
   hasReported,
   onBack,
   onDelete,
-  onToggleFavorite,
   onShare,
   onReport,
 }: PostActionBarProps) => (
@@ -43,23 +39,6 @@ const PostActionBar = ({
           title="공고 삭제"
         >
           <Trash2 className="size-5 text-destructive" />
-        </Button>
-      )}
-      {isMember && roleHydrated && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggleFavorite}
-          className="hover:bg-red-50"
-        >
-          <Heart
-            className={cn(
-              'size-5',
-              isFavorite
-                ? 'fill-red-500 text-red-500'
-                : 'text-muted-foreground hover:text-red-500',
-            )}
-          />
         </Button>
       )}
       <Button variant="ghost" size="icon" onClick={onShare}>

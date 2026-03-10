@@ -1,16 +1,22 @@
-import { Users } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/app/components/ui/card';
 
 interface RecruitmentStatusProps {
   currentApplicants: number;
   recruitCount: number;
 }
 
-const RecruitmentStatus = ({ currentApplicants, recruitCount }: RecruitmentStatusProps) => (
+const RecruitmentStatus = ({
+  currentApplicants,
+  recruitCount,
+}: RecruitmentStatusProps) => (
   <Card>
     <CardHeader>
       <CardTitle className="text-base flex items-center gap-2">
-        <Users className="size-5" />
         모집 현황
       </CardTitle>
     </CardHeader>

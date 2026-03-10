@@ -1,8 +1,10 @@
-import { Calendar, Clock, MapPin, CreditCard } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { WorkSlot } from '../../types';
-import { formatNumberWithComma, getPayTypeLabel } from '../../utils/post-detail-helpers';
+import {
+  formatNumberWithComma,
+  getPayTypeLabel,
+} from '../../utils/post-detail-helpers';
 
 interface WorkInfoGridProps {
   workDate?: string;
@@ -28,21 +30,21 @@ const WorkInfoGrid = ({
   <div className="grid grid-cols-2 gap-4">
     {workDate && (
       <div className="flex items-start gap-3">
-        <Calendar className="size-5 text-muted-foreground mt-0.5" />
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">근무일</p>
           <p className="font-medium">
             {totalSlots > 1
               ? `${format(parseISO(workDate), 'yyyy.MM.dd')} 외 ${totalSlots - 1}일`
-              : format(parseISO(workDate), 'yyyy년 MM월 dd일 (E)', { locale: ko })}
+              : format(parseISO(workDate), 'yyyy년 MM월 dd일 (E)', {
+                  locale: ko,
+                })}
           </p>
         </div>
       </div>
     )}
     {workTimeStart && workTimeEnd && (
       <div className="flex items-start gap-3">
-        <Clock className="size-5 text-muted-foreground mt-0.5" />
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">근무 시간</p>
           <p className="font-medium">
             {workTimeStart} - {workTimeEnd}
@@ -52,8 +54,7 @@ const WorkInfoGrid = ({
     )}
     {workLocation && (
       <div className="flex items-start gap-3">
-        <MapPin className="size-5 text-muted-foreground mt-0.5" />
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">근무 장소</p>
           <p className="font-medium">{workLocation}</p>
         </div>
@@ -61,13 +62,14 @@ const WorkInfoGrid = ({
     )}
     {payAmount && (
       <div className="flex items-start gap-3">
-        <CreditCard className="size-5 text-muted-foreground mt-0.5" />
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">급여</p>
           <p className="font-medium text-primary">
             {getPayTypeLabel(payType)} {formatNumberWithComma(payAmount)}원
             {firstSlot?.tax_withholding && (
-              <span className="text-xs text-muted-foreground ml-1">(3.3% 공제)</span>
+              <span className="text-xs text-muted-foreground ml-1">
+                (3.3% 공제)
+              </span>
             )}
           </p>
         </div>
