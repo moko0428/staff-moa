@@ -120,8 +120,8 @@ export default function PostingFilter({
             className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
-        {scrolled && (
-          isAuthed ? (
+        {scrolled &&
+          (isAuthed ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -132,7 +132,11 @@ export default function PostingFilter({
                   <Menu className="size-5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[60]">
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-56 z-[60]"
+              >
                 <DropdownMenuLabel>
                   <Link href="/profile" className="flex items-center gap-2">
                     <User className="size-4" />
@@ -140,13 +144,20 @@ export default function PostingFilter({
                   </Link>
                 </DropdownMenuLabel>
                 <DropdownMenuItem asChild>
-                  <Link href="/notification" className="flex items-center gap-2">
+                  <Link
+                    href="/notification"
+                    className="flex items-center gap-2"
+                  >
                     <Bell className="size-4" />
                     <span className="text-sm font-medium">알림</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" prefetch={false} className="flex items-center gap-2">
+                  <Link
+                    href="/settings"
+                    prefetch={false}
+                    className="flex items-center gap-2"
+                  >
                     <Settings className="size-4" />
                     <span className="text-sm font-medium">설정</span>
                   </Link>
@@ -169,13 +180,19 @@ export default function PostingFilter({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/manager/worker" className="flex items-center gap-2">
+                      <Link
+                        href="/manager/worker"
+                        className="flex items-center gap-2"
+                      >
                         <Users className="size-4" />
                         <span className="text-sm font-medium">지원자 관리</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/manager/schedule" className="flex items-center gap-2">
+                      <Link
+                        href="/manager/schedule"
+                        className="flex items-center gap-2"
+                      >
                         <Calendar className="size-4" />
                         <span className="text-sm font-medium">스케줄 관리</span>
                       </Link>
@@ -185,13 +202,19 @@ export default function PostingFilter({
                 {isWorker && (
                   <>
                     <DropdownMenuItem asChild>
-                      <Link href="/worker/schedule" className="flex items-center gap-2">
+                      <Link
+                        href="/worker/schedule"
+                        className="flex items-center gap-2"
+                      >
                         <Calendar className="size-4" />
                         <span className="text-sm font-medium">내 스케줄</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/worker/favorit" className="flex items-center gap-2">
+                      <Link
+                        href="/worker/favorit"
+                        className="flex items-center gap-2"
+                      >
                         <Heart className="size-4" />
                         <span className="text-sm font-medium">관심 목록</span>
                       </Link>
@@ -213,8 +236,7 @@ export default function PostingFilter({
             </DropdownMenu>
           ) : (
             <AuthButtons isHome={false} />
-          )
-        )}
+          ))}
       </div>
 
       {filterOpen && (

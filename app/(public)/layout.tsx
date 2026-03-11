@@ -12,9 +12,9 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-accent">
       <HeaderNav />
-      <main className="flex-1 max-w-7xl w-full mx-auto">{children}</main>
+      <main className="flex-1 max-w-7xl w-full mx-auto pb-16">{children}</main>
     </div>
   );
 }

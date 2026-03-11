@@ -213,7 +213,7 @@ export function JobCard({ item }: JobCardProps) {
   };
   const statusClassName =
     item.status === '급구'
-      ? 'border-red-300/70 bg-red-50'
+      ? 'border-primary'
       : item.status === '모집완료'
         ? 'bg-muted'
         : '';
