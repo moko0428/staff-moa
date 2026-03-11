@@ -149,7 +149,7 @@ export const getAllPostsAction = async (): Promise<
 
     if (data?.length) {
       await Promise.all(
-        data.map(async (post: Record<string, unknown>) => {
+        (data as unknown as Record<string, unknown>[]).map(async (post) => {
           if (isPostPast(post) && post.status !== 'completed') {
             const postId = post.post_id as number | string;
             if (postId != null) {
@@ -166,7 +166,7 @@ export const getAllPostsAction = async (): Promise<
       );
     }
 
-    return { ok: true, message: '', data: data || [] };
+    return { ok: true, message: '', data: (data as unknown as Record<string, unknown>[]) || [] };
   } catch (err) {
     console.error('[getAllPostsAction] Unexpected error:', err);
     return { ok: false, message: '공고 목록을 불러오는 중 오류가 발생했습니다.', data: [] };
