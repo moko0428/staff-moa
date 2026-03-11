@@ -192,7 +192,10 @@ export async function sendSystemNotificationAction(data: {
 }
 
 // 알림 목록 조회
-export async function getNotificationsAction(): Promise<ActionResult<Notification[]>> {
+export async function getNotificationsAction(
+  page = 0,
+  limit = 20,
+): Promise<ActionResult<Notification[]>> {
   try {
     const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
@@ -201,11 +204,15 @@ export async function getNotificationsAction(): Promise<ActionResult<Notificatio
       return { ok: false, message: '로그인이 필요합니다.', data: [] };
     }
 
+    const from = page * limit;
+    const to = from + limit - 1;
+
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', userData.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) {
       console.error('[getNotificationsAction] Select error', error);
