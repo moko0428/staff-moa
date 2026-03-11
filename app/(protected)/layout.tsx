@@ -1,5 +1,5 @@
 import HeaderNav from '@/app/components/HeaderNav';
-import Footer from '@/app/components/Footer';
+import ConditionalFooter from '@/app/components/ConditionalFooter';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,8 +15,8 @@ export default function ProtectedLayout({
   return (
     <div className="min-h-screen flex flex-col bg-accent">
       <HeaderNav />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">{children}</main>
-      <Footer />
+      <main className="max-w-7xl w-full mx-auto">{children}</main>
+      <ConditionalFooter />
     </div>
   );
 }
