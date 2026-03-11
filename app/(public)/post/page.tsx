@@ -4,11 +4,14 @@ import { useState } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
-import PostingFilter, { type Filters } from './components/organisms/PostingFilter';
+import PostingFilter, {
+  type Filters,
+} from './components/organisms/PostingFilter';
 import DesktopFilterSidebar from './components/organisms/DesktopFilterSidebar';
 import { usePostList } from './hooks/usePostList';
 import PostList from './components/organisms/PostList';
 import { PlusIcon } from 'lucide-react';
+import FloatingButtons from '@/app/components/FloatingButtons';
 
 const DEFAULT_FILTERS: Filters = {
   status: '',
@@ -21,11 +24,17 @@ const DEFAULT_FILTERS: Filters = {
   searchTerm: '',
 };
 
-
 const PostPage = () => {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const { filtered, isLoading, allCategories, allLocations, allSalaries, allItems } =
-    usePostList(filters);
+  const {
+    filtered,
+    isLoading,
+    allCategories,
+    allLocations,
+    allSalaries,
+    allItems,
+    refetch,
+  } = usePostList(filters);
 
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
@@ -56,6 +65,12 @@ const PostPage = () => {
           <PostList items={filtered} isLoading={isLoading} />
         </div>
       </div>
+
+      <FloatingButtons
+        onRefresh={refetch}
+        isRefreshing={isLoading}
+        className={roleHydrated && isManager ? 'bottom-24' : undefined}
+      />
 
       {roleHydrated && isManager && (
         <Button

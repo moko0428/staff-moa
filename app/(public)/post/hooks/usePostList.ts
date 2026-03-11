@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import type { Filters } from '../components/organisms/PostingFilter';
 import type { JobItem } from '@/app/components/JobCard';
 import { getAllPostsAction } from '../actions';
@@ -17,24 +17,25 @@ export const usePostList = (filters: Filters) => {
   const [jobItems, setJobItems] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setIsLoading(true);
-      try {
-        const result = await getAllPostsAction();
-        if (result.ok && result.data) {
-          const converted = result.data.map((raw) =>
-            supabasePostToPostItem(raw as SupabasePost)
-          );
-          setPostItems(converted);
-          setJobItems(converted.map(postItemToJobItem));
-        }
-      } finally {
-        setIsLoading(false);
+  const fetchPosts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await getAllPostsAction();
+      if (result.ok && result.data) {
+        const converted = result.data.map((raw) =>
+          supabasePostToPostItem(raw as SupabasePost)
+        );
+        setPostItems(converted);
+        setJobItems(converted.map(postItemToJobItem));
       }
-    };
-    fetchPosts();
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -124,5 +125,5 @@ export const usePostList = (filters: Filters) => {
     return Array.from(dateSet);
   }, [postItems]);
 
-  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems };
+  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems, refetch: fetchPosts };
 };
