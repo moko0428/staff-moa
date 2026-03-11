@@ -24,6 +24,10 @@ type Props = {
   profileVisibility: ProfileVisibility;
   getFieldPreview: (field: keyof ProfileVisibility) => string;
   onVisibilityToggle: (key: keyof ProfileVisibility) => void;
+  showManagerRequestDialog: boolean;
+  setShowManagerRequestDialog: (open: boolean) => void;
+  isRequestingManagerRole: boolean;
+  onRequestManagerRole: () => void;
   showDeleteDialog: boolean;
   setShowDeleteDialog: (open: boolean) => void;
   deleteConfirmText: string;
@@ -39,6 +43,10 @@ export function ProfileCard({
   profileVisibility,
   getFieldPreview,
   onVisibilityToggle,
+  showManagerRequestDialog,
+  setShowManagerRequestDialog,
+  isRequestingManagerRole,
+  onRequestManagerRole,
   showDeleteDialog,
   setShowDeleteDialog,
   deleteConfirmText,
@@ -90,6 +98,11 @@ export function ProfileCard({
             />
           )}
           <AccountManagementAccordion
+            isMember={isMember}
+            showManagerRequestDialog={showManagerRequestDialog}
+            setShowManagerRequestDialog={setShowManagerRequestDialog}
+            isRequestingManagerRole={isRequestingManagerRole}
+            onRequestManagerRole={onRequestManagerRole}
             showDeleteDialog={showDeleteDialog}
             setShowDeleteDialog={setShowDeleteDialog}
             deleteConfirmText={deleteConfirmText}

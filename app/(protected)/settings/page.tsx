@@ -1,7 +1,6 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import Hero from '@/app/components/Hero';
 import {
   Card,
   CardContent,
@@ -49,6 +48,9 @@ export default function SettingsPage() {
     setShowDeleteDialog,
     deleteConfirmText,
     setDeleteConfirmText,
+    showManagerRequestDialog,
+    setShowManagerRequestDialog,
+    isRequestingManagerRole,
     handlePushToggle,
     handleNotificationToggle,
     handleProfileVisibilityToggle,
@@ -56,6 +58,7 @@ export default function SettingsPage() {
     handleSubmitReview,
     handleDeleteAccount,
     handleDeleteAccountConfirm,
+    handleRequestManagerRole,
   } = useSettingsPage();
 
   if (!roleHydrated) {
@@ -68,8 +71,6 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <Hero title="설정" description="계정 및 앱 설정을 관리하세요" />
-
       <div className="space-y-6">
         <ProfileCard
           userProfile={userProfile}
@@ -77,6 +78,10 @@ export default function SettingsPage() {
           profileVisibility={profileVisibility}
           getFieldPreview={getFieldPreview}
           onVisibilityToggle={handleProfileVisibilityToggle}
+          showManagerRequestDialog={showManagerRequestDialog}
+          setShowManagerRequestDialog={setShowManagerRequestDialog}
+          isRequestingManagerRole={isRequestingManagerRole}
+          onRequestManagerRole={handleRequestManagerRole}
           showDeleteDialog={showDeleteDialog}
           setShowDeleteDialog={setShowDeleteDialog}
           deleteConfirmText={deleteConfirmText}

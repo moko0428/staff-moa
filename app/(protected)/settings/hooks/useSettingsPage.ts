@@ -9,6 +9,7 @@ import {
   getMyReviewAction,
   deleteAccountAction,
   updateProfileVisibilityAction,
+  requestManagerRoleAction,
 } from '../actions';
 import type { ProfileVisibility } from '../actions';
 
@@ -72,6 +73,8 @@ export function useSettingsPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [showManagerRequestDialog, setShowManagerRequestDialog] = useState(false);
+  const [isRequestingManagerRole, setIsRequestingManagerRole] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -301,6 +304,24 @@ export function useSettingsPage() {
     }
   };
 
+  const handleRequestManagerRole = async () => {
+    setIsRequestingManagerRole(true);
+    try {
+      const result = await requestManagerRoleAction();
+      if (result.ok) {
+        toast.success(result.message);
+        setShowManagerRequestDialog(false);
+        useUserStore.getState().setRole('pending_manager');
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('매니저 전환 신청 중 오류가 발생했습니다.');
+    } finally {
+      setIsRequestingManagerRole(false);
+    }
+  };
+
   const handleDeleteAccount = () => {
     setDeleteConfirmText('');
     setShowDeleteDialog(true);
@@ -352,6 +373,9 @@ export function useSettingsPage() {
     setShowDeleteDialog,
     deleteConfirmText,
     setDeleteConfirmText,
+    showManagerRequestDialog,
+    setShowManagerRequestDialog,
+    isRequestingManagerRole,
     handlePushToggle,
     handleNotificationToggle,
     handleProfileVisibilityToggle,
@@ -359,5 +383,6 @@ export function useSettingsPage() {
     handleSubmitReview,
     handleDeleteAccount,
     handleDeleteAccountConfirm,
+    handleRequestManagerRole,
   };
 }

@@ -3,6 +3,49 @@
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
+export async function requestManagerRoleAction(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, message: '로그인이 필요합니다.' };
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return { ok: false, message: '프로필 정보를 불러오는데 실패했습니다.' };
+    }
+
+    if (profile.role !== 'member') {
+      return { ok: false, message: '스탭 계정만 매니저 전환을 신청할 수 있습니다.' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        role: 'pending_manager',
+        company_verify_status: 'pending',
+      })
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('[requestManagerRoleAction] update error:', error);
+      return { ok: false, message: '매니저 전환 신청에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '매니저 전환 신청이 완료되었습니다. 관리자 승인 후 매니저로 전환됩니다.' };
+  } catch (error) {
+    console.error('[requestManagerRoleAction] unexpected error:', error);
+    return { ok: false, message: '오류가 발생했습니다.' };
+  }
+}
+
 export type ProfileVisibility = {
   email?: boolean;
   phone?: boolean;
