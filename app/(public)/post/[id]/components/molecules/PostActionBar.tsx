@@ -15,7 +15,6 @@ interface PostActionBarProps {
 }
 
 const PostActionBar = ({
-  isMember,
   roleHydrated,
   currentUserId,
   authorId,
