@@ -31,6 +31,7 @@ export type ProfileModalUser = {
   followerCount?: number;
   companyName?: string | null;
   companyVerifyStatus?: string | null;
+  coverImage?: string | null;
 };
 
 export const usePostDetail = (id: string) => {
@@ -273,6 +274,7 @@ export const usePostDetail = (id: string) => {
           followerCount: profileData.followerCount,
           companyName: profileData.companyName ?? prev.companyName ?? null,
           companyVerifyStatus: profileData.companyVerifyStatus ?? prev.companyVerifyStatus ?? null,
+          coverImage: profileData.coverImage ?? null,
         };
       });
     } catch (error) {

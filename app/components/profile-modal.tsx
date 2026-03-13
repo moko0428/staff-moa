@@ -31,6 +31,7 @@ interface ProfileModalProps {
     followerCount?: number;
     companyName?: string | null;
     companyVerifyStatus?: string | null;
+    coverImage?: string | null;
   };
   currentUserId?: string; // 현재 로그인한 사용자 ID (자신은 팔로우 불가)
   isFollowing?: boolean;
@@ -94,15 +95,17 @@ export default function ProfileModal({
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-4">
-          {/* 아바타 */}
-          {/* <Image
-            src={user.coverPhoto ?? '/images/primary_text_logo.png'}
-            alt={user.coverPhoto ?? 'cover image'}
-            width={96}
-            height={96}
-            className="w-full h-[200px] rounded-lg bg-background object-cover border border-border"
-          /> */}
-          <Avatar className="-mt-24 ml-2 shadow-lg h-24 w-24">
+          {/* 커버 이미지 배너 */}
+          {user.coverImage ? (
+            <div className="relative h-36 w-full overflow-hidden rounded-t-lg -mt-4 -mx-6" style={{ width: 'calc(100% + 3rem)' }}>
+              <Image src={user.coverImage} alt="커버 이미지" fill className="object-cover" />
+            </div>
+          ) : (
+            <div className="h-36 w-full bg-muted rounded-t-lg -mt-4 -mx-6" style={{ width: 'calc(100% + 3rem)' }} />
+          )}
+
+          {/* 아바타 — 배너 아래로 겹치게 */}
+          <Avatar className="-mt-16 ml-2 shadow-lg h-24 w-24 border-4 border-background">
             <AvatarImage
               src={user.photo ?? undefined}
               alt={user.name ?? '사용자'}

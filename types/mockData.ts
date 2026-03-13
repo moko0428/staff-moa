@@ -45,6 +45,7 @@ export interface User {
   businessNumber?: string;
   companyCertificate?: string;
   companyVerifyStatus?: 'pending' | 'approved' | 'rejected';
+  coverImage?: string | null;
 
   attendanceScore: number;
   createdAt: string;

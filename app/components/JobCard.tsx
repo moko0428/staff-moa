@@ -302,29 +302,32 @@ export function JobCard({ item }: JobCardProps) {
         </div>
       )}
 
-      {/* 로고 + 배지/즐겨찾기 오버레이 */}
-      <div className="relative flex items-center justify-center py-4 px-4 border-b border-border/50">
+      {/* 커버 이미지 배너 or 로고 */}
+      <div className="relative border-b border-border/50">
         {item.coverImage ? (
-          <Image
-            src={item.coverImage}
-            alt={item.manager ?? '회사 로고'}
-            width={72}
-            height={72}
-            className="w-18 h-18 object-contain"
-          />
+          <div className="relative h-32 w-full overflow-hidden">
+            <Image
+              src={item.coverImage}
+              alt={item.manager ?? '회사 커버'}
+              fill
+              className="object-cover"
+            />
+          </div>
         ) : (
-          <Image
-            src="/assets/primary_text_logo.png"
-            alt="고인력"
-            width={100}
-            height={40}
-            className="w-24 h-auto opacity-40"
-          />
+          <div className="flex items-center justify-center py-4 px-4">
+            <Image
+              src="/assets/primary_text_logo.png"
+              alt="고인력"
+              width={100}
+              height={40}
+              className="w-24 h-auto opacity-40"
+            />
+          </div>
         )}
 
         {/* 상태 배지 */}
         {item.status === '급구' && (
-          <span className="absolute -top-2 left-4 z-10 inline-flex items-center border border-red-200/80 px-2 py-0.5 text-xs font-medium rounded-sm bg-red-100/80 text-red-700 backdrop-blur-sm">
+          <span className="absolute top-2 left-2 z-10 inline-flex items-center border border-red-200/80 px-2 py-0.5 text-xs font-medium rounded-sm bg-red-100/80 text-red-700 backdrop-blur-sm">
             급구
           </span>
         )}
@@ -334,7 +337,7 @@ export function JobCard({ item }: JobCardProps) {
           <Button
             size="icon"
             variant="ghost"
-            className="absolute -top-2 right-4 size-7 hover:bg-white/80"
+            className="absolute top-2 right-2 size-7 hover:bg-white/80"
             onClick={toggleFavorite}
           >
             <Heart

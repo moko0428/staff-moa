@@ -50,6 +50,7 @@ export default function ProfilePage() {
     setShowExperienceInput,
     isLoadingExperiences,
     isUploadingPhoto,
+    isUploadingCover,
     isReRequesting,
     isLoadingUser,
     isSaving,
@@ -68,6 +69,8 @@ export default function ProfilePage() {
     handleCompanyCertUpload,
     handleProfileImageUpload,
     handleRemoveProfileImage,
+    handleCoverImageUpload,
+    handleRemoveCoverImage,
     handleReRequestManagerApproval,
   } = useProfile();
 
@@ -103,6 +106,7 @@ export default function ProfilePage() {
     introduction?: string | null;
     attendanceScore?: number | null;
     followerCount?: number;
+    coverImage?: string | null;
   } | null>(null);
 
   const openProfileModal = async (userId: string) => {
@@ -204,6 +208,9 @@ export default function ProfilePage() {
             attendanceScore={currentUser.attendanceScore}
             introduction={currentUser.introduction}
             isMember={isMember}
+            isManagerType={isManager || isPendingManager}
+            companyName={currentUser.companyName}
+            coverImage={currentUser.coverImage}
             isEditing={isEditing}
             isUploadingPhoto={isUploadingPhoto}
             isSaving={isSaving}
@@ -288,6 +295,8 @@ export default function ProfilePage() {
               isPendingManagerRejected={
                 isPendingManager && companyStatusRaw === 'rejected'
               }
+              coverImage={currentUser.coverImage}
+              isUploadingCover={isUploadingCover}
               onCompanyNameChange={(v) => handleInputChange('companyName', v)}
               onBusinessNumberChange={(v) =>
                 handleInputChange('businessNumber', v)
@@ -299,6 +308,8 @@ export default function ProfilePage() {
               onSave={handleSaveProfile}
               onCancelEdit={() => setIsEditing(false)}
               onReRequest={handleReRequestManagerApproval}
+              onCoverImageUpload={handleCoverImageUpload}
+              onRemoveCoverImage={handleRemoveCoverImage}
             />
           )}
 

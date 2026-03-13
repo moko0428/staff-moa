@@ -1,12 +1,14 @@
 'use client';
 
+import { useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { Building2, CreditCard, FileCheck } from 'lucide-react';
+import { Building2, CreditCard, FileCheck, ImagePlus, X } from 'lucide-react';
 import { formatBusinessNumber } from '../../utils/profileUtils';
+import Image from 'next/image';
 import type { ChangeEvent } from 'react';
 
 interface Props {
@@ -22,6 +24,8 @@ interface Props {
   isSaving: boolean;
   isReRequesting?: boolean;
   isPendingManagerRejected?: boolean;
+  coverImage?: string | null;
+  isUploadingCover?: boolean;
   onCompanyNameChange: (v: string) => void;
   onBusinessNumberChange: (v: string) => void;
   onCompanyCertUpload: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -29,6 +33,8 @@ interface Props {
   onSave: () => void;
   onCancelEdit: () => void;
   onReRequest?: () => void;
+  onCoverImageUpload?: (file: File) => void;
+  onRemoveCoverImage?: () => void;
 }
 
 export function CompanyInfoCard({
@@ -44,6 +50,8 @@ export function CompanyInfoCard({
   isSaving,
   isReRequesting,
   isPendingManagerRejected,
+  coverImage,
+  isUploadingCover,
   onCompanyNameChange,
   onBusinessNumberChange,
   onCompanyCertUpload,
@@ -51,7 +59,11 @@ export function CompanyInfoCard({
   onSave,
   onCancelEdit,
   onReRequest,
+  onCoverImageUpload,
+  onRemoveCoverImage,
 }: Props) {
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <>
       {isPendingManagerRejected && (
@@ -121,6 +133,55 @@ export function CompanyInfoCard({
               ) : (
                 <p className="font-semibold">{companyCertificate || '-'}</p>
               )}
+            </div>
+
+            <div className="md:col-span-2">
+              <Label className="flex items-center gap-2 text-muted-foreground mb-2">
+                <ImagePlus className="size-4" />커버 이미지
+              </Label>
+            {coverImage ? (
+              <div className="relative h-36 w-full overflow-hidden rounded-lg border border-border">
+                <Image src={coverImage} alt="커버 이미지" fill className="object-cover" />
+                {isEditing && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute top-2 right-2 size-7"
+                    onClick={onRemoveCoverImage}
+                    disabled={isUploadingCover}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              isEditing ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={isUploadingCover}
+                >
+                  <ImagePlus className="size-4 mr-2" />
+                  {isUploadingCover ? '업로드 중...' : '이미지 선택'}
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">-</p>
+              )
+            )}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file && onCoverImageUpload) onCoverImageUpload(file);
+                e.target.value = '';
+              }}
+            />
             </div>
           </div>
 

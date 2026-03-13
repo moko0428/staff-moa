@@ -133,6 +133,7 @@ export const getAllPostsAction = async (): Promise<
       'created_at',
       'recruit_count',
       'external_link',
+      'author_id',
     ].join(', ');
 
     let query = supabase.from('posts').select(LIST_FIELDS).order('created_at', { ascending: false });
@@ -166,7 +167,32 @@ export const getAllPostsAction = async (): Promise<
       );
     }
 
-    return { ok: true, message: '', data: (data as unknown as Record<string, unknown>[]) || [] };
+    const posts = (data as unknown as Record<string, unknown>[]) || [];
+
+    // 배치 조회로 커버 이미지 주입 (N+1 방지)
+    if (posts.length > 0) {
+      const authorIds = [...new Set(posts.map((p) => p.author_id as string).filter(Boolean))];
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, cover_image')
+          .in('user_id', authorIds);
+
+        if (profiles) {
+          const coverMap = Object.fromEntries(
+            profiles.map((p) => [
+              (p as { user_id: string }).user_id,
+              (p as { cover_image?: string | null }).cover_image ?? null,
+            ])
+          );
+          posts.forEach((post) => {
+            post.authorCoverImage = coverMap[post.author_id as string] ?? null;
+          });
+        }
+      }
+    }
+
+    return { ok: true, message: '', data: posts };
   } catch (err) {
     console.error('[getAllPostsAction] Unexpected error:', err);
     return { ok: false, message: '공고 목록을 불러오는 중 오류가 발생했습니다.', data: [] };

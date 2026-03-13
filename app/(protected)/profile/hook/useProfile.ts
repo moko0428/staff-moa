@@ -18,6 +18,7 @@ export const useProfile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isReRequesting, setIsReRequesting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [newLanguage, setNewLanguage] = useState('');
   const [newCertificate, setNewCertificate] = useState('');
   const [newDocumentLabel, setNewDocumentLabel] = useState('');
@@ -33,7 +34,7 @@ export const useProfile = () => {
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
-  const { uploadProfileImage, removeProfileImage } = useUpload();
+  const { uploadProfileImage, uploadCoverImage, removeProfileImage } = useUpload();
   const setRole = useUserStore((state) => state.setRole);
 
   const calculateAge = (birthDate: string): number => {
@@ -146,6 +147,7 @@ export const useProfile = () => {
             (profileRow?.documents as User['documents']) ??
             meta.documents ??
             {},
+          coverImage: (profileRow?.cover_image as string | null | undefined) ?? null,
         };
 
         setCurrentUser(profile);
@@ -182,7 +184,7 @@ export const useProfile = () => {
       if (data.companyVerifyStatus !== undefined) profileData.company_verify_status = data.companyVerifyStatus;
 
       // 직접 매핑되는 필드들
-      const directFields = ['name', 'email', 'phone', 'mbti', 'gender', 'height', 'weight', 'personality', 'features', 'documents', 'experiences'];
+      const directFields = ['name', 'email', 'phone', 'mbti', 'gender', 'height', 'weight', 'personality', 'features', 'documents', 'experiences', 'cover_image'];
       directFields.forEach(field => {
         if (data[field] !== undefined) {
           profileData[field] = data[field];
@@ -587,6 +589,33 @@ export const useProfile = () => {
     }
   };
 
+  const handleCoverImageUpload = async (file: File) => {
+    if (!currentUser) return;
+    setIsUploadingCover(true);
+    try {
+      const publicUrl = await uploadCoverImage(currentUser.id, file);
+      setCurrentUser({ ...currentUser, coverImage: publicUrl });
+      await savePartialData({ cover_image: publicUrl });
+    } catch (err) {
+      console.error(err);
+      toast.error('커버 이미지 업로드에 실패했습니다.');
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const handleRemoveCoverImage = async () => {
+    if (!currentUser || !currentUser.coverImage) return;
+    setIsUploadingCover(true);
+    try {
+      await removeProfileImage(currentUser.coverImage);
+      setCurrentUser({ ...currentUser, coverImage: null });
+      await savePartialData({ cover_image: null });
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
   const handleReRequestManagerApproval = async () => {
     if (!currentUser) return;
     setIsReRequesting(true);
@@ -618,6 +647,7 @@ export const useProfile = () => {
     isLoadingUser,
     isSaving,
     isUploadingPhoto,
+    isUploadingCover,
     isReRequesting,
     newLanguage,
     setNewLanguage,
@@ -651,6 +681,8 @@ export const useProfile = () => {
     handleCompanyCertUpload,
     handleProfileImageUpload,
     handleRemoveProfileImage,
+    handleCoverImageUpload,
+    handleRemoveCoverImage,
     handleReRequestManagerApproval,
   };
 };

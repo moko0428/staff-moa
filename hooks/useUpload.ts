@@ -69,11 +69,30 @@ export const useUpload = () => {
     return publicUrl;
   };
 
+  const uploadCoverImage = async (userId: string, file: File): Promise<string> => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('이미지 파일만 업로드 가능합니다.');
+    }
+    const safeName = sanitizeFileName(file.name);
+    const filePath = `profiles/${userId}/cover-${Date.now()}-${safeName}`;
+
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(filePath, file, { upsert: true });
+    if (error) throw error;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   const removeProfileImage = async (url?: string | null) => {
     const target = extractBucketPath(url);
     if (!target) return;
     await supabase.storage.from(target.bucket).remove([target.path]);
   };
 
-  return { uploadProfileImage, removeProfileImage };
+  return { uploadProfileImage, uploadCoverImage, removeProfileImage };
 };

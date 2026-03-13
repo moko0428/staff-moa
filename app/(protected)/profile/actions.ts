@@ -299,6 +299,7 @@ export async function getProfileForModalAction(
     followerCount: number;
     companyName: string | null;
     companyVerifyStatus: string | null;
+    coverImage: string | null;
   }>
 > {
   try {
@@ -310,7 +311,7 @@ export async function getProfileForModalAction(
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status')
+      .select('user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status, cover_image')
       .eq('user_id', userId)
       .single();
 
@@ -343,6 +344,7 @@ export async function getProfileForModalAction(
         followerCount: followerCount ?? 0,
         companyName: (data.company_name as string | null) ?? null,
         companyVerifyStatus: (data.company_verify_status as string | null) ?? null,
+        coverImage: (data.cover_image as string | null) ?? null,
       },
     };
   } catch (err) {

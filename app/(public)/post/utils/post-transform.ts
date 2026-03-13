@@ -24,6 +24,7 @@ export type SupabasePost = {
   created_at: string;
   updated_at: string;
   currentApplicants?: number;
+  authorCoverImage?: string | null;
   work_slots?: Array<{
     date: string;
     start_time: string;
@@ -53,6 +54,7 @@ export type PostItem = {
   manager_phone: string;
   recruit_count: number;
   currentApplicants: number;
+  authorCoverImage?: string | null;
   created_at: string;
   work_slots?: Array<{
     date: string;
@@ -87,6 +89,7 @@ export const supabasePostToPostItem = (raw: SupabasePost): PostItem => {
     manager_phone: raw.manager_phone,
     recruit_count: raw.recruit_count,
     currentApplicants: raw.currentApplicants || 0,
+    authorCoverImage: raw.authorCoverImage ?? null,
     created_at: raw.created_at,
     work_slots: raw.work_slots || undefined,
   };
@@ -132,5 +135,6 @@ export const postItemToJobItem = (post: PostItem): JobItem => {
     qualifications: post.qualifications ? [post.qualifications] : [],
     status: STATUS_MAP[post.status],
     createdAt: post.created_at,
+    coverImage: post.authorCoverImage ?? undefined,
   };
 };
