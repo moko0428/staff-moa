@@ -2,7 +2,6 @@ import Logo from '@/app/components/Logo';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import { KakaoLoginButton } from './components/KakaoLoginButton';
-import Footer from '../components/Footer';
 
 const AuthPage = () => (
   <div className="flex flex-col items-center w-full min-h-screen bg-background">
@@ -29,14 +28,12 @@ const AuthPage = () => (
         </Button>
       </section>
       <section className="flex justify-center gap-2">
-        <Button variant="ghost">기존 계정 찾기</Button>
+        {/* <Button variant="ghost">기존 계정 찾기</Button> */}
         <Button variant="ghost" asChild>
           <Link href="/auth/join/manager-join">매니저 회원가입</Link>
         </Button>
       </section>
     </main>
-
-    <Footer />
   </div>
 );
 

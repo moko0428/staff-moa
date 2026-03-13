@@ -93,17 +93,27 @@ function CreatePostContent() {
       <div>
         <Hero
           title={isRepostMode ? '재공고 작성' : '새 공고 작성'}
-          description={isRepostMode ? '기존 공고를 기반으로 새 공고를 작성합니다' : '새로운 공고를 작성하세요'}
+          description={
+            isRepostMode
+              ? '기존 공고를 기반으로 새 공고를 작성합니다'
+              : '새로운 공고를 작성하세요'
+          }
         />
 
         {isRepostMode && (
           <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
-            <span className="font-medium">재공고 수정 중</span> - 기존 공고 내용을 수정하여 새로운 공고로 등록합니다.
+            <span className="font-medium">재공고 수정 중</span> - 기존 공고
+            내용을 수정하여 새로운 공고로 등록합니다.
           </div>
         )}
 
         <div className="mb-4 flex gap-2 justify-end items-center">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowPasteModal(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPasteModal(true)}
+          >
             <Clipboard className="size-4 mr-2" />
             붙여넣기
           </Button>

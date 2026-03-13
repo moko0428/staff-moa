@@ -1,6 +1,5 @@
 'use client';
 
-import Hero from '@/app/components/Hero';
 import MyPostCard from '@/app/components/MyPostCard';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -37,7 +36,6 @@ export default function MyPostPage() {
   if (!roleHydrated) {
     return (
       <div className="space-y-4">
-        <Hero title="내 공고 관리" description="매니저 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             역할 정보를 불러오는 중입니다...
@@ -50,7 +48,6 @@ export default function MyPostPage() {
   if (!isManager) {
     return (
       <div className="space-y-4">
-        <Hero title="내 공고 관리" description="매니저 전용 페이지" />
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             {isPendingManager
@@ -64,10 +61,6 @@ export default function MyPostPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
-        <Hero title="내 공고 관리" description="작성한 구인공고를 관리하세요" />
-      </div>
-
       <PostStatsGrid
         total={myPosts.length}
         recruiting={

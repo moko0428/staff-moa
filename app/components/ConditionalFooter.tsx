@@ -3,7 +3,14 @@
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
 
-const FOOTER_HIDDEN_PATHS = ['/notification'];
+const FOOTER_HIDDEN_PATHS = [
+  '/notification',
+  '/my-post/create',
+  '/my-post/edit',
+  '/manager/worker',
+  '/manager/schedule',
+  '/worker',
+];
 
 export default function ConditionalFooter() {
   const pathname = usePathname();
