@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: '고인력 | 단기알바·스탭 구인구직',
     description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
-    images: '/assets/primary_text_logo.png',
+    images: [{ url: 'https://www.goinlyeog.com/opengraph-image', width: 1200, height: 630 }],
     url: 'https://www.goinlyeog.com',
     siteName: '고인력',
     locale: 'ko_KR',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '고인력 | 단기알바·스탭 구인구직',
     description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼.',
-    images: '/assets/primary_text_logo.png',
+    images: ['https://www.goinlyeog.com/opengraph-image'],
   },
   icons: {
     apple: [{ url: '/assets/primary_logo_192.png', sizes: '192x192' }],
