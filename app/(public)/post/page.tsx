@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import { Button } from '@/app/components/ui/button';
@@ -7,11 +8,16 @@ import Link from 'next/link';
 import PostingFilter, {
   type Filters,
 } from './components/organisms/PostingFilter';
-import DesktopFilterSidebar from './components/organisms/DesktopFilterSidebar';
 import { usePostList } from './hooks/usePostList';
 import PostList from './components/organisms/PostList';
 import { PlusIcon } from 'lucide-react';
-import FloatingButtons from '@/app/components/FloatingButtons';
+
+const DesktopFilterSidebar = dynamic(
+  () => import('./components/organisms/DesktopFilterSidebar'),
+);
+const FloatingButtons = dynamic(
+  () => import('@/app/components/FloatingButtons'),
+);
 
 const DEFAULT_FILTERS: Filters = {
   status: '',
