@@ -10,9 +10,9 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Iphone } from '@/components/ui/iphone';
 import { Button } from '@/app/components/ui/button';
 import { SectionHeader } from '../molecules/SectionHeader';
 import { steps } from '../../data/landing-data';
@@ -90,16 +90,46 @@ const HowItWorksSection = () => {
 
           {/* 비주얼 — 모바일: 너비 기준(70%), 데스크톱: 높이 기준(70%) */}
           <div className="relative flex justify-center shrink-0 lg:flex-none lg:min-h-0">
-            {/* 모바일: 70% 너비 기반 자연 높이 */}
-            <div className="w-[70%] lg:hidden">
-              <Iphone />
-            </div>
-            {/* 데스크톱: 절대 위치로 셀 높이 기반 */}
-            <div className="hidden lg:flex absolute inset-0 items-center justify-center">
-              <div className="h-[70%]" style={{ aspectRatio: '433/882' }}>
-                <Iphone />
-              </div>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`img-${selected}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-[70%] lg:hidden"
+              >
+                <Image
+                  src={`/assets/landing/${selected + 1}.png`}
+                  alt={`step ${selected + 1}`}
+                  width={433}
+                  height={882}
+                  className="w-full h-auto object-contain"
+                />
+              </motion.div>
+            </AnimatePresence>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`img-lg-${selected}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="hidden lg:flex absolute inset-0 items-center justify-center"
+              >
+                <div
+                  className="h-[70%] relative"
+                  style={{ aspectRatio: '433/882' }}
+                >
+                  <Image
+                    src={`/assets/landing/${selected + 1}.png`}
+                    alt={`step ${selected + 1}`}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* 설명 */}
