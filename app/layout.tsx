@@ -10,9 +10,31 @@ import GoogleAnalyticsRouteTracker from '@/app/components/GoogleAnalyticsRouteTr
 import SwRegister from '@/app/components/SwRegister';
 
 export const metadata: Metadata = {
-  title: '고인력',
-  description: '스탭 구인은 고인력에서 시작됩니다.',
+  title: {
+    default: '고인력 | 단기알바·스탭 구인구직',
+    template: '%s | 고인력',
+  },
+  description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
+  keywords: ['단기알바', '스탭 구인', '일일알바', '행사알바', '이벤트 스탭', '구인구직', '고인력'],
   manifest: '/manifest.json',
+  alternates: {
+    canonical: 'https://www.goinlyeog.com',
+  },
+  openGraph: {
+    title: '고인력 | 단기알바·스탭 구인구직',
+    description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
+    images: '/assets/primary_text_logo.png',
+    url: 'https://www.goinlyeog.com',
+    siteName: '고인력',
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '고인력 | 단기알바·스탭 구인구직',
+    description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼.',
+    images: '/assets/primary_text_logo.png',
+  },
   icons: {
     apple: [{ url: '/assets/primary_logo_192.png', sizes: '192x192' }],
     icon: [
