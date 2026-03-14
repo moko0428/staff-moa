@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { motion, MotionConfig } from 'framer-motion';
 import { Zap, Search } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { staggerContainer, fadeInUp } from '../atoms/animations';
 import Image from 'next/image';
 
@@ -51,7 +50,7 @@ const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
                   기업과 인재를 잇는 신뢰형 매칭 플랫폼
                 </h1>
                 <p className="text-white text-lg text-center w-full drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
-                  매칭 · 스케줄 · 경력 관리 까지 채용의 모든 과정을 하나로.
+                  매칭 · 스케줄 · 경력 관리까지 채용의 모든 과정을 하나로.
                 </p>
               </div>
             </motion.div>

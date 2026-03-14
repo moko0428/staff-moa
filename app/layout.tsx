@@ -11,19 +11,35 @@ import SwRegister from '@/app/components/SwRegister';
 
 export const metadata: Metadata = {
   title: {
-    default: '고인력 | 단기알바·스탭 구인구직',
-    template: '%s | 고인력',
+    default: '고인력',
+    template: '%s',
   },
-  description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
-  keywords: ['단기알바', '스탭 구인', '일일알바', '행사알바', '이벤트 스탭', '구인구직', '고인력'],
+  description:
+    '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
+  keywords: [
+    '단기알바',
+    '스탭 구인',
+    '일일알바',
+    '행사알바',
+    '이벤트 스탭',
+    '구인구직',
+    '고인력',
+  ],
   manifest: '/manifest.json',
   alternates: {
     canonical: 'https://www.goinlyeog.com',
   },
   openGraph: {
     title: '고인력 | 단기알바·스탭 구인구직',
-    description: '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
-    images: [{ url: 'https://www.goinlyeog.com/opengraph-image', width: 1200, height: 630 }],
+    description:
+      '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',
+    images: [
+      {
+        url: 'https://www.goinlyeog.com/opengraph-image',
+        width: 1200,
+        height: 630,
+      },
+    ],
     url: 'https://www.goinlyeog.com',
     siteName: '고인력',
     locale: 'ko_KR',

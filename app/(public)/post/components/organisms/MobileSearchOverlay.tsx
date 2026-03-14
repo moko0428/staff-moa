@@ -148,7 +148,7 @@ export default function MobileSearchOverlay({
       </div>
 
       {/* Body */}
-      <div className="flex-1 px-4 py-4 space-y-5 overflow-y-auto">
+      <div className="flex-1 px-4 py-4 space-y-5 overflow-hidden">
         {/* Date + Status/Pay grid */}
         <div className="grid grid-cols-2 gap-3 items-start">
           {/* Date picker */}
@@ -295,7 +295,7 @@ export default function MobileSearchOverlay({
     return (
       <>
         <div className="fixed inset-0 z-40" onClick={onClose} />
-        <div className="absolute top-full left-0 right-0 z-50 bg-background border-b shadow-lg flex flex-col max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 z-50 bg-background border-b shadow-lg flex flex-col max-h-[calc(100vh-4rem)] overflow-hidden">
           {filterBody}
         </div>
       </>
