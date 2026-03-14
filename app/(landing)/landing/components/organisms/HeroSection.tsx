@@ -43,6 +43,7 @@ const HeroSection = ({ shouldReduceMotion }: HeroSectionProps) => {
                 alt="white_text_logo"
                 width={200}
                 height={200}
+                priority
                 className="w-80 h-auto -mt-24 -mb-16 ml-8"
               />
               <div className="space-y-2">

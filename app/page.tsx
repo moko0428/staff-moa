@@ -1,16 +1,28 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useLandingData } from './(landing)/landing/hooks/useLandingData';
 import { useMotionPreference } from './(landing)/landing/hooks/useMotionPreference';
 import FloatingBackground from './(landing)/landing/components/organisms/FloatingBackground';
 import HeroSection from './(landing)/landing/components/organisms/HeroSection';
-import HowItWorksSection from './(landing)/landing/components/organisms/HowItWorksSection';
-import FeaturesSection from './(landing)/landing/components/organisms/FeaturesSection';
-import ReviewsSection from './(landing)/landing/components/organisms/ReviewsSection';
-import CtaSection from './(landing)/landing/components/organisms/CtaSection';
-import LandingPopupModal from './(landing)/landing/components/LandingPopup';
 import { HeroStats } from './(landing)/landing/components/molecules/HeroStats';
 import Footer from './components/Footer';
+
+const FeaturesSection = dynamic(
+  () => import('./(landing)/landing/components/organisms/FeaturesSection'),
+);
+const HowItWorksSection = dynamic(
+  () => import('./(landing)/landing/components/organisms/HowItWorksSection'),
+);
+const ReviewsSection = dynamic(
+  () => import('./(landing)/landing/components/organisms/ReviewsSection'),
+);
+const CtaSection = dynamic(
+  () => import('./(landing)/landing/components/organisms/CtaSection'),
+);
+const LandingPopupModal = dynamic(
+  () => import('./(landing)/landing/components/LandingPopup'),
+);
 
 const LandingPage = () => {
   const { stats, topReviews, activePopup, isLoading } = useLandingData();
@@ -19,7 +31,7 @@ const LandingPage = () => {
   return (
     <div className="bg-gradient-to-b from-primary/60 to-background">
       {activePopup && <LandingPopupModal popup={activePopup} />}
-      <FloatingBackground />
+      {!shouldReduceMotion && <FloatingBackground />}
       <HeroSection shouldReduceMotion={shouldReduceMotion} />
       <section className="bg-background border-t border-border">
         <HeroStats stats={stats} isLoading={isLoading} />

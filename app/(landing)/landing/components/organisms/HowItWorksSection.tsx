@@ -104,6 +104,7 @@ const HowItWorksSection = () => {
                   alt={`step ${selected + 1}`}
                   width={433}
                   height={882}
+                  priority={selected === 0}
                   className="w-full h-auto object-contain"
                 />
               </motion.div>
@@ -125,6 +126,7 @@ const HowItWorksSection = () => {
                     src={`/assets/landing/${selected + 1}.png`}
                     alt={`step ${selected + 1}`}
                     fill
+                    priority={selected === 0}
                     className="object-contain"
                   />
                 </div>
