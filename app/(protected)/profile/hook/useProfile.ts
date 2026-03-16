@@ -177,7 +177,7 @@ export const useProfile = () => {
       if (data.photo !== undefined) profileData.avatar = data.photo;
       if (data.introduction !== undefined) profileData.bio = data.introduction;
       if (data.kakaoId !== undefined) profileData.kakao_id = data.kakaoId;
-      if (data.birthDate !== undefined) profileData.birth_date = data.birthDate;
+      if (data.birthDate !== undefined) profileData.birth_date = data.birthDate || null;
       if (data.companyName !== undefined) profileData.company_name = data.companyName;
       if (data.businessNumber !== undefined) profileData.business_number = data.businessNumber;
       if (data.companyCertificate !== undefined) profileData.company_certificate = data.companyCertificate;
@@ -257,7 +257,7 @@ export const useProfile = () => {
           phone: currentUser.phone ?? null,
           kakao_id: currentUser.kakaoId ?? null,
           mbti: currentUser.mbti ?? null,
-          birth_date: currentUser.birthDate ?? null,
+          birth_date: currentUser.birthDate || null,
           gender: currentUser.gender ?? null,
           height: currentUser.height ?? null,
           weight: currentUser.weight ?? null,
