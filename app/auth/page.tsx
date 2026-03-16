@@ -8,7 +8,7 @@ const AuthPage = () => (
     <header className="w-full -mt-0 max-w-md mx-auto px-4">
       <Logo />
     </header>
-    <main className="-mt-20 flex-1 flex flex-col justify-start items-center w-full max-w-md mx-auto space-y-8 pt-24">
+    <main className="-mt-20 flex-1 flex flex-col justify-start items-center w-full max-w-md mx-auto space-y-8 px-4 pt-24">
       <section className="flex flex-col gap-2 items-center w-full">
         <h2 className="text-2xl text-center font-bold">
           사람과 기회를 연결하다
