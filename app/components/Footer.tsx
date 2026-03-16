@@ -50,8 +50,7 @@ export default function Footer() {
 
           {/* 회사 정보 */}
           <div className="space-y-1 mb-6 text-xs text-muted-foreground">
-            <p>고인력 &nbsp;|&nbsp; 이준영</p>
-            <p>Contact ljun925@naver.com</p>
+            <p>고인력 | ljun925@naver.com</p>
           </div>
 
           {/* 구분선 */}
