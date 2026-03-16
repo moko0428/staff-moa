@@ -25,6 +25,8 @@ const iconMap: Record<string, LucideIcon> = {
   AlarmCheck,
 };
 
+const STEP_IMAGES = ['1.jpeg', '2.jpeg', '3.jpeg', '4.jpeg', '5.jpeg'];
+
 const HowItWorksSection = () => {
   const [selected, setSelected] = useState(0);
   const current = steps[selected];
@@ -100,7 +102,7 @@ const HowItWorksSection = () => {
                 className="w-[70%] lg:hidden"
               >
                 <Image
-                  src={`/assets/landing/${selected + 1}.png`}
+                  src={`/assets/landing/${STEP_IMAGES[selected]}`}
                   alt={`step ${selected + 1}`}
                   width={433}
                   height={882}
@@ -123,7 +125,7 @@ const HowItWorksSection = () => {
                   style={{ aspectRatio: '433/882' }}
                 >
                   <Image
-                    src={`/assets/landing/${selected + 1}.png`}
+                    src={`/assets/landing/${STEP_IMAGES[selected]}`}
                     alt={`step ${selected + 1}`}
                     fill
                     priority={selected === 0}
