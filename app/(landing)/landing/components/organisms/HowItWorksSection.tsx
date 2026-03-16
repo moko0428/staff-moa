@@ -107,7 +107,7 @@ const HowItWorksSection = () => {
                   width={433}
                   height={882}
                   priority={selected === 0}
-                  className="w-full h-auto object-contain"
+                  className="w-full h-auto object-contain rounded-xl shadow-xl border border-border"
                 />
               </motion.div>
             </AnimatePresence>
