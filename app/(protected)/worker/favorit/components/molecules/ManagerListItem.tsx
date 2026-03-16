@@ -1,5 +1,5 @@
 import { Button } from '@/app/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 import type { ManagerInfo } from '../../types';
 
 type Props = {
@@ -20,12 +20,7 @@ export function ManagerListItem({ manager, isFollowed, onProfileClick, onFollow,
       onClick={() => onProfileClick(manager.managerId)}
     >
       <div className="min-w-0 flex items-center gap-3">
-        <Avatar className="size-10">
-          <AvatarImage src={avatar ?? undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-            {name.charAt(0)}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar src={avatar} name={name} className="size-10" />
         <p className="font-medium truncate">{name}</p>
       </div>
       {isFollowed ? (

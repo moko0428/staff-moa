@@ -20,11 +20,7 @@ import {
 } from '@/app/components/ui/card';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 import {
   Popover,
   PopoverContent,
@@ -248,15 +244,7 @@ export const ApplicationDetailModal = ({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3 mb-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarImage
-                    src={application.applicantPhoto}
-                    alt={application.applicantName}
-                  />
-                  <AvatarFallback className="text-xl bg-primary/10 text-primary font-semibold">
-                    {application.applicantName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar src={application.applicantPhoto} name={application.applicantName} className="w-16 h-16" fallbackClassName="text-xl" />
                 <div className="space-y-1">
                   <h3 className="font-semibold text-lg">
                     {application.applicantName}

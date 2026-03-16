@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/app/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 
 type RoleType = 'member' | 'manager' | 'admin' | string;
 
@@ -36,12 +36,7 @@ export function FollowUserRow({ userId, name, avatar, role, onOpen, onRemove, re
       className="flex items-center justify-between gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent"
     >
       <div className="min-w-0 flex items-center gap-3">
-        <Avatar className="size-10">
-          <AvatarImage src={avatar ?? undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-            {(name || 'U').charAt(0)}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar src={avatar} name={name || 'U'} className="size-10" />
         <div className="min-w-0">
           <p className="font-medium truncate">{name || '이름 없음'}</p>
           <p className="text-xs text-muted-foreground">{roleLabel[role] ?? role}</p>

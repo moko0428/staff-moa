@@ -4,7 +4,7 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Plus, X, Star } from 'lucide-react';
 import Image from 'next/image';
@@ -103,10 +103,7 @@ export function ProfileSideCard({
               {/* 아바타: 배너 아래로 절반 겹치게 */}
               <div className="flex justify-center -mt-12 relative z-10">
                 <div className="relative">
-                  <Avatar key={photo ?? 'no-photo'} className="w-24 h-24 border-4 border-background shadow-md">
-                    <AvatarImage src={photo ?? undefined} alt={name} className="object-cover" />
-                    <AvatarFallback className="text-xl">{name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-24 h-24 border-4 border-background shadow-md" fallbackClassName="text-xl" />
                   {avatarEditButtons}
                 </div>
               </div>
@@ -122,10 +119,7 @@ export function ProfileSideCard({
               {/* 아바타: 커버이미지 위에 z-index */}
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="relative">
-                  <Avatar key={photo ?? 'no-photo'} className="w-20 h-20 border-4 border-background shadow-md">
-                    <AvatarImage src={photo ?? undefined} alt={name} className="object-cover" />
-                    <AvatarFallback className="text-xl">{name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-20 h-20 border-4 border-background shadow-md" fallbackClassName="text-xl" />
                   {avatarEditButtons}
                 </div>
               </div>
@@ -141,10 +135,7 @@ export function ProfileSideCard({
           {/* 멤버/관리자: 일반 아바타 */}
           {!isManagerType && (
             <div className="relative mb-4">
-              <Avatar key={photo ?? 'no-photo'} className="w-32 h-32">
-                <AvatarImage src={photo ?? undefined} alt={name} className="object-cover" />
-                <AvatarFallback className="text-2xl">{name.charAt(0)}</AvatarFallback>
-              </Avatar>
+              <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-32 h-32" fallbackClassName="text-2xl" />
               {isEditing && (
                 <div className="absolute bottom-0 right-0 flex gap-2">
                   <Button

@@ -6,11 +6,7 @@ import {
 } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 import {
   Star,
   XCircle,
@@ -85,12 +81,7 @@ export const GroupedWorkerCard = ({
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            <Avatar className="w-12 h-12">
-              <AvatarImage src={worker.applicantPhoto} alt={worker.applicantName} />
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {worker.applicantName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar src={worker.applicantPhoto} name={worker.applicantName} className="w-12 h-12" />
             <div>
               <h3 className="font-semibold text-lg">{worker.applicantName}</h3>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

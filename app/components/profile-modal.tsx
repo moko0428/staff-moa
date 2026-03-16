@@ -7,14 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
-import { User, UserPlus, UserMinus } from 'lucide-react';
+import { UserPlus, UserMinus } from 'lucide-react';
+import UserAvatar from '@/app/common/components/UserAvatar';
 import Image from 'next/image';
 import DefaultCoverImage from '@/app/common/components/DefaultCoverImage';
 
@@ -109,15 +105,12 @@ export default function ProfileModal({
           )}
 
           {/* 아바타 — 배너 아래로 겹치게 */}
-          <Avatar className="-mt-16 ml-2 shadow-lg h-24 w-24 border-4 border-background">
-            <AvatarImage
-              src={user.photo ?? undefined}
-              alt={user.name ?? '사용자'}
-            />
-            <AvatarFallback className="text-2xl">
-              {user.name?.at(0) ?? <User className="h-12 w-12" />}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            src={user.photo}
+            name={user.name}
+            className="-mt-16 ml-2 shadow-lg h-24 w-24 border-4 border-background"
+            fallbackClassName="text-2xl"
+          />
 
           {/* 이름과 역할 */}
           <div className="flex items-center gap-2">

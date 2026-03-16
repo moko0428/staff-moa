@@ -26,11 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/app/components/ui/card';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/app/components/ui/avatar';
+import UserAvatar from '@/app/common/components/UserAvatar';
 
 interface ScheduleDetailModalProps {
   schedule: ScheduleWithPost;
@@ -250,12 +246,7 @@ export default function ScheduleDetailModal({
                       className="flex items-start gap-3 p-3 rounded-lg border bg-muted"
                     >
                       {/* 아바타 */}
-                      <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
-                        <AvatarImage src={p.avatar} alt={p.userName} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
-                          {p.userName.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar src={p.avatar} name={p.userName} className="w-12 h-12 border-2 border-white shadow-sm" fallbackClassName="text-lg" />
                       {/* 정보 */}
                       <div className="flex-1 flex flex-col gap-1">
                         <div className="flex items-center justify-between">
