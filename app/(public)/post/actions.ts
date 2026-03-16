@@ -339,6 +339,40 @@ export const getMyAcceptedSchedulesAction = async (): Promise<
   }
 };
 
+export const getUserPostStateAction = async (): Promise<
+  ActionResult<{
+    userId: string | null;
+    userName: string | null;
+    favoriteIds: string[];
+    appliedIds: string[];
+  }>
+> => {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id ?? null;
+
+    if (!userId) {
+      return { ok: true, message: '', data: { userId: null, userName: null, favoriteIds: [], appliedIds: [] } };
+    }
+
+    const [profileResult, favResult, appliedResult] = await Promise.all([
+      supabase.from('profiles').select('name').eq('user_id', userId).single(),
+      supabase.from('favorites_posts').select('post_id').eq('user_id', userId),
+      supabase.from('member_schedules').select('post_id').eq('member_id', userId),
+    ]);
+
+    const userName = (profileResult.data as { name?: string | null } | null)?.name ?? null;
+    const favoriteIds = (favResult.data || []).map((r) => String((r as { post_id: number }).post_id));
+    const appliedIds = (appliedResult.data || []).map((r) => String((r as { post_id: number }).post_id));
+
+    return { ok: true, message: '', data: { userId, userName, favoriteIds, appliedIds } };
+  } catch (err) {
+    console.error('[getUserPostStateAction] Unexpected error:', err);
+    return { ok: true, message: '', data: { userId: null, userName: null, favoriteIds: [], appliedIds: [] } };
+  }
+};
+
 export const getManagerPostsAction = async (
   managerId: string
 ): Promise<ActionResult<Array<Record<string, unknown>>>> => {

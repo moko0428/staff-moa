@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom';
 import CategoryTagList from '../molecules/CategoryTagList';
 import { Filters } from './PostingFilter';
 import { type JobItem } from '@/app/components/JobCard';
+import { formatLocationShort } from '../../utils/location';
 
 interface MobileSearchOverlayProps {
   initialFilters: Filters;
@@ -249,7 +250,7 @@ export default function MobileSearchOverlay({
                       : 'bg-muted text-foreground border-border',
                   )}
                 >
-                  {loc}
+                  {formatLocationShort(loc)}
                 </button>
               );
             })}

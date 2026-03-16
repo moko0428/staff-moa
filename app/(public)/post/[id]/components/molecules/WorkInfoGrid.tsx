@@ -30,7 +30,7 @@ const WorkInfoGrid = ({
   <div className="grid grid-cols-2 gap-4">
     {workDate && (
       <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">근무일</p>
           <p className="font-medium">
             {totalSlots > 1
@@ -44,7 +44,7 @@ const WorkInfoGrid = ({
     )}
     {workTimeStart && workTimeEnd && (
       <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">근무 시간</p>
           <p className="font-medium">
             {workTimeStart} - {workTimeEnd}
@@ -54,7 +54,7 @@ const WorkInfoGrid = ({
     )}
     {workLocation && (
       <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">근무 장소</p>
           <p className="font-medium">{workLocation}</p>
         </div>
@@ -62,7 +62,7 @@ const WorkInfoGrid = ({
     )}
     {payAmount && (
       <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">급여</p>
           <p className="font-medium text-primary">
             {getPayTypeLabel(payType)} {formatNumberWithComma(payAmount)}원

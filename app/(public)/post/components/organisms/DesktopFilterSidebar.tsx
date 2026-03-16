@@ -9,6 +9,7 @@ import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { type JobItem } from '@/app/components/JobCard';
 import { Filters } from './PostingFilter';
+import { formatLocationShort } from '../../utils/location';
 
 interface DesktopFilterSidebarProps {
   filters: Filters;
@@ -166,7 +167,7 @@ export default function DesktopFilterSidebar({
                       : 'bg-muted text-foreground border-border',
                   )}
                 >
-                  {loc}
+                  {formatLocationShort(loc)}
                 </button>
               );
             })}

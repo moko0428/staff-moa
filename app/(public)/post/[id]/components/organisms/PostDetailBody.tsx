@@ -1,4 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/app/components/ui/card';
 import WorkInfoGrid from '../molecules/WorkInfoGrid';
 import WorkSlotDetail from '../molecules/WorkSlotDetail';
 import PostDescription from '../molecules/PostDescription';
@@ -11,8 +16,10 @@ interface PostDetailBodyProps {
 const PostDetailBody = ({ post }: PostDetailBodyProps) => {
   const firstSlot = post.work_slots?.[0];
   const workDate = firstSlot?.date || post.work_date;
-  const workTimeStart = firstSlot?.start_time || firstSlot?.start || post.work_time_start;
-  const workTimeEnd = firstSlot?.end_time || firstSlot?.end || post.work_time_end;
+  const workTimeStart =
+    firstSlot?.start_time || firstSlot?.start || post.work_time_start;
+  const workTimeEnd =
+    firstSlot?.end_time || firstSlot?.end || post.work_time_end;
   const workLocation = firstSlot?.location || post.location;
   const payAmount = firstSlot?.pay_amount || post.pay_amount;
   const payType = firstSlot?.pay_type || post.pay_type;

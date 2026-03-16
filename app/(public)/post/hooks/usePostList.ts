@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import type { Filters } from '../components/organisms/PostingFilter';
 import type { JobItem } from '@/app/components/JobCard';
-import { getAllPostsAction } from '../actions';
+import { getAllPostsAction, getUserPostStateAction } from '../actions';
 import { supabasePostToPostItem, postItemToJobItem, type SupabasePost, type PostItem } from '../utils/post-transform';
 
 const STATUS_PRIORITY: Record<JobItem['status'], number> = {
@@ -16,17 +16,36 @@ export const usePostList = (filters: Filters) => {
   const [postItems, setPostItems] = useState<PostItem[]>([]);
   const [jobItems, setJobItems] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [preloadedUser, setPreloadedUser] = useState<{ id: string; name: string } | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getAllPostsAction();
-      if (result.ok && result.data) {
-        const converted = result.data.map((raw) =>
+      const [postsResult, userStateResult] = await Promise.all([
+        getAllPostsAction(),
+        getUserPostStateAction(),
+      ]);
+
+      const userState = userStateResult.data ?? { userId: null, userName: null, favoriteIds: [], appliedIds: [] };
+
+      if (userState.userId && userState.userName) {
+        setPreloadedUser({ id: userState.userId, name: userState.userName });
+      } else if (userState.userId) {
+        setPreloadedUser({ id: userState.userId, name: '' });
+      } else {
+        setPreloadedUser(null);
+      }
+
+      if (postsResult.ok && postsResult.data) {
+        const converted = postsResult.data.map((raw) =>
           supabasePostToPostItem(raw as SupabasePost)
         );
         setPostItems(converted);
-        setJobItems(converted.map(postItemToJobItem));
+        setJobItems(converted.map((item) => ({
+          ...postItemToJobItem(item),
+          applied: userState.appliedIds.includes(item.id),
+          isFavorite: userState.favoriteIds.includes(item.id),
+        })));
       }
     } finally {
       setIsLoading(false);
@@ -125,5 +144,5 @@ export const usePostList = (filters: Filters) => {
     return Array.from(dateSet);
   }, [postItems]);
 
-  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems, refetch: fetchPosts };
+  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems, refetch: fetchPosts, preloadedUser };
 };

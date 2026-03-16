@@ -10,6 +10,7 @@ import { Building2, CreditCard, FileCheck, ImagePlus, X } from 'lucide-react';
 import { formatBusinessNumber } from '../../utils/profileUtils';
 import Image from 'next/image';
 import type { ChangeEvent } from 'react';
+import DefaultCoverImage from '@/app/common/components/DefaultCoverImage';
 
 interface Props {
   companyName?: string | null;
@@ -156,20 +157,22 @@ export function CompanyInfoCard({
                 )}
               </div>
             ) : (
-              isEditing ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => coverInputRef.current?.click()}
-                  disabled={isUploadingCover}
-                >
-                  <ImagePlus className="size-4 mr-2" />
-                  {isUploadingCover ? '업로드 중...' : '이미지 선택'}
-                </Button>
-              ) : (
-                <p className="text-sm text-muted-foreground">-</p>
-              )
+              <div className="flex flex-col gap-2">
+                <DefaultCoverImage className="h-36 w-full rounded-lg border border-border" />
+                {isEditing && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={isUploadingCover}
+                  >
+                    <ImagePlus className="size-4 mr-2" />
+                    {isUploadingCover ? '업로드 중...' : '이미지 선택'}
+                  </Button>
+                )}
+              </div>
             )}
             <input
               ref={coverInputRef}

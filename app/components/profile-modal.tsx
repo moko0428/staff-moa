@@ -16,6 +16,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { User, UserPlus, UserMinus } from 'lucide-react';
 import Image from 'next/image';
+import DefaultCoverImage from '@/app/common/components/DefaultCoverImage';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -101,7 +102,10 @@ export default function ProfileModal({
               <Image src={user.coverImage} alt="커버 이미지" fill className="object-cover" />
             </div>
           ) : (
-            <div className="h-36 w-full bg-muted rounded-t-lg -mt-4 -mx-6" style={{ width: 'calc(100% + 3rem)' }} />
+            <DefaultCoverImage
+              className="h-36 rounded-t-lg -mt-4 -mx-6"
+              style={{ width: 'calc(100% + 3rem)' }}
+            />
           )}
 
           {/* 아바타 — 배너 아래로 겹치게 */}

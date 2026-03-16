@@ -40,6 +40,7 @@ const PostPage = () => {
     allSalaries,
     allItems,
     refetch,
+    preloadedUser,
   } = usePostList(filters);
 
   const role = useUserStore((state) => state.role);
@@ -68,7 +69,7 @@ const PostPage = () => {
           allItems={allItems}
         />
         <div className="flex-1 min-w-0">
-          <PostList items={filtered} isLoading={isLoading} />
+          <PostList items={filtered} isLoading={isLoading} preloadedUser={preloadedUser} />
         </div>
       </div>
 

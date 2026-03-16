@@ -47,6 +47,7 @@ export interface JobItem {
   etc?: string;
   externalLink?: string | null;
   applied?: boolean;
+  isFavorite?: boolean;
   categories: string[];
   qualifications?: string[];
   status: '급구' | '모집' | '모집완료';
@@ -55,24 +56,27 @@ export interface JobItem {
 
 interface JobCardProps {
   item: JobItem;
+  preloadedUser?: { id: string; name: string } | null;
 }
 
-export function JobCard({ item }: JobCardProps) {
+export function JobCard({ item, preloadedUser }: JobCardProps) {
   const router = useRouter();
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
 
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(item.isFavorite ?? false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(preloadedUser?.id ?? null);
   const [isApplied, setIsApplied] = useState<boolean>(!!item.applied);
   const [isCheckingApplied, setIsCheckingApplied] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
 
   useEffect(() => {
-    // 현재 사용자 ID 가져오기
+    // preloadedUser가 있으면 서버에서 이미 가져온 데이터 사용 (N+1 방지)
+    if (preloadedUser) return;
+
     const fetchCurrentUser = async () => {
       try {
         const { createClient } = await import('@/utils/supabase/client');
@@ -117,7 +121,7 @@ export function JobCard({ item }: JobCardProps) {
     };
 
     fetchCurrentUser();
-  }, []);
+  }, [preloadedUser]);
 
   useEffect(() => {
     // 부모에서 applied를 넘겨주면 그 값을 우선 사용
@@ -162,7 +166,12 @@ export function JobCard({ item }: JobCardProps) {
   ]);
 
   useEffect(() => {
-    // 관심 목록 확인 (Supabase에서)
+    // isFavorite이 prop으로 주입된 경우 동기화 (서버에서 배치 조회된 값)
+    if (item.isFavorite !== undefined) {
+      setIsFavorite(item.isFavorite);
+      return;
+    }
+    // 관심 목록 확인 (Supabase에서) — preloadedUser 없을 때만 실행
     if (currentUserId && roleHydrated && isMember) {
       const checkFavorite = async () => {
         try {
@@ -176,7 +185,7 @@ export function JobCard({ item }: JobCardProps) {
       };
       checkFavorite();
     }
-  }, [currentUserId, item.id, roleHydrated, isMember]);
+  }, [currentUserId, item.id, item.isFavorite, roleHydrated, isMember]);
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -243,7 +252,7 @@ export function JobCard({ item }: JobCardProps) {
   };
 
   const handleSubmitApplication = async () => {
-    if (!currentUser) {
+    if (!currentUser && !preloadedUser) {
       toast.error('로그인이 필요합니다.');
       return;
     }
@@ -418,13 +427,13 @@ export function JobCard({ item }: JobCardProps) {
               {item.title}에 지원하기
             </DialogTitle>
           </DialogHeader>
-          {currentUser ? (
+          {(currentUser || preloadedUser) ? (
             <div className="mt-2 space-y-4 text-sm">
               {/* 기본 정보 전달 안내 */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
                 <p className="text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">
-                    {currentUser.name}
+                    {currentUser?.name ?? preloadedUser?.name}
                   </span>
                   님의 기본 정보가 함께 전달됩니다.
                 </p>

@@ -11,9 +11,10 @@ const PAGE_SIZE = 12;
 interface PostListProps {
   items: JobItem[];
   isLoading: boolean;
+  preloadedUser?: { id: string; name: string } | null;
 }
 
-const PostList = ({ items, isLoading }: PostListProps) => {
+const PostList = ({ items, isLoading, preloadedUser }: PostListProps) => {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +61,7 @@ const PostList = ({ items, isLoading }: PostListProps) => {
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 p-2">
         {visibleItems.map((item) => (
-          <JobCard key={item.id} item={item} />
+          <JobCard key={item.id} item={item} preloadedUser={preloadedUser} />
         ))}
       </div>
 

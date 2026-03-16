@@ -72,7 +72,7 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         currentUserId={currentUserId}
         authorId={post.author_id}
         hasReported={hasReported}
-        onBack={() => router.back()}
+        onBack={() => router.push('/post')}
         onDelete={handleDeletePost}
         onShare={handleShare}
         onReport={() => setReportOpen(true)}
