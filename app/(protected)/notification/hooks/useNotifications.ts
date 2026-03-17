@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getNotificationsAction,
   markNotificationAsReadAction,
@@ -12,98 +13,100 @@ import {
 const PAGE_SIZE = 20;
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const result = await getNotificationsAction(0, PAGE_SIZE);
-      if (result.ok && result.data) {
-        setNotifications(result.data);
-        setHasMore(result.data.length === PAGE_SIZE);
-        setPage(1);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['notifications'],
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
+      const result = await getNotificationsAction(pageParam, PAGE_SIZE);
+      return result.data ?? [];
+    },
+    getNextPageParam: (lastPage: Notification[], allPages: Notification[][]) =>
+      lastPage.length === PAGE_SIZE ? allPages.length : undefined,
+    initialPageParam: 0,
+    staleTime: 1000 * 30, // 30초
+  });
+
+  const notifications = data?.pages.flat() ?? [];
+
+  // 캐시 내 알림 업데이트 헬퍼
+  const updateCache = useCallback(
+    (updater: (pages: Notification[][]) => Notification[][]) => {
+      queryClient.setQueryData<{ pages: Notification[][]; pageParams: number[] }>(
+        ['notifications'],
+        (old) => (old ? { ...old, pages: updater(old.pages) } : old)
+      );
+    },
+    [queryClient]
+  );
+
+  const dispatchUpdate = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('notification-updated'));
   }, []);
 
-  const loadMore = useCallback(async () => {
-    if (isFetchingMore || !hasMore) return;
-    setIsFetchingMore(true);
-    try {
-      const result = await getNotificationsAction(page, PAGE_SIZE);
-      if (result.ok && result.data) {
-        setNotifications((prev) => [...prev, ...result.data!]);
-        setHasMore(result.data.length === PAGE_SIZE);
-        setPage((p) => p + 1);
-      }
-    } catch (error) {
-      console.error('Failed to load more notifications:', error);
-    } finally {
-      setIsFetchingMore(false);
-    }
-  }, [page, isFetchingMore, hasMore]);
+  // IntersectionObserver로 무한스크롤
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const sentinelRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (observerRef.current) observerRef.current.disconnect();
-      if (!node || !hasMore || isFetchingMore) return;
+      if (!node || !hasNextPage || isFetchingNextPage) return;
       observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) loadMore();
+        if (entries[0].isIntersecting) fetchNextPage();
       });
       observerRef.current.observe(node);
     },
-    [hasMore, isFetchingMore, loadMore],
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
   );
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  const dispatchNotificationUpdate = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('notification-updated'));
-  }, []);
 
   const handleMarkAsRead = async (notificationId: string) => {
     const result = await markNotificationAsReadAction(notificationId);
     if (result.ok) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.notification_id === notificationId ? { ...n, is_read: true } : n)),
+      updateCache((pages) =>
+        pages.map((page) =>
+          page.map((n) =>
+            n.notification_id === notificationId ? { ...n, is_read: true } : n
+          )
+        )
       );
       setSelectedNotification((prev) =>
-        prev?.notification_id === notificationId ? { ...prev, is_read: true } : prev,
+        prev?.notification_id === notificationId ? { ...prev, is_read: true } : prev
       );
-      dispatchNotificationUpdate();
+      dispatchUpdate();
     }
   };
 
   const handleMarkAllAsRead = async () => {
     const result = await markAllNotificationsAsReadAction();
     if (result.ok) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      dispatchNotificationUpdate();
+      updateCache((pages) =>
+        pages.map((page) => page.map((n) => ({ ...n, is_read: true })))
+      );
+      dispatchUpdate();
     }
   };
 
   const handleDelete = async (notificationId: string) => {
     const result = await deleteNotificationAction(notificationId);
     if (result.ok) {
-      setNotifications((prev) => prev.filter((n) => n.notification_id !== notificationId));
+      updateCache((pages) =>
+        pages.map((page) =>
+          page.filter((n) => n.notification_id !== notificationId)
+        )
+      );
       if (selectedNotification?.notification_id === notificationId) {
         setSelectedNotification(null);
       }
-      dispatchNotificationUpdate();
+      dispatchUpdate();
     }
   };
 
@@ -123,7 +126,7 @@ export function useNotifications() {
     setSelectedIds((prev) =>
       prev.includes(notificationId)
         ? prev.filter((id) => id !== notificationId)
-        : [...prev, notificationId],
+        : [...prev, notificationId]
     );
   };
 
@@ -133,9 +136,13 @@ export function useNotifications() {
     const results = await Promise.all(targets.map((id) => deleteNotificationAction(id)));
     const deletedIds = targets.filter((_, idx) => results[idx]?.ok);
     if (deletedIds.length > 0) {
-      setNotifications((prev) => prev.filter((n) => !deletedIds.includes(n.notification_id)));
+      updateCache((pages) =>
+        pages.map((page) =>
+          page.filter((n) => !deletedIds.includes(n.notification_id))
+        )
+      );
       setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
-      dispatchNotificationUpdate();
+      dispatchUpdate();
     }
   };
 
@@ -152,14 +159,17 @@ export function useNotifications() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  const refetch = () =>
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
   return {
     notifications,
     isLoading,
     isSelectMode,
     selectedIds,
     unreadCount,
-    hasMore,
-    isFetchingMore,
+    hasMore: !!hasNextPage,
+    isFetchingMore: isFetchingNextPage,
     sentinelRef,
     selectedNotification,
     handleMarkAsRead,
@@ -170,6 +180,6 @@ export function useNotifications() {
     handleDeleteSelected,
     handleOpenDetail,
     handleCloseDetail,
-    refetch: fetchNotifications,
+    refetch,
   };
 }

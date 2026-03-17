@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   fetchAppReviewsAction,
@@ -11,34 +12,36 @@ import {
   type ReviewStats,
 } from '../review-actions';
 
+interface ReviewsData {
+  reviews: AppReview[];
+  reviewStats: ReviewStats | null;
+}
+
+async function fetchReviewsAndStats(): Promise<ReviewsData> {
+  const [reviewsResult, statsResult] = await Promise.all([
+    fetchAppReviewsAction(),
+    fetchReviewStatsAction(),
+  ]);
+  return {
+    reviews: reviewsResult.ok && reviewsResult.data ? reviewsResult.data : [],
+    reviewStats: statsResult.ok && statsResult.data ? statsResult.data : null,
+  };
+}
+
 export const useAdminReviews = () => {
-  const [reviews, setReviews] = useState<AppReview[]>([]);
-  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
-  const [loadingReviews, setLoadingReviews] = useState(false);
+  const queryClient = useQueryClient();
   const [reviewSearch, setReviewSearch] = useState('');
   const [reviewRatingFilter, setReviewRatingFilter] = useState<
     'all' | '1' | '2' | '3' | '4' | '5'
   >('all');
 
-  const fetchReviews = useCallback(async () => {
-    setLoadingReviews(true);
-    try {
-      const [reviewsResult, statsResult] = await Promise.all([
-        fetchAppReviewsAction(),
-        fetchReviewStatsAction(),
-      ]);
-      if (reviewsResult.ok && reviewsResult.data) setReviews(reviewsResult.data);
-      if (statsResult.ok && statsResult.data) setReviewStats(statsResult.data);
-    } catch (err) {
-      console.error('Failed to load reviews', err);
-    } finally {
-      setLoadingReviews(false);
-    }
-  }, []);
+  const { data, isLoading: loadingReviews } = useQuery({
+    queryKey: ['admin', 'reviews'],
+    queryFn: fetchReviewsAndStats,
+  });
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+  const reviews = data?.reviews ?? [];
+  const reviewStats = data?.reviewStats ?? null;
 
   const filteredReviews = useMemo(
     () =>
@@ -63,9 +66,15 @@ export const useAdminReviews = () => {
       const result = await deleteAppReviewAction(reviewId);
       if (result.ok) {
         toast.success(result.message);
-        setReviews((prev) => prev.filter((r) => r.review_id !== reviewId));
+        queryClient.setQueryData<ReviewsData>(['admin', 'reviews'], (old) =>
+          old ? { ...old, reviews: old.reviews.filter((r) => r.review_id !== reviewId) } : old
+        );
         const statsResult = await fetchReviewStatsAction();
-        if (statsResult.ok && statsResult.data) setReviewStats(statsResult.data);
+        if (statsResult.ok && statsResult.data) {
+          queryClient.setQueryData<ReviewsData>(['admin', 'reviews'], (old) =>
+            old ? { ...old, reviewStats: statsResult.data! } : old
+          );
+        }
       } else {
         toast.error(result.message);
       }
@@ -80,10 +89,15 @@ export const useAdminReviews = () => {
       const result = await toggleReviewFeaturedAction(reviewId, !currentFeatured);
       if (result.ok) {
         toast.success(result.message);
-        setReviews((prev) =>
-          prev.map((r) =>
-            r.review_id === reviewId ? { ...r, is_featured: !currentFeatured } : r
-          )
+        queryClient.setQueryData<ReviewsData>(['admin', 'reviews'], (old) =>
+          old
+            ? {
+                ...old,
+                reviews: old.reviews.map((r) =>
+                  r.review_id === reviewId ? { ...r, is_featured: !currentFeatured } : r
+                ),
+              }
+            : old
         );
       } else {
         toast.error(result.message);

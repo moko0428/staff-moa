@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getReportedPostsAction,
@@ -9,38 +10,23 @@ import {
 } from '../report-actions';
 import type { ReportedPostSummary } from '../report-constants';
 
+async function fetchReportedPosts(): Promise<ReportedPostSummary[]> {
+  const result = await getReportedPostsAction();
+  return result.ok && result.data ? result.data : [];
+}
+
 export const useAdminReports = () => {
-  const [reportedPosts, setReportedPosts] = useState<ReportedPostSummary[]>([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [handledReportPostIds, setHandledReportPostIds] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   const [reportSearch, setReportSearch] = useState('');
 
-  const fetchReports = useCallback(async () => {
-    setLoadingReports(true);
-    try {
-      const result = await getReportedPostsAction();
-      if (result.ok && result.data) {
-        setReportedPosts(result.data);
-      } else {
-        console.error('Failed to load reports:', result.message);
-        setReportedPosts([]);
-      }
-    } catch (err) {
-      console.error('Failed to load reports', err);
-      setReportedPosts([]);
-    } finally {
-      setLoadingReports(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+  const { data: reportedPosts = [], isLoading: loadingReports } = useQuery({
+    queryKey: ['admin', 'reports'],
+    queryFn: fetchReportedPosts,
+  });
 
   const filteredReportedPosts = useMemo(
     () =>
       reportedPosts
-        .filter((item) => !handledReportPostIds.includes(item.post_id.toString()))
         .filter((item) => {
           if (!reportSearch) return true;
           const keyword = reportSearch.toLowerCase();
@@ -51,18 +37,22 @@ export const useAdminReports = () => {
           );
         })
         .sort((a, b) => b.report_count - a.report_count),
-    [reportedPosts, handledReportPostIds, reportSearch]
+    [reportedPosts, reportSearch]
   );
+
+  const removeFromCache = (postId: number) => {
+    queryClient.setQueryData<ReportedPostSummary[]>(
+      ['admin', 'reports'],
+      (old) => (old ? old.filter((r) => r.post_id !== postId) : [])
+    );
+  };
 
   const handleReportDelete = async (postId: number) => {
     try {
       const result = await deleteReportedPostAction(postId);
       if (result.ok) {
         toast.success(result.message);
-        setHandledReportPostIds((prev) =>
-          prev.includes(postId.toString()) ? prev : [...prev, postId.toString()]
-        );
-        setReportedPosts((prev) => prev.filter((r) => r.post_id !== postId));
+        removeFromCache(postId);
       } else {
         toast.error(result.message);
       }
@@ -77,10 +67,7 @@ export const useAdminReports = () => {
       const result = await updateReportStatusAction(postId, 'dismissed');
       if (result.ok) {
         toast.success('신고가 기각되었습니다.');
-        setHandledReportPostIds((prev) =>
-          prev.includes(postId.toString()) ? prev : [...prev, postId.toString()]
-        );
-        setReportedPosts((prev) => prev.filter((r) => r.post_id !== postId));
+        removeFromCache(postId);
       } else {
         toast.error(result.message);
       }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import {
   addDays,
@@ -32,60 +33,29 @@ import type {
   SupabasePost,
 } from '../types';
 
-export function useWorkerSchedule() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
-  const [bottomSheetHeightPx, setBottomSheetHeightPx] = useState<number>(
-    typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.65) : 0
-  );
-  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleWithPost | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-  const [workerPosts, setWorkerPosts] = useState<PostWithApplicationStatus[]>([]);
-  const [personalSchedules, setPersonalSchedules] = useState<PostWithApplicationStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [monthCalendarOpen, setMonthCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
+interface WorkerScheduleData {
+  workerPosts: PostWithApplicationStatus[];
+  personalSchedules: PostWithApplicationStatus[];
+  currentUserId: string | null;
+}
 
-  // Refs for calendar area height calculation
-  const calendarAreaRef = useRef<HTMLDivElement | null>(null);
-  const aboveWeeksRef = useRef<HTMLDivElement | null>(null);
-  const belowWeeksRef = useRef<HTMLDivElement | null>(null);
-  const monthCalendarOpenRef = useRef(monthCalendarOpen);
+async function fetchWorkerScheduleData(): Promise<WorkerScheduleData> {
+  const supabase = createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const currentUserId = authData.user?.id ?? null;
 
-  useEffect(() => {
-    monthCalendarOpenRef.current = monthCalendarOpen;
-  }, [monthCalendarOpen]);
+  if (!currentUserId) {
+    return { workerPosts: [], personalSchedules: [], currentUserId: null };
+  }
 
-  // 현재 사용자 ID 가져오기
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-          setCurrentUserId(data.user.id);
-        }
-      } catch (error) {
-        console.error('Failed to fetch current user:', error);
-      }
-    };
-    fetchCurrentUser();
-  }, []);
+  const [schedulesResult, personalResult] = await Promise.all([
+    getMySchedulesAction(),
+    getPersonalSchedulesAction(),
+  ]);
 
-  // 데이터 가져오기
-  const fetchData = useCallback(async () => {
-    if (!currentUserId) return;
-
-    setIsLoading(true);
-    try {
-      const result = await getMySchedulesAction();
-      if (result.ok && result.data) {
-        const convertedPosts = result.data
+  const workerPosts =
+    schedulesResult.ok && schedulesResult.data
+      ? schedulesResult.data
           .filter((schedule) => schedule.posts !== null)
           .map((schedule) => {
             const post = schedule.posts!;
@@ -96,64 +66,79 @@ export function useWorkerSchedule() {
               applied_at: schedule.created_at,
               application_status: schedule.status,
             } as unknown as SupabasePost);
-          });
-        setWorkerPosts(convertedPosts);
-      }
+          })
+      : [];
 
-      const personalResult = await getPersonalSchedulesAction();
-      if (personalResult.ok && personalResult.data) {
-        const convertedPersonalSchedules = personalResult.data.map(
-          (schedule: Record<string, unknown>) => {
-            const dateStr = schedule.date as string;
-            const startTime = schedule.start_time as string;
-            const endTime = schedule.end_time as string;
+  const personalSchedules =
+    personalResult.ok && personalResult.data
+      ? personalResult.data.map((schedule: Record<string, unknown>) => {
+          const dateStr = schedule.date as string;
+          const startTime = schedule.start_time as string;
+          const endTime = schedule.end_time as string;
+          return {
+            id: `personal-${schedule.personal_schedule_id as string}`,
+            authorId: schedule.user_id as string,
+            authorName: (schedule.manager_name as string) || '개인 일정',
+            status: 'recruiting' as const,
+            title: schedule.title as string,
+            keywords: [],
+            date: dateStr,
+            location: (schedule.location as string) || '',
+            time: `${startTime} - ${endTime}`,
+            salary: (schedule.pay_amount as number) || 0,
+            paymentDate: '',
+            preparation: '',
+            description: (schedule.description as string) || '',
+            managerInfo: {
+              name: (schedule.manager_name as string) || '',
+              contactType: (schedule.manager_contact_type as string) || 'phone',
+              phone: (schedule.manager_phone as string) || '',
+            },
+            recruitCount: 0,
+            currentApplicants: 0,
+            createdAt: schedule.created_at as string,
+            updatedAt: schedule.updated_at as string,
+            applicationStatus: 'accepted' as const,
+            payType:
+              (schedule.pay_type as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily',
+          } as PostWithApplicationStatus;
+        })
+      : [];
 
-            return {
-              id: `personal-${schedule.personal_schedule_id as string}`,
-              authorId: schedule.user_id as string,
-              authorName: (schedule.manager_name as string) || '개인 일정',
-              status: 'recruiting' as const,
-              title: schedule.title as string,
-              keywords: [],
-              date: dateStr,
-              location: (schedule.location as string) || '',
-              time: `${startTime} - ${endTime}`,
-              salary: (schedule.pay_amount as number) || 0,
-              paymentDate: '',
-              preparation: '',
-              description: (schedule.description as string) || '',
-              managerInfo: {
-                name: (schedule.manager_name as string) || '',
-                contactType: (schedule.manager_contact_type as string) || 'phone',
-                phone: (schedule.manager_phone as string) || '',
-              },
-              recruitCount: 0,
-              currentApplicants: 0,
-              createdAt: schedule.created_at as string,
-              updatedAt: schedule.updated_at as string,
-              applicationStatus: 'accepted' as const,
-              payType:
-                (schedule.pay_type as 'hourly' | 'daily' | 'weekly' | 'monthly') || 'daily',
-            } as PostWithApplicationStatus;
-          }
-        );
-        setPersonalSchedules(convertedPersonalSchedules);
-      }
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setWorkerPosts([]);
-      setPersonalSchedules([]);
-    } finally {
-      setIsLoading(false);
-      setIsMounted(true);
-    }
-  }, [currentUserId]);
+  return { workerPosts, personalSchedules, currentUserId };
+}
+
+export function useWorkerSchedule() {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
+  const [bottomSheetHeightPx, setBottomSheetHeightPx] = useState<number>(
+    typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.65) : 0
+  );
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleWithPost | null>(null);
+  const [monthCalendarOpen, setMonthCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const calendarAreaRef = useRef<HTMLDivElement | null>(null);
+  const aboveWeeksRef = useRef<HTMLDivElement | null>(null);
+  const belowWeeksRef = useRef<HTMLDivElement | null>(null);
+  const monthCalendarOpenRef = useRef(monthCalendarOpen);
 
   useEffect(() => {
-    if (currentUserId) {
-      fetchData();
-    }
-  }, [currentUserId, fetchData]);
+    monthCalendarOpenRef.current = monthCalendarOpen;
+  }, [monthCalendarOpen]);
+
+  const { data, isLoading, isSuccess, refetch: fetchData } = useQuery({
+    queryKey: ['worker', 'schedule'],
+    queryFn: fetchWorkerScheduleData,
+  });
+
+  const isMounted = isSuccess;
+  const workerPosts = data?.workerPosts ?? [];
+  const personalSchedules = data?.personalSchedules ?? [];
 
   const today = useMemo(() => {
     const d = new Date();
@@ -161,7 +146,6 @@ export function useWorkerSchedule() {
     return d;
   }, []);
 
-  // 스케줄 상태 분류
   const categorizedSchedules = useMemo((): CategorizedSchedules => {
     if (!isMounted) {
       return { upcoming: [], ongoing: [], completed: [], applications: [] };
@@ -205,7 +189,6 @@ export function useWorkerSchedule() {
         const lastDate = parseISO(dates[dates.length - 1]);
         firstDate.setHours(0, 0, 0, 0);
         lastDate.setHours(0, 0, 0, 0);
-
         if (endTime) {
           lastDate.setHours(endTime.hours, endTime.minutes, 0, 0);
         } else {
@@ -273,7 +256,6 @@ export function useWorkerSchedule() {
     return { upcoming, ongoing, completed, applications };
   }, [workerPosts, personalSchedules, isMounted]);
 
-  // 개인 스케줄 행사 단위 그룹핑 (급여 계산용)
   const groupedScheduleEvents = useMemo(() => {
     const acceptedWorkerSchedules = workerPosts.filter(
       (post) => post.applicationStatus === 'accepted'
@@ -366,7 +348,6 @@ export function useWorkerSchedule() {
     return events;
   }, [workerPosts, personalSchedules]);
 
-  // 급여 계산 (주/월/연)
   const earningsData = useMemo((): EarningsData => {
     if (!isMounted) {
       return {
@@ -401,7 +382,6 @@ export function useWorkerSchedule() {
       dailyItems.forEach((item) => {
         try {
           const scheduleDate = parseISO(item.dateStr);
-
           if (isWithinInterval(scheduleDate, { start: weekStart, end: weekEnd })) {
             thisWeekEarnings += item.dailyPay;
             thisWeekCount++;
@@ -487,7 +467,6 @@ export function useWorkerSchedule() {
     return format(base, 'yyyy.MM');
   }, [monthCalendarOpen, calendarMonth, focusedDate]);
 
-  // Bottom sheet height calculation
   const updateBottomSheetHeight = useCallback(() => {
     const el = calendarAreaRef.current;
     if (!el || typeof window === 'undefined') return;
@@ -524,7 +503,6 @@ export function useWorkerSchedule() {
     return () => window.clearTimeout(t);
   }, [monthCalendarOpen, updateBottomSheetHeight]);
 
-  // 날짜별 스케줄 그룹화
   const schedulesByDate = useMemo(() => {
     const grouped: Record<string, ScheduleWithPost[]> = {};
     const allSchedules = [
@@ -566,7 +544,6 @@ export function useWorkerSchedule() {
     [schedulesByDate]
   );
 
-  // 선택된 날짜 기준 필터링
   const filteredCategorizedSchedules = useMemo((): CategorizedSchedules => {
     const dateForFilter = selectedDate ?? today;
     const selectedDateStr = format(dateForFilter, 'yyyy-MM-dd');
@@ -604,7 +581,6 @@ export function useWorkerSchedule() {
   );
 
   return {
-    // State
     selectedDate,
     addScheduleOpen,
     setAddScheduleOpen,
@@ -616,13 +592,9 @@ export function useWorkerSchedule() {
     monthCalendarOpen,
     setMonthCalendarOpen,
     today,
-
-    // Refs
     calendarAreaRef,
     aboveWeeksRef,
     belowWeeksRef,
-
-    // Computed
     earningsData,
     filteredCategorizedSchedules,
     currentRowDates,
@@ -630,8 +602,6 @@ export function useWorkerSchedule() {
     expandedBelowWeeks,
     headerMonthLabel,
     calendarMonth,
-
-    // Handlers
     handleScheduleClick,
     handleDateSelect,
     navigateBySwipe,

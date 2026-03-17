@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserStore } from '@/store/useUserStore';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
@@ -21,111 +22,93 @@ import { supabasePostToPost } from '../utils/postConverters';
 import type { SortOrder, SupabasePost, ManagerInfo, ProfileModalUser } from '../types';
 import type { Post } from '@/types/mockData';
 
+interface FavoritData {
+  favoritePosts: Post[];
+  matchedPosts: Post[];
+  favoriteKeywords: string[];
+  activeKeywords: string[];
+  followedManagerIds: string[];
+  activeManagers: ManagerInfo[];
+  currentUserId: string | undefined;
+}
+
+async function fetchFavoritData(): Promise<FavoritData> {
+  const supabase = createClient();
+  const { data: authData } = await supabase.auth.getUser();
+
+  const [
+    favResult,
+    kwResult,
+    activeKwResult,
+    followedResult,
+    activeManagersResult,
+    matchedResult,
+  ] = await Promise.all([
+    getFavoritePostsAction(),
+    getFavoriteKeywordsAction(),
+    getActivePostKeywordsAction(),
+    getFollowedManagersAction(),
+    getActiveManagersFromPostsAction(),
+    getMatchedPostsForFavoritesAction(),
+  ]);
+
+  return {
+    currentUserId: authData.user?.id,
+    favoritePosts:
+      favResult.ok && favResult.data
+        ? favResult.data.map((post) => supabasePostToPost(post as SupabasePost))
+        : [],
+    matchedPosts:
+      matchedResult.ok && matchedResult.data
+        ? matchedResult.data.map((post) => supabasePostToPost(post as SupabasePost))
+        : [],
+    favoriteKeywords: kwResult.ok ? (kwResult.data || []) : [],
+    activeKeywords: activeKwResult.ok ? (activeKwResult.data || []) : [],
+    followedManagerIds: followedResult.ok ? (followedResult.data || []) : [],
+    activeManagers: activeManagersResult.ok ? (activeManagersResult.data || []) : [],
+  };
+}
+
 export function useFavorit() {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
+  const queryClient = useQueryClient();
 
-  const [favoritePosts, setFavoritePosts] = useState<Post[]>([]);
-  const [matchedPosts, setMatchedPosts] = useState<Post[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMatched, setIsLoadingMatched] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-
-  const [favoriteKeywords, setFavoriteKeywords] = useState<string[]>([]);
-  const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
-  const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
-
-  const [followedManagerIds, setFollowedManagerIds] = useState<string[]>([]);
-  const [activeManagers, setActiveManagers] = useState<ManagerInfo[]>([]);
   const [managerSearch, setManagerSearch] = useState('');
-  const [isLoadingManagers, setIsLoadingManagers] = useState(false);
-
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalUser, setProfileModalUser] = useState<ProfileModalUser | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['favorit'],
+    queryFn: fetchFavoritData,
+    enabled: isMember && roleHydrated,
+  });
+
+  const favoritePosts = data?.favoritePosts ?? [];
+  const matchedPosts = data?.matchedPosts ?? [];
+  const favoriteKeywords = data?.favoriteKeywords ?? [];
+  const activeKeywords = data?.activeKeywords ?? [];
+  const followedManagerIds = data?.followedManagerIds ?? [];
+  const activeManagers = data?.activeManagers ?? [];
+  const currentUserId = data?.currentUserId;
+
+  // 외부(JobCard 등)에서 즐겨찾기 변경 시 캐시 갱신
   useEffect(() => {
-    const fetchFavoritePosts = async () => {
-      if (!isMember || !roleHydrated) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const result = await getFavoritePostsAction();
-        if (result.ok && result.data) {
-          setFavoritePosts(result.data.map((post) => supabasePostToPost(post as SupabasePost)));
-        } else {
-          setFavoritePosts([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch favorite posts:', error);
-        setFavoritePosts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const handleUpdate = () =>
+      queryClient.invalidateQueries({ queryKey: ['favorit'] });
+    window.addEventListener('favorites-updated', handleUpdate);
+    return () => window.removeEventListener('favorites-updated', handleUpdate);
+  }, [queryClient]);
 
-    fetchFavoritePosts();
-
-    const handleFavoritesUpdate = () => fetchFavoritePosts();
-    window.addEventListener('favorites-updated', handleFavoritesUpdate);
-    return () => window.removeEventListener('favorites-updated', handleFavoritesUpdate);
-  }, [isMember, roleHydrated]);
-
-  useEffect(() => {
-    const fetchMe = async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setCurrentUserId(data.user?.id);
-      } catch {
-        // noop
-      }
-    };
-    fetchMe();
-  }, []);
-
-  useEffect(() => {
-    const fetchExtras = async () => {
-      if (!isMember || !roleHydrated) return;
-      setIsLoadingKeywords(true);
-      setIsLoadingManagers(true);
-      setIsLoadingMatched(true);
-      try {
-        const [kwResult, activeKwResult, followedResult, activeManagersResult, matchedResult] =
-          await Promise.all([
-            getFavoriteKeywordsAction(),
-            getActivePostKeywordsAction(),
-            getFollowedManagersAction(),
-            getActiveManagersFromPostsAction(),
-            getMatchedPostsForFavoritesAction(),
-          ]);
-
-        if (kwResult.ok) setFavoriteKeywords(kwResult.data || []);
-        if (activeKwResult.ok) setActiveKeywords(activeKwResult.data || []);
-        if (followedResult.ok) setFollowedManagerIds(followedResult.data || []);
-        if (activeManagersResult.ok) setActiveManagers(activeManagersResult.data || []);
-
-        if (matchedResult.ok && matchedResult.data) {
-          setMatchedPosts(matchedResult.data.map((post) => supabasePostToPost(post as SupabasePost)));
-        } else {
-          setMatchedPosts([]);
-        }
-      } catch (e) {
-        console.error('Failed to fetch favorites extras:', e);
-      } finally {
-        setIsLoadingKeywords(false);
-        setIsLoadingManagers(false);
-        setIsLoadingMatched(false);
-      }
-    };
-
-    fetchExtras();
-  }, [isMember, roleHydrated]);
+  const updateCache = (updater: (old: FavoritData) => FavoritData) => {
+    queryClient.setQueryData<FavoritData>(['favorit'], (old) =>
+      old ? updater(old) : old
+    );
+  };
 
   const handleAddKeyword = async () => {
     const v = newKeyword.trim();
@@ -135,8 +118,12 @@ export function useFavorit() {
       toast.error(result.message);
       return;
     }
-    const refreshed = await getFavoriteKeywordsAction();
-    if (refreshed.ok) setFavoriteKeywords(refreshed.data || []);
+    updateCache((old) => ({
+      ...old,
+      favoriteKeywords: old.favoriteKeywords.includes(v)
+        ? old.favoriteKeywords
+        : [...old.favoriteKeywords, v],
+    }));
     setNewKeyword('');
   };
 
@@ -146,7 +133,10 @@ export function useFavorit() {
       toast.error(result.message);
       return;
     }
-    setFavoriteKeywords((prev) => prev.filter((k) => k !== kw));
+    updateCache((old) => ({
+      ...old,
+      favoriteKeywords: old.favoriteKeywords.filter((k) => k !== kw),
+    }));
   };
 
   const handleAddKeywordFromSuggestion = async (kw: string) => {
@@ -155,7 +145,12 @@ export function useFavorit() {
       toast.error(r.message);
       return;
     }
-    setFavoriteKeywords((prev) => (prev.includes(kw) ? prev : [...prev, kw]));
+    updateCache((old) => ({
+      ...old,
+      favoriteKeywords: old.favoriteKeywords.includes(kw)
+        ? old.favoriteKeywords
+        : [...old.favoriteKeywords, kw],
+    }));
   };
 
   const handleFollowManager = async (managerId: string) => {
@@ -164,7 +159,12 @@ export function useFavorit() {
       toast.error(result.message);
       return;
     }
-    setFollowedManagerIds((prev) => (prev.includes(managerId) ? prev : [...prev, managerId]));
+    updateCache((old) => ({
+      ...old,
+      followedManagerIds: old.followedManagerIds.includes(managerId)
+        ? old.followedManagerIds
+        : [...old.followedManagerIds, managerId],
+    }));
   };
 
   const handleUnfollowManager = async (managerId: string) => {
@@ -173,7 +173,10 @@ export function useFavorit() {
       toast.error(result.message);
       return;
     }
-    setFollowedManagerIds((prev) => prev.filter((id) => id !== managerId));
+    updateCache((old) => ({
+      ...old,
+      followedManagerIds: old.followedManagerIds.filter((id) => id !== managerId),
+    }));
   };
 
   const openManagerProfile = async (managerId: string) => {
@@ -232,7 +235,7 @@ export function useFavorit() {
     favoritePosts,
     matchedPosts,
     isLoading,
-    isLoadingMatched,
+    isLoadingMatched: isLoading,
     searchTerm,
     setSearchTerm,
     sortOrder,
@@ -241,12 +244,12 @@ export function useFavorit() {
     activeKeywords,
     newKeyword,
     setNewKeyword,
-    isLoadingKeywords,
+    isLoadingKeywords: isLoading,
     followedManagerIds,
     activeManagers,
     managerSearch,
     setManagerSearch,
-    isLoadingManagers,
+    isLoadingManagers: isLoading,
     profileModalOpen,
     setProfileModalOpen,
     profileModalUser,

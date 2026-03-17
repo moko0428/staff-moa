@@ -8,6 +8,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from './components/ui/sonner';
 import GoogleAnalyticsRouteTracker from '@/app/components/GoogleAnalyticsRouteTracker';
 import SwRegister from '@/app/components/SwRegister';
+import Providers from './providers';
 
 export const metadata: Metadata = {
   title: {
@@ -125,17 +126,19 @@ export default function RootLayout({
             }),
           }}
         />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <main>{children}</main>
-          <Toaster />
-          <Analytics />
-          <SwRegister />
-        </ThemeProvider>
+        <Providers>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <main>{children}</main>
+            <Toaster />
+            <Analytics />
+            <SwRegister />
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

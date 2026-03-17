@@ -1,33 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchMembersAction, type AdminMemberItem } from '../admin-data-actions';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchMembersAction } from '../admin-data-actions';
 
 export const useAdminMembers = () => {
-  const [members, setMembers] = useState<AdminMemberItem[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [bannedUserIds, setBannedUserIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberRoleFilter, setMemberRoleFilter] = useState<
     'all' | 'member' | 'manager' | 'banned'
   >('all');
 
-  const fetchMembers = useCallback(async () => {
-    setLoadingMembers(true);
-    try {
-      const data = await fetchMembersAction();
-      setMembers(data);
-    } catch (err) {
-      console.error('Failed to load members', err);
-      setMembers([]);
-    } finally {
-      setLoadingMembers(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
+    queryKey: ['admin', 'members'],
+    queryFn: fetchMembersAction,
+  });
 
   const filteredMembers = useMemo(
     () =>

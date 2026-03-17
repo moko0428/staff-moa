@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { parseISO } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import { getMyPostsAction } from '@/app/(protected)/my-post/actions';
@@ -24,100 +25,88 @@ type ApplicantMap = Record<
   }>
 >;
 
+interface ScheduleData {
+  currentUserId: string | null;
+  managerPosts: Post[];
+  applicantsData: ApplicantMap;
+}
+
+async function fetchScheduleData(): Promise<ScheduleData> {
+  const supabase = createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const currentUserId = authData.user?.id ?? null;
+
+  if (!currentUserId) return { currentUserId: null, managerPosts: [], applicantsData: {} };
+
+  const result = await getMyPostsAction();
+  if (!result.ok || !result.data) {
+    return { currentUserId, managerPosts: [], applicantsData: {} };
+  }
+
+  const convertedPosts = result.data.map((post) =>
+    supabasePostToPost(post as SupabasePost)
+  );
+
+  const applicantsMap: ApplicantMap = {};
+
+  await Promise.all(
+    convertedPosts.map(async (post) => {
+      try {
+        const postIdNum = Number(post.id);
+        if (isNaN(postIdNum)) return;
+
+        const { data: schedules } = await supabase
+          .from('member_schedules')
+          .select('member_schedule_id, member_id')
+          .eq('post_id', postIdNum)
+          .eq('status', 'accepted');
+
+        if (schedules && schedules.length > 0) {
+          const memberIds = schedules.map((s) => s.member_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, name, avatar, phone, kakao_id, gender')
+            .in('user_id', memberIds);
+
+          if (profiles) {
+            applicantsMap[post.id] = schedules.map((schedule) => {
+              const profile = profiles.find((p) => p.user_id === schedule.member_id);
+              return {
+                userId: schedule.member_id,
+                userName: profile?.name || '알 수 없음',
+                applicationId: schedule.member_schedule_id.toString(),
+                avatar: profile?.avatar || undefined,
+                phone: profile?.phone || undefined,
+                kakaoId: profile?.kakao_id || undefined,
+                gender: profile?.gender || undefined,
+              };
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch applicants for post ${post.id}:`, error);
+      }
+    })
+  );
+
+  return { currentUserId, managerPosts: convertedPosts, applicantsData: applicantsMap };
+}
+
 export const useManagerScheduleData = () => {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [managerPosts, setManagerPosts] = useState<Post[]>([]);
-  const [applicantsData, setApplicantsData] = useState<ApplicantMap>({});
   const [reviews, setReviews] = useState<AttendanceReview[]>([]);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleWithPost | null>(null);
   const [selectedDetailSchedule, setSelectedDetailSchedule] = useState<ScheduleWithPost | null>(null);
 
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        if (data.user) setCurrentUserId(data.user.id);
-      } catch (error) {
-        console.error('Failed to fetch current user:', error);
-      }
-    };
-    fetchCurrentUser();
-  }, []);
+  const { data, isLoading, isSuccess } = useQuery({
+    queryKey: ['manager', 'schedule'],
+    queryFn: fetchScheduleData,
+  });
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      if (!currentUserId) return;
-      setIsLoading(true);
-      try {
-        const result = await getMyPostsAction();
-        if (result.ok && result.data) {
-          const convertedPosts = result.data.map((post) =>
-            supabasePostToPost(post as SupabasePost)
-          );
-          setManagerPosts(convertedPosts);
-
-          const supabase = createClient();
-          const applicantsMap: ApplicantMap = {};
-
-          await Promise.all(
-            convertedPosts.map(async (post) => {
-              try {
-                const postIdNum = Number(post.id);
-                if (isNaN(postIdNum)) return;
-
-                const { data: schedules } = await supabase
-                  .from('member_schedules')
-                  .select('member_schedule_id, member_id')
-                  .eq('post_id', postIdNum)
-                  .eq('status', 'accepted');
-
-                if (schedules && schedules.length > 0) {
-                  const memberIds = schedules.map((s) => s.member_id);
-                  const { data: profiles } = await supabase
-                    .from('profiles')
-                    .select('user_id, name, avatar, phone, kakao_id, gender')
-                    .in('user_id', memberIds);
-
-                  if (profiles) {
-                    applicantsMap[post.id] = schedules.map((schedule) => {
-                      const profile = profiles.find(
-                        (p) => p.user_id === schedule.member_id
-                      );
-                      return {
-                        userId: schedule.member_id,
-                        userName: profile?.name || '알 수 없음',
-                        applicationId: schedule.member_schedule_id.toString(),
-                        avatar: profile?.avatar || undefined,
-                        phone: profile?.phone || undefined,
-                        kakaoId: profile?.kakao_id || undefined,
-                        gender: profile?.gender || undefined,
-                      };
-                    });
-                  }
-                }
-              } catch (error) {
-                console.error(`Failed to fetch applicants for post ${post.id}:`, error);
-              }
-            })
-          );
-
-          setApplicantsData(applicantsMap);
-        }
-      } catch (error) {
-        console.error('Failed to fetch posts:', error);
-        setManagerPosts([]);
-      } finally {
-        setIsLoading(false);
-        setIsMounted(true);
-      }
-    };
-
-    if (currentUserId) fetchPosts();
-  }, [currentUserId]);
+  const isMounted = isSuccess;
+  const currentUserId = data?.currentUserId ?? null;
+  const managerPosts = data?.managerPosts ?? [];
+  const applicantsData = data?.applicantsData ?? {};
 
   const categorizedSchedules = useMemo(() => {
     if (!isMounted) return { upcoming: [], ongoing: [], completed: [] };

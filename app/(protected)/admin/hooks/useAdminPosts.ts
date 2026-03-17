@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { fetchPostsAction, type AdminPostItem } from '../admin-data-actions';
 
 export const useAdminPosts = () => {
-  const [posts, setPosts] = useState<AdminPostItem[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(false);
   const [deletedPostIds, setDeletedPostIds] = useState<string[]>([]);
   const [postSearch, setPostSearch] = useState('');
   const [postStatusFilter, setPostStatusFilter] = useState<
@@ -13,22 +12,10 @@ export const useAdminPosts = () => {
   >('all');
   const [selectedPost, setSelectedPost] = useState<AdminPostItem | null>(null);
 
-  const fetchPosts = useCallback(async () => {
-    setLoadingPosts(true);
-    try {
-      const data = await fetchPostsAction();
-      setPosts(data);
-    } catch (err) {
-      console.error('Failed to load posts', err);
-      setPosts([]);
-    } finally {
-      setLoadingPosts(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  const { data: posts = [], isLoading: loadingPosts } = useQuery({
+    queryKey: ['admin', 'posts'],
+    queryFn: fetchPostsAction,
+  });
 
   const visiblePosts = useMemo(
     () => posts.filter((post) => !deletedPostIds.includes(post.id)),

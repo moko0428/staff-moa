@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
 import {
@@ -22,30 +23,26 @@ const EMPTY_FORM: PopupFormState = {
   is_active: false,
 };
 
+async function fetchPopups(): Promise<LandingPopup[]> {
+  const result = await getPopupsAction();
+  return result.ok && result.data ? result.data : [];
+}
+
 export const useAdminPopups = () => {
-  const [popups, setPopups] = useState<LandingPopup[]>([]);
-  const [loadingPopups, setLoadingPopups] = useState(false);
+  const queryClient = useQueryClient();
   const [editingPopup, setEditingPopup] = useState<LandingPopup | null>(null);
   const [popupForm, setPopupForm] = useState<PopupFormState>(EMPTY_FORM);
   const [popupSaving, setPopupSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const popupImageInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchPopups = useCallback(async () => {
-    setLoadingPopups(true);
-    try {
-      const result = await getPopupsAction();
-      if (result.ok && result.data) setPopups(result.data);
-    } catch (err) {
-      console.error('Failed to load popups', err);
-    } finally {
-      setLoadingPopups(false);
-    }
-  }, []);
+  const { data: popups = [], isLoading: loadingPopups } = useQuery({
+    queryKey: ['admin', 'popups'],
+    queryFn: fetchPopups,
+  });
 
-  useEffect(() => {
-    fetchPopups();
-  }, [fetchPopups]);
+  const invalidatePopups = () =>
+    queryClient.invalidateQueries({ queryKey: ['admin', 'popups'] });
 
   const resetPopupForm = () => {
     setEditingPopup(null);
@@ -74,11 +71,12 @@ export const useAdminPopups = () => {
     setImageUploading(true);
     try {
       const supabase = createBrowserClient();
-      const safeName = file.name
-        .normalize('NFKD')
-        .replace(/[^\w.-]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '') || `file-${Date.now()}`;
+      const safeName =
+        file.name
+          .normalize('NFKD')
+          .replace(/[^\w.-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '') || `file-${Date.now()}`;
       const filePath = `admin/popups/${Date.now()}-${safeName}`;
       const { error } = await supabase.storage
         .from('profiles')
@@ -131,7 +129,7 @@ export const useAdminPopups = () => {
       if (result.ok) {
         toast.success(result.message);
         resetPopupForm();
-        await fetchPopups();
+        await invalidatePopups();
       } else {
         toast.error(result.message);
       }
@@ -148,7 +146,10 @@ export const useAdminPopups = () => {
       if (result.ok) {
         toast.success(result.message);
         if (editingPopup?.popup_id === popupId) resetPopupForm();
-        setPopups((prev) => prev.filter((p) => p.popup_id !== popupId));
+        queryClient.setQueryData<LandingPopup[]>(
+          ['admin', 'popups'],
+          (old) => (old ? old.filter((p) => p.popup_id !== popupId) : [])
+        );
       } else {
         toast.error(result.message);
       }
@@ -162,7 +163,7 @@ export const useAdminPopups = () => {
       const result = await togglePopupActiveAction(popupId, activate);
       if (result.ok) {
         toast.success(result.message);
-        await fetchPopups();
+        await invalidatePopups();
       } else {
         toast.error(result.message);
       }

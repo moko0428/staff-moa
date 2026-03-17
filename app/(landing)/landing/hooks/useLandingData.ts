@@ -1,21 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   getLandingStatsAction,
   getTopReviewsAction,
-  type LandingStats,
-  type LandingReview,
 } from '../actions';
-import { getActivePopupAction, type LandingPopup } from '../popup-actions';
+import { getActivePopupAction } from '../popup-actions';
+
+async function fetchLandingData() {
+  const [statsResult, reviewsResult, popupResult] = await Promise.all([
+    getLandingStatsAction(),
+    getTopReviewsAction(),
+    getActivePopupAction(),
+  ]);
+  return {
+    stats: statsResult.ok && statsResult.data ? statsResult.data : null,
+    topReviews: reviewsResult.ok && reviewsResult.data ? reviewsResult.data : [],
+    activePopup: popupResult.ok && popupResult.data ? popupResult.data : null,
+  };
+}
 
 export const useLandingData = () => {
   const router = useRouter();
-  const [stats, setStats] = useState<LandingStats | null>(null);
-  const [topReviews, setTopReviews] = useState<LandingReview[]>([]);
-  const [activePopup, setActivePopup] = useState<LandingPopup | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // 이미 로그인한 사용자는 공고 페이지로 리디렉션
   useEffect(() => {
@@ -25,22 +33,16 @@ export const useLandingData = () => {
     if (authed) router.replace('/post');
   }, [router]);
 
-  // 통계, 후기, 팝업 병렬 fetch
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-const [statsResult, reviewsResult, popupResult] = await Promise.all([
-        getLandingStatsAction(),
-        getTopReviewsAction(),
-        getActivePopupAction(),
-      ]);
-      if (statsResult.ok && statsResult.data) setStats(statsResult.data);
-      if (reviewsResult.ok && reviewsResult.data) setTopReviews(reviewsResult.data);
-      if (popupResult.ok && popupResult.data) setActivePopup(popupResult.data);
-      setIsLoading(false);
-    };
-    load();
-  }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: ['landing'],
+    queryFn: fetchLandingData,
+    staleTime: 1000 * 60 * 5, // 5분
+  });
 
-  return { stats, topReviews, activePopup, isLoading };
+  return {
+    stats: data?.stats ?? null,
+    topReviews: data?.topReviews ?? [],
+    activePopup: data?.activePopup ?? null,
+    isLoading,
+  };
 };

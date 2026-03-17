@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Filters } from '../components/organisms/PostingFilter';
 import type { JobItem } from '@/app/components/JobCard';
 import { getAllPostsAction, getUserPostStateAction } from '../actions';
@@ -12,49 +13,52 @@ const STATUS_PRIORITY: Record<JobItem['status'], number> = {
   모집완료: 2,
 };
 
+async function fetchPostsWithUserState() {
+  const [postsResult, userStateResult] = await Promise.all([
+    getAllPostsAction(),
+    getUserPostStateAction(),
+  ]);
+
+  const userState = userStateResult.data ?? {
+    userId: null,
+    userName: null,
+    favoriteIds: [],
+    appliedIds: [],
+  };
+
+  const rawPosts = postsResult.ok && postsResult.data ? postsResult.data : [];
+  const postItems: PostItem[] = rawPosts.map((raw) =>
+    supabasePostToPostItem(raw as SupabasePost)
+  );
+  const jobItems: JobItem[] = postItems.map((item) => ({
+    ...postItemToJobItem(item),
+    applied: userState.appliedIds.includes(item.id),
+    isFavorite: userState.favoriteIds.includes(item.id),
+  }));
+
+  return { postItems, jobItems, userState };
+}
+
 export const usePostList = (filters: Filters) => {
-  const [postItems, setPostItems] = useState<PostItem[]>([]);
-  const [jobItems, setJobItems] = useState<JobItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [preloadedUser, setPreloadedUser] = useState<{ id: string; name: string } | null>(null);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPostsWithUserState,
+    staleTime: 1000 * 60 * 2, // 2분 캐시
+  });
 
-  const fetchPosts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [postsResult, userStateResult] = await Promise.all([
-        getAllPostsAction(),
-        getUserPostStateAction(),
-      ]);
+  const postItems = data?.postItems ?? [];
+  const jobItems = data?.jobItems ?? [];
+  const userState = data?.userState ?? { userId: null, userName: null, favoriteIds: [], appliedIds: [] };
 
-      const userState = userStateResult.data ?? { userId: null, userName: null, favoriteIds: [], appliedIds: [] };
-
-      if (userState.userId && userState.userName) {
-        setPreloadedUser({ id: userState.userId, name: userState.userName });
-      } else if (userState.userId) {
-        setPreloadedUser({ id: userState.userId, name: '' });
-      } else {
-        setPreloadedUser(null);
-      }
-
-      if (postsResult.ok && postsResult.data) {
-        const converted = postsResult.data.map((raw) =>
-          supabasePostToPostItem(raw as SupabasePost)
-        );
-        setPostItems(converted);
-        setJobItems(converted.map((item) => ({
-          ...postItemToJobItem(item),
-          applied: userState.appliedIds.includes(item.id),
-          isFavorite: userState.favoriteIds.includes(item.id),
-        })));
-      }
-    } finally {
-      setIsLoading(false);
+  const preloadedUser = useMemo(() => {
+    if (userState.userId && userState.userName) {
+      return { id: userState.userId, name: userState.userName };
     }
-  }, []);
-
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    if (userState.userId) {
+      return { id: userState.userId, name: '' };
+    }
+    return null;
+  }, [userState.userId, userState.userName]);
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -144,5 +148,15 @@ export const usePostList = (filters: Filters) => {
     return Array.from(dateSet);
   }, [postItems]);
 
-  return { filtered, isLoading, allCategories, allLocations, allSalaries, activeDates, allItems: jobItems, refetch: fetchPosts, preloadedUser };
+  return {
+    filtered,
+    isLoading,
+    allCategories,
+    allLocations,
+    allSalaries,
+    activeDates,
+    allItems: jobItems,
+    refetch,
+    preloadedUser,
+  };
 };

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   fetchPendingManagersAction,
@@ -9,45 +10,25 @@ import {
 } from '../manager-actions';
 
 export const useAdminManagers = () => {
-  const [pendingManagers, setPendingManagers] = useState<PendingManager[]>([]);
-  const [loadingManagers, setLoadingManagers] = useState(false);
-  const [approvedManagerIds, setApprovedManagerIds] = useState<string[]>([]);
-  const [rejectedManagerIds, setRejectedManagerIds] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   const [managerSearch, setManagerSearch] = useState('');
 
-  const fetchPendingManagers = useCallback(async () => {
-    setLoadingManagers(true);
-    try {
-      const mapped = await fetchPendingManagersAction();
-      setPendingManagers(mapped);
-    } catch (err) {
-      console.error('Failed to load manager requests', err);
-      setPendingManagers([]);
-    } finally {
-      setLoadingManagers(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPendingManagers();
-  }, [fetchPendingManagers]);
+  const { data: pendingManagers = [], isLoading: loadingManagers } = useQuery({
+    queryKey: ['admin', 'managers'],
+    queryFn: fetchPendingManagersAction,
+  });
 
   const filteredPendingManagers = useMemo(
     () =>
-      pendingManagers
-        .filter(
-          (req) =>
-            !approvedManagerIds.includes(req.id) && !rejectedManagerIds.includes(req.id)
-        )
-        .filter((req) => {
-          if (!managerSearch) return true;
-          const keyword = managerSearch.toLowerCase();
-          return (
-            req.name.toLowerCase().includes(keyword) ||
-            req.email.toLowerCase().includes(keyword)
-          );
-        }),
-    [pendingManagers, approvedManagerIds, rejectedManagerIds, managerSearch]
+      pendingManagers.filter((req) => {
+        if (!managerSearch) return true;
+        const keyword = managerSearch.toLowerCase();
+        return (
+          req.name.toLowerCase().includes(keyword) ||
+          req.email.toLowerCase().includes(keyword)
+        );
+      }),
+    [pendingManagers, managerSearch]
   );
 
   const handleManagerDecision = async (
@@ -56,12 +37,11 @@ export const useAdminManagers = () => {
   ) => {
     try {
       await updateManagerStatusAction(req.id, decision);
-      if (decision === 'approve') {
-        setApprovedManagerIds((prev) => (prev.includes(req.id) ? prev : [...prev, req.id]));
-      } else {
-        setRejectedManagerIds((prev) => (prev.includes(req.id) ? prev : [...prev, req.id]));
-      }
-      setPendingManagers((prev) => prev.filter((r) => r.id !== req.id));
+      // 캐시에서 해당 매니저 즉시 제거
+      queryClient.setQueryData<PendingManager[]>(
+        ['admin', 'managers'],
+        (old) => (old ? old.filter((r) => r.id !== req.id) : [])
+      );
     } catch (err) {
       console.error('Failed to update manager status', err);
       toast.error('승인/거절 처리에 실패했습니다. 다시 시도해주세요.');
