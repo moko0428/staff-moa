@@ -32,7 +32,7 @@ export async function addFavoriteAction(
     // 이미 관심목록에 있는지 확인
     const { data: existing } = await supabase
       .from('favorites_posts')
-      .select('*')
+      .select('post_id')
       .eq('user_id', userData.user.id)
       .eq('post_id', postIdNum)
       .single();
@@ -219,7 +219,7 @@ export async function checkFavoriteAction(
 
     const { data, error } = await supabase
       .from('favorites_posts')
-      .select('*')
+      .select('post_id')
       .eq('user_id', userData.user.id)
       .eq('post_id', postIdNum)
       .single();

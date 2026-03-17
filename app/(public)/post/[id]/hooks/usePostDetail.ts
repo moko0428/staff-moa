@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import { toast } from 'sonner';
@@ -8,14 +9,10 @@ import { getPublicPostByIdAction } from '../../actions';
 import {
   addFavoriteAction,
   removeFavoriteAction,
-  checkFavoriteAction,
   getProfileForModalAction,
 } from '@/app/(protected)/worker/favorit/actions';
-import {
-  applyToPostAction,
-  checkAppliedToPostAction,
-} from '@/app/(protected)/worker/schedule/actions';
-import { checkReportAction } from '@/app/(protected)/admin/report-actions';
+import { applyToPostAction } from '@/app/(protected)/worker/schedule/actions';
+import { getUserPostInteractionAction } from '../actions';
 import { deletePostAction } from '@/app/(protected)/my-post/actions';
 import { PostData } from '../types';
 import { User } from '@/types/mockData';
@@ -41,8 +38,6 @@ export const usePostDetail = (id: string) => {
   const isMember = role === 'member';
   const isManager = role === 'manager';
 
-  const [post, setPost] = useState<PostData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -55,32 +50,23 @@ export const usePostDetail = (id: string) => {
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [profileModalUser, setProfileModalUser] = useState<ProfileModalUser | null>(null);
 
+  // 공고 데이터 로드 (React Query 캐싱)
+  const { data: post = null, isLoading } = useQuery({
+    queryKey: ['post', id],
+    queryFn: async () => {
+      const result = await getPublicPostByIdAction(id);
+      if (result.ok && result.data) return result.data as PostData;
+      throw new Error(result.message || 'Failed to fetch post');
+    },
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
   // 로그인 완료 시 로그인 유도 모달 자동 닫기
   useEffect(() => {
     if (currentUserId && loginPromptOpen) {
       setLoginPromptOpen(false);
     }
   }, [currentUserId, loginPromptOpen]);
-
-  // 공고 데이터 로드
-  useEffect(() => {
-    const fetchPost = async () => {
-      setIsLoading(true);
-      try {
-        const result = await getPublicPostByIdAction(id);
-        if (result.ok && result.data) {
-          setPost(result.data as PostData);
-        } else {
-          console.error('Failed to fetch post:', result.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch post:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPost();
-  }, [id]);
 
   // 현재 사용자 정보 로드
   useEffect(() => {
@@ -93,7 +79,7 @@ export const usePostDetail = (id: string) => {
           setCurrentUserId(data.user.id);
           const { data: profile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('name, email, role, phone, kakao_id, gender, mbti, personality, experiences, documents, attendance_score, created_at')
             .eq('user_id', data.user.id)
             .single();
           if (profile) {
@@ -125,50 +111,26 @@ export const usePostDetail = (id: string) => {
     fetchCurrentUser();
   }, []);
 
-  // 관심 목록 상태 확인
-  useEffect(() => {
-    if (currentUserId && roleHydrated && isMember && post) {
-      const checkFavorite = async () => {
-        try {
-          const result = await checkFavoriteAction(post.post_id.toString());
-          if (result.ok) setIsFavorite(result.data || false);
-        } catch (error) {
-          console.error('Failed to check favorite:', error);
-        }
-      };
-      checkFavorite();
-    }
-  }, [currentUserId, post, roleHydrated, isMember]);
-
-  // 지원 여부 확인
-  useEffect(() => {
-    if (currentUserId && roleHydrated && isMember && post) {
-      const checkApplied = async () => {
-        try {
-          const result = await checkAppliedToPostAction(post.post_id);
-          if (result.ok && result.data) setHasApplied(result.data.applied);
-        } catch (error) {
-          console.error('Failed to check applied:', error);
-        }
-      };
-      checkApplied();
-    }
-  }, [currentUserId, post, roleHydrated, isMember]);
-
-  // 신고 여부 확인
+  // 관심/지원/신고 여부 일괄 확인 (3콜 → 1콜)
   useEffect(() => {
     if (currentUserId && roleHydrated && post) {
-      const checkReport = async () => {
+      const checkInteraction = async () => {
         try {
-          const result = await checkReportAction(post.post_id);
-          if (result.ok) setHasReported(result.data || false);
+          const result = await getUserPostInteractionAction(post.post_id);
+          if (result.ok && result.data) {
+            if (isMember) {
+              setIsFavorite(result.data.isFavorite);
+              setHasApplied(result.data.hasApplied);
+            }
+            setHasReported(result.data.hasReported);
+          }
         } catch (error) {
-          console.error('Failed to check report:', error);
+          console.error('Failed to check post interaction:', error);
         }
       };
-      checkReport();
+      checkInteraction();
     }
-  }, [currentUserId, post, roleHydrated]);
+  }, [currentUserId, post, roleHydrated, isMember]);
 
   const toggleFavorite = async () => {
     if (!isMember || !currentUserId || !roleHydrated || !post) return;

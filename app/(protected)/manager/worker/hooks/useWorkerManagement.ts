@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   getApplicantsAction,
   getManagedWorkersAction,
-  getWorkerManagementAction,
+  getWorkerManagementBatchAction,
   updateApplicantStatusAction,
   toggleFavoriteAction,
   toggleBlacklistAction,
@@ -36,26 +36,10 @@ async function fetchWorkerData(): Promise<ApplicationWithPost[]> {
         )
       : [];
 
-  const managementResults = await Promise.all(
-    convertedData.map(async (app) => {
-      const mgmtResult = await getWorkerManagementAction(app.applicantId);
-      return {
-        workerId: app.applicantId,
-        data: mgmtResult.ok ? mgmtResult.data : {},
-      };
-    })
-  );
-
-  const managementMap: Record<string, ApplicationWithPost['workerManagement']> = {};
-  managementResults.forEach((result) => {
-    const data = result.data as {
-      rating?: number | null;
-      notes?: string | null;
-      is_favorite?: boolean;
-      is_blacklisted?: boolean;
-    };
-    managementMap[result.workerId] = data;
-  });
+  const applicantIds = convertedData.map((app) => app.applicantId);
+  const batchResult = await getWorkerManagementBatchAction(applicantIds);
+  const managementMap: Record<string, ApplicationWithPost['workerManagement']> =
+    batchResult.ok && batchResult.data ? batchResult.data : {};
 
   const applicationsWithManagement = convertedData.map((app) => ({
     ...app,

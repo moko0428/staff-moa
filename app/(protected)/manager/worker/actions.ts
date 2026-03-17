@@ -387,7 +387,7 @@ export async function getWorkerManagementAction(
     // 워커 관리 정보 조회
     const { data, error } = await supabase
       .from('manager_worker_management')
-      .select('*')
+      .select('rating, notes, is_favorite, is_blacklisted')
       .eq('manager_id', userData.user.id)
       .eq('worker_id', workerId)
       .maybeSingle();
@@ -422,7 +422,7 @@ export async function toggleFavoriteAction(
     // 기존 데이터 확인
     const { data: existing } = await supabase
       .from('manager_worker_management')
-      .select('*')
+      .select('id, is_favorite')
       .eq('manager_id', userData.user.id)
       .eq('worker_id', workerId)
       .maybeSingle();
@@ -487,7 +487,7 @@ export async function toggleBlacklistAction(
     // 기존 데이터 확인
     const { data: existing } = await supabase
       .from('manager_worker_management')
-      .select('*')
+      .select('id, is_blacklisted')
       .eq('manager_id', userData.user.id)
       .eq('worker_id', workerId)
       .maybeSingle();
@@ -557,7 +557,7 @@ export async function updateWorkerRatingAction(
     // 기존 데이터 확인
     const { data: existing } = await supabase
       .from('manager_worker_management')
-      .select('*')
+      .select('id')
       .eq('manager_id', userData.user.id)
       .eq('worker_id', workerId)
       .maybeSingle();
@@ -617,7 +617,7 @@ export async function updateWorkerNotesAction(
     // 기존 데이터 확인
     const { data: existing } = await supabase
       .from('manager_worker_management')
-      .select('*')
+      .select('id')
       .eq('manager_id', userData.user.id)
       .eq('worker_id', workerId)
       .maybeSingle();
@@ -740,5 +740,66 @@ export async function getManagedWorkersAction(): Promise<
   } catch (err) {
     console.error('[getManagedWorkersAction] Unexpected error', err);
     return { ok: false, message: '관리 워커 목록을 불러오는 중 오류가 발생했습니다.', data: [] };
+  }
+}
+
+export type WorkerManagementData = {
+  rating?: number | null;
+  notes?: string | null;
+  is_favorite?: boolean;
+  is_blacklisted?: boolean;
+};
+
+// 워커 관리 데이터 배치 조회 (N+1 → 1콜)
+export async function getWorkerManagementBatchAction(
+  workerIds: string[]
+): Promise<ActionResult<Record<string, WorkerManagementData>>> {
+  try {
+    if (workerIds.length === 0) {
+      return { ok: true, message: '', data: {} };
+    }
+
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (profile?.role !== 'manager') {
+      return { ok: false, message: '매니저만 접근할 수 있습니다.' };
+    }
+
+    const { data, error } = await supabase
+      .from('manager_worker_management')
+      .select('worker_id, rating, notes, is_favorite, is_blacklisted')
+      .eq('manager_id', userData.user.id)
+      .in('worker_id', workerIds);
+
+    if (error) {
+      console.error('[getWorkerManagementBatchAction] Select error', error);
+      return { ok: false, message: '워커 관리 정보를 불러오는데 실패했습니다.' };
+    }
+
+    const result: Record<string, WorkerManagementData> = {};
+    for (const row of data || []) {
+      result[row.worker_id as string] = {
+        rating: row.rating as number | null,
+        notes: row.notes as string | null,
+        is_favorite: row.is_favorite as boolean,
+        is_blacklisted: row.is_blacklisted as boolean,
+      };
+    }
+
+    return { ok: true, message: '', data: result };
+  } catch (err) {
+    console.error('[getWorkerManagementBatchAction] Unexpected error', err);
+    return { ok: false, message: '워커 관리 정보를 불러오는 중 오류가 발생했습니다.' };
   }
 }
