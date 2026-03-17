@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import type { LandingPopup as LandingPopupType } from '../popup-actions';
@@ -88,14 +87,14 @@ const LandingPopup = ({ popup }: Props) => {
           )}
         </div>
 
-        <div className="flex items-center border-t border-border">
+        <div className="flex border-t border-border">
           <button
             onClick={handleDismissForDay}
             className="flex-1 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             하루 동안 보지 않기
           </button>
-          <div className="w-px h-5 bg-border" />
+          <div className="w-px self-stretch bg-border" />
           <button
             onClick={handleClose}
             className="flex-1 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -103,14 +102,6 @@ const LandingPopup = ({ popup }: Props) => {
             닫기
           </button>
         </div>
-
-        <button
-          onClick={handleClose}
-          className="absolute top-2.5 right-2.5 size-7 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-          aria-label="팝업 닫기"
-        >
-          <X className="size-3.5" />
-        </button>
       </div>
     </div>
   );
