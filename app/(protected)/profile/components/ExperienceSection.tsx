@@ -165,11 +165,6 @@ const ExperienceSection: React.FC<Props> = ({
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-sm">
                       {group.title}
-                      {group.count > 1 && (
-                        <span className="text-muted-foreground font-normal ml-1">
-                          ({group.count}개)
-                        </span>
-                      )}
                     </h4>
                     {(group.firstExp.date || group.firstExp.location) && (
                       <div className="flex gap-4 mt-1 text-xs text-muted-foreground">

@@ -71,7 +71,7 @@ export default function WorkerFavoritePage() {
   } = useFavorit();
 
   return (
-    <div>
+    <div className="min-h-screen">
       {!roleHydrated ? (
         <Card>
           <CardContent className="py-12 text-center">
