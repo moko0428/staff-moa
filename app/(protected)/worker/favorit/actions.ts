@@ -164,7 +164,13 @@ export async function getFavoritePostsAction(): Promise<
       .select(`
         post_id,
         created_at,
-        posts (*)
+        posts (
+          post_id, author_id, title, description, status,
+          location, pay_amount, pay_type, work_date, work_time_start, work_time_end,
+          work_slots, recruit_count, manager_name, manager_phone,
+          equipments, qualifications, preferences, notes,
+          keywords, external_link, created_at, updated_at
+        )
       `)
       .eq('user_id', userData.user.id)
       .order('created_at', { ascending: false });
@@ -482,49 +488,53 @@ export async function getMatchedPostsForFavoritesAction(): Promise<
       return { ok: false, message: '로그인이 필요합니다.', data: [] };
     }
 
-    // 1) 관심 키워드
-    const { data: kwRows } = await supabase
-      .from('favorites_keywords')
-      .select('keyword')
-      .eq('user_id', userData.user.id);
-    const keywords = (kwRows || [])
+    const POST_FIELDS = [
+      'post_id', 'author_id', 'title', 'description', 'status',
+      'location', 'pay_amount', 'pay_type', 'work_date', 'work_time_start', 'work_time_end',
+      'work_slots', 'recruit_count', 'manager_name', 'manager_phone',
+      'equipments', 'qualifications', 'preferences', 'notes',
+      'keywords', 'external_link', 'created_at', 'updated_at',
+    ].join(', ');
+
+    // 관심 키워드 + 팔로우 매니저 병렬 조회
+    const [kwResult, followResult] = await Promise.all([
+      supabase.from('favorites_keywords').select('keyword').eq('user_id', userData.user.id),
+      supabase.from('manager_follows').select('manager_id').eq('follower_id', userData.user.id),
+    ]);
+
+    const keywords = (kwResult.data || [])
       .map((r) => normalizeKeyword(String(r.keyword)))
       .filter(Boolean);
-
-    // 2) 팔로우 매니저
-    const { data: followRows } = await supabase
-      .from('manager_follows')
-      .select('manager_id')
-      .eq('follower_id', userData.user.id);
-    const managerIds = (followRows || [])
+    const managerIds = (followResult.data || [])
       .map((r) => r.manager_id as string)
       .filter(Boolean);
 
-    const results: Array<Record<string, unknown>> = [];
+    // 키워드 매칭 공고 + 팔로우 매니저 공고 병렬 조회
+    const [byKeywordsResult, byManagersResult] = await Promise.all([
+      keywords.length > 0
+        ? supabase
+            .from('posts')
+            .select(POST_FIELDS)
+            .overlaps('keywords', keywords)
+            .neq('status', 'completed')
+            .order('created_at', { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+      managerIds.length > 0
+        ? supabase
+            .from('posts')
+            .select(POST_FIELDS)
+            .in('author_id', managerIds)
+            .neq('status', 'completed')
+            .order('created_at', { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+    ]);
 
-    // 키워드 매칭 공고
-    if (keywords.length > 0) {
-      const { data: byKeywords } = await supabase
-        .from('posts')
-        .select('*')
-        .overlaps('keywords', keywords)
-        .neq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (byKeywords) results.push(...(byKeywords as Array<Record<string, unknown>>));
-    }
-
-    // 팔로우 매니저 공고
-    if (managerIds.length > 0) {
-      const { data: byManagers } = await supabase
-        .from('posts')
-        .select('*')
-        .in('author_id', managerIds)
-        .neq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (byManagers) results.push(...(byManagers as Array<Record<string, unknown>>));
-    }
+    const results = [
+      ...((byKeywordsResult.data || []) as Array<Record<string, unknown>>),
+      ...((byManagersResult.data || []) as Array<Record<string, unknown>>),
+    ];
 
     // post_id 기준 dedupe
     const seen = new Set<string>();
@@ -640,26 +650,30 @@ export async function getProfileForModalAction(
       return { ok: false, message: '로그인이 필요합니다.' };
     }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status, cover_image')
-      .eq('user_id', userId)
-      .single();
+    // 프로필 + 팔로워 수 병렬 조회
+    const [profileResult, followerResult] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status, cover_image')
+        .eq('user_id', userId)
+        .single(),
+      supabase
+        .from('manager_follows')
+        .select('follower_id', { count: 'exact', head: true })
+        .eq('manager_id', userId),
+    ]);
 
-    if (error) {
-      console.error('[getProfileForModalAction] Supabase select error', error);
+    if (profileResult.error) {
+      console.error('[getProfileForModalAction] Supabase select error', profileResult.error);
       return { ok: false, message: '프로필을 불러오는데 실패했습니다.' };
     }
 
-    // 팔로워 수 (manager_follows 기준)
-    const { count: followerCount, error: countError } = await supabase
-      .from('manager_follows')
-      .select('follower_id', { count: 'exact', head: true })
-      .eq('manager_id', userId);
-
-    if (countError) {
-      console.error('[getProfileForModalAction] Count error', countError);
+    if (followerResult.error) {
+      console.error('[getProfileForModalAction] Count error', followerResult.error);
     }
+
+    const data = profileResult.data;
+    const followerCount = followerResult.count;
 
     return {
       ok: true,

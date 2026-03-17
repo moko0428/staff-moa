@@ -109,9 +109,17 @@ export async function getManagerSchedulesAction(): Promise<
     }
 
     // 본인이 작성한 공고들 조회 (스케줄로 사용)
-    const { data: posts, error } = await supabase
+    const SCHEDULE_FIELDS = [
+      'post_id', 'author_id', 'title', 'description', 'status',
+      'location', 'pay_amount', 'pay_type', 'work_date', 'work_time_start', 'work_time_end',
+      'work_slots', 'recruit_count', 'manager_name', 'manager_contact_type', 'manager_phone',
+      'equipments', 'qualifications', 'preferences', 'notes',
+      'keywords', 'external_link', 'form_type', 'created_at', 'updated_at',
+    ].join(', ');
+
+    const { data: rawPosts, error } = await supabase
       .from('posts')
-      .select('*')
+      .select(SCHEDULE_FIELDS)
       .eq('author_id', userData.user.id)
       .order('created_at', { ascending: false });
 
@@ -124,9 +132,11 @@ export async function getManagerSchedulesAction(): Promise<
       };
     }
 
+    const posts = (rawPosts || []) as unknown as Array<Record<string, unknown>>;
+
     // work_slots 기반으로 스케줄 상태 계산
     const now = new Date();
-    const schedulesWithStatus = (posts || []).map((post) => {
+    const schedulesWithStatus = posts.map((post) => {
       const workSlots = post.work_slots as Array<{
         date: string;
         start_time: string;

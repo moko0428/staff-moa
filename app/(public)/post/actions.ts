@@ -51,17 +51,8 @@ const updatePostStatusIfPast = async (
   postId: number | string
 ): Promise<void> => {
   try {
-    const { data: post } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('post_id', postId)
-      .single();
-
-    if (!post || post.status === 'completed') return;
-
-    if (isPostPast(post)) {
-      await supabase.from('posts').update({ status: 'completed' }).eq('post_id', postId);
-    }
+    // 호출자가 isPostPast 확인 후 호출하므로 re-fetch 없이 UPDATE만 실행
+    await supabase.from('posts').update({ status: 'completed' }).eq('post_id', postId);
   } catch (error) {
     console.error('[updatePostStatusIfPast] Error:', error);
   }
