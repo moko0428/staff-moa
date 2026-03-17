@@ -68,7 +68,9 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
   const [isFavorite, setIsFavorite] = useState(item.isFavorite ?? false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(preloadedUser?.id ?? null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    preloadedUser?.id ?? null,
+  );
   const [isApplied, setIsApplied] = useState<boolean>(!!item.applied);
   const [isCheckingApplied, setIsCheckingApplied] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
@@ -314,12 +316,12 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
       {/* 커버 이미지 배너 or 로고 */}
       <div className="relative border-b border-border/50">
         {item.coverImage ? (
-          <div className="relative h-32 w-full overflow-hidden">
+          <div className="relative h-32 w-full overflow-hidden ">
             <Image
               src={item.coverImage}
               alt={item.manager ?? '회사 커버'}
               fill
-              className="object-cover"
+              className="object-contain bg-background/10"
             />
           </div>
         ) : (
@@ -346,7 +348,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
           <Button
             size="icon"
             variant="ghost"
-            className="absolute top-2 right-2 size-7 hover:bg-white/80"
+            className="absolute top-0 right-6 size-7 hover:bg-white/80"
             onClick={toggleFavorite}
           >
             <Heart
@@ -427,7 +429,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
               {item.title}에 지원하기
             </DialogTitle>
           </DialogHeader>
-          {(currentUser || preloadedUser) ? (
+          {currentUser || preloadedUser ? (
             <div className="mt-2 space-y-4 text-sm">
               {/* 기본 정보 전달 안내 */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
