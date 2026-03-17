@@ -104,7 +104,7 @@ export const StaffProfileModal = ({
           </div>
 
           <Badge variant="secondary" className="text-xs">
-            근태 점수: {worker.applicantAttendanceScore ?? 50}점
+            스코어: {worker.applicantAttendanceScore ?? 50}점
           </Badge>
 
           {((vis?.phone !== false && info?.phone) ||

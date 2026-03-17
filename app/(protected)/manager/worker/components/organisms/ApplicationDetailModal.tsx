@@ -260,7 +260,7 @@ export const ApplicationDetailModal = ({
 
               <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm text-muted-foreground">근태 점수</Label>
+                  <Label className="text-sm text-muted-foreground">스코어</Label>
                   <div className="flex items-center gap-1">
                     <Star className="size-4 fill-yellow-400 text-yellow-400" />
                     <span className="font-semibold">

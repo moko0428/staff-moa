@@ -135,7 +135,7 @@ export const GroupedWorkerCard = ({
 
         <div className="flex items-center gap-2 mb-3 text-sm">
           <Star className="size-4 fill-yellow-400 text-yellow-400" />
-          <span className="text-muted-foreground">근태 점수:</span>
+          <span className="text-muted-foreground">스코어:</span>
           <span className="font-medium">
             {worker.applicantAttendanceScore ?? 50}점
           </span>

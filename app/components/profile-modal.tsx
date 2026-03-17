@@ -127,11 +127,11 @@ export default function ProfileModal({
             <p className="text-sm text-muted-foreground">{user.email}</p>
           )}
 
-          {/* 근태 점수 (스탭인 경우) */}
+          {/* 스코어 (스탭인 경우) */}
           {user.role === 'member' && user.attendanceScore !== undefined && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs">
-                근태 점수: {user.attendanceScore}점
+                스코어: {user.attendanceScore}점
               </Badge>
             </div>
           )}
