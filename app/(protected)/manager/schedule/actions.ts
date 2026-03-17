@@ -26,13 +26,21 @@ async function calculateAttendanceScore(
   cutoff.setDate(cutoff.getDate() - 180);
   const cutoffStr = cutoff.toISOString().split('T')[0]; // yyyy-MM-dd
 
-  // 1. 참여점수: 180일 내 승인된 스케줄의 work_slots 근무일 수
-  const { data: schedules } = await supabase
-    .from('member_schedules')
-    .select('post_id, posts (work_slots, work_date)')
-    .eq('member_id', memberId)
-    .eq('status', 'accepted');
+  // 참여점수 + 태도점수 병렬 조회
+  const [schedulesResult, reviewsResult] = await Promise.all([
+    supabase
+      .from('member_schedules')
+      .select('post_id, posts (work_slots, work_date)')
+      .eq('member_id', memberId)
+      .eq('status', 'accepted'),
+    supabase
+      .from('attendance_reviews')
+      .select('score, penalty_items')
+      .eq('member_id', memberId),
+  ]);
 
+  // 1. 참여점수: 180일 내 승인된 스케줄의 work_slots 근무일 수
+  const schedules = schedulesResult.data;
   const workDays = new Set<string>();
   if (schedules) {
     for (const s of schedules) {
@@ -56,10 +64,7 @@ async function calculateAttendanceScore(
   const participationScore = participationRate * 50;
 
   // 2. 태도점수: 매니저 평가 평균 (score: 20~100) → 0~50 환산
-  const { data: reviews } = await supabase
-    .from('attendance_reviews')
-    .select('score, penalty_items')
-    .eq('member_id', memberId);
+  const reviews = reviewsResult.data;
 
   let attitudeScore = 25; // 평가 없으면 중간값 (초기 50점의 절반)
   let totalPenalty = 0;

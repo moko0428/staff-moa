@@ -148,9 +148,12 @@ export const getAllPostsAction = async (): Promise<
       return { ok: false, message: '공고 목록을 불러오는데 실패했습니다.', data: [] };
     }
 
-    if (data?.length) {
+    const posts = (data as unknown as Record<string, unknown>[]) || [];
+
+    if (posts.length > 0) {
+      // 1. 기간 지난 공고 상태 업데이트 (병렬)
       await Promise.all(
-        (data as unknown as Record<string, unknown>[]).map(async (post) => {
+        posts.map(async (post) => {
           if (isPostPast(post) && post.status !== 'completed') {
             const postId = post.post_id as number | string;
             if (postId != null) {
@@ -158,37 +161,41 @@ export const getAllPostsAction = async (): Promise<
               post.status = 'completed';
             }
           }
-          const { data: applicants } = await supabase
-            .from('member_schedules')
-            .select('member_schedule_id')
-            .eq('post_id', post.post_id as number);
-          post.currentApplicants = applicants?.length || 0;
         })
       );
-    }
 
-    const posts = (data as unknown as Record<string, unknown>[]) || [];
-
-    // 배치 조회로 커버 이미지 주입 (N+1 방지)
-    if (posts.length > 0) {
+      // 2. 지원자 수 + 커버 이미지 배치 조회 (N+1 → 1콜, 두 쿼리 병렬)
+      const postIds = posts.map((p) => p.post_id as number);
       const authorIds = [...new Set(posts.map((p) => p.author_id as string).filter(Boolean))];
-      if (authorIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, cover_image')
-          .in('user_id', authorIds);
 
-        if (profiles) {
-          const coverMap = Object.fromEntries(
-            profiles.map((p) => [
-              (p as { user_id: string }).user_id,
-              (p as { cover_image?: string | null }).cover_image ?? null,
-            ])
-          );
-          posts.forEach((post) => {
-            post.authorCoverImage = coverMap[post.author_id as string] ?? null;
-          });
-        }
+      const [applicantsResult, profilesResult] = await Promise.all([
+        supabase.from('member_schedules').select('post_id').in('post_id', postIds),
+        authorIds.length > 0
+          ? supabase.from('profiles').select('user_id, cover_image').in('user_id', authorIds)
+          : Promise.resolve({ data: [] as Array<{ user_id: string; cover_image: string | null }> }),
+      ]);
+
+      // 지원자 수 집계 (Map)
+      const countMap: Record<number, number> = {};
+      for (const row of applicantsResult.data || []) {
+        const pid = row.post_id as number;
+        countMap[pid] = (countMap[pid] || 0) + 1;
+      }
+      posts.forEach((post) => {
+        post.currentApplicants = countMap[post.post_id as number] || 0;
+      });
+
+      // 커버 이미지 주입
+      if (profilesResult.data && profilesResult.data.length > 0) {
+        const coverMap = Object.fromEntries(
+          profilesResult.data.map((p) => [
+            (p as { user_id: string }).user_id,
+            (p as { cover_image?: string | null }).cover_image ?? null,
+          ])
+        );
+        posts.forEach((post) => {
+          post.authorCoverImage = coverMap[post.author_id as string] ?? null;
+        });
       }
     }
 
@@ -244,37 +251,44 @@ export const getPublicPostByIdAction = async (
       return { ok: false, message: '신고가 누적되어 숨겨진 공고입니다.' };
     }
 
-    const { data, error } = await supabase
+    const POST_DETAIL_FIELDS = [
+      'post_id', 'author_id', 'title', 'description',
+      'work_date', 'work_time_start', 'work_time_end', 'location',
+      'pay_amount', 'pay_type', 'tax_withholding', 'work_slots',
+      'recruit_count', 'manager_name', 'manager_contact_type', 'manager_phone',
+      'equipments', 'qualifications', 'preferences', 'notes',
+      'external_link', 'keywords', 'status', 'created_at',
+    ].join(', ');
+
+    const { data: rawData, error } = await supabase
       .from('posts')
-      .select('*')
+      .select(POST_DETAIL_FIELDS)
       .eq('post_id', postId)
       .single();
 
-    if (error || !data) {
+    if (error || !rawData) {
       return { ok: false, message: '공고를 찾을 수 없습니다.' };
     }
+
+    const data = rawData as unknown as Record<string, unknown>;
 
     if (isPostPast(data) && data.status !== 'completed') {
       await updatePostStatusIfPast(supabase, postId);
       data.status = 'completed';
     }
 
-    const { data: applicants } = await supabase
-      .from('member_schedules')
-      .select('member_schedule_id')
-      .eq('post_id', postId);
-    data.currentApplicants = applicants?.length || 0;
+    // 지원자 수 + 작성자 프로필 병렬 조회
+    const [applicantsResult, authorProfileResult] = await Promise.all([
+      supabase.from('member_schedules').select('member_schedule_id').eq('post_id', postId),
+      supabase.from('profiles').select('name, avatar, company_name').eq('user_id', data.author_id as string).single(),
+    ]);
 
-    const { data: authorProfile } = await supabase
-      .from('profiles')
-      .select('name, avatar, company_name')
-      .eq('user_id', data.author_id)
-      .single();
+    data.currentApplicants = applicantsResult.data?.length || 0;
 
-    if (authorProfile) {
-      data.author_name = authorProfile.name;
-      data.author_avatar = authorProfile.avatar;
-      data.company_name = authorProfile.company_name;
+    if (authorProfileResult.data) {
+      data.author_name = authorProfileResult.data.name;
+      data.author_avatar = authorProfileResult.data.avatar;
+      data.company_name = authorProfileResult.data.company_name;
     }
 
     return { ok: true, message: '', data };

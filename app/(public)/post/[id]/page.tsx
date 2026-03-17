@@ -1,19 +1,21 @@
 'use client';
 
 import { use } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import ReportModal from '@/app/components/ReportModal';
-import ProfileModal from '@/app/components/profile-modal';
 import PostActionBar from './components/molecules/PostActionBar';
 import BottomActionBar from './components/molecules/BottomActionBar';
 import PostHeader from './components/organisms/PostHeader';
 import PostDetailBody from './components/organisms/PostDetailBody';
 import PostSidebar from './components/organisms/PostSidebar';
-import ApplyModal from './components/organisms/ApplyModal';
-import LoginPromptModal from './components/organisms/LoginPromptModal';
 import PostDetailSkeleton from './components/organisms/PostDetailSkeleton';
+
+const ReportModal = dynamic(() => import('@/app/components/ReportModal'));
+const ProfileModal = dynamic(() => import('@/app/components/profile-modal'));
+const ApplyModal = dynamic(() => import('./components/organisms/ApplyModal'));
+const LoginPromptModal = dynamic(() => import('./components/organisms/LoginPromptModal'));
 import { usePostDetail } from './hooks/usePostDetail';
 
 const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
