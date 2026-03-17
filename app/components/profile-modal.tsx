@@ -86,30 +86,32 @@ export default function ProfileModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md overflow-hidden p-0">
+        <DialogHeader className="sr-only">
           <DialogTitle></DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-4">
-          {/* 커버 이미지 배너 */}
-          {user.coverImage ? (
-            <div className="relative h-36 w-full overflow-hidden rounded-t-lg -mt-4 -mx-6" style={{ width: 'calc(100% + 3rem)' }}>
-              <Image src={user.coverImage} alt="커버 이미지" fill className="object-cover" />
-            </div>
-          ) : (
-            <DefaultCoverImage
-              className="h-36 rounded-t-lg -mt-4 -mx-6"
-              style={{ width: 'calc(100% + 3rem)' }}
+        {/* 커버 이미지 배너 */}
+        {user.coverImage ? (
+          <div className="relative h-36 w-full border border-b-border shadow-accent">
+            <Image
+              src={user.coverImage}
+              alt="커버 이미지"
+              fill
+              className="object-contain bg-background"
             />
-          )}
+          </div>
+        ) : (
+          <DefaultCoverImage className="h-36 w-full bg-background" />
+        )}
 
+        <div className="flex flex-col gap-4 px-6 pb-6">
           {/* 아바타 — 배너 아래로 겹치게 */}
           <UserAvatar
             src={user.photo}
             name={user.name}
-            className="-mt-16 ml-2 shadow-lg h-24 w-24 border-4 border-background"
-            fallbackClassName="text-2xl"
+            className="-mt-20 ml-2 h-24 w-24 border-4 border-b-primary border-r-primary ring-1 ring-border/60 shadow-lg bg-background"
+            fallbackClassName="text-2xl bg-primary/50"
           />
 
           {/* 이름과 역할 */}
