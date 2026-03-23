@@ -14,6 +14,7 @@ export const notification_type_enum = pgEnum('notification_type', [
   'new_application',
   'schedule_reminder',
   'system',
+  'event_briefing',
 ]);
 
 export const notifications = pgTable('notifications', {

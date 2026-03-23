@@ -1,4 +1,4 @@
-import { Check, AlertCircle, Briefcase, Calendar, Info } from 'lucide-react';
+import { Check, AlertCircle, Briefcase, Calendar, Info, MapPin } from 'lucide-react';
 import { parseISO } from 'date-fns';
 
 export const notificationTypeConfig = {
@@ -31,6 +31,12 @@ export const notificationTypeConfig = {
     label: '시스템',
     className: 'bg-muted text-foreground',
     iconClassName: 'text-muted-foreground',
+  },
+  event_briefing: {
+    icon: MapPin,
+    label: '현장 공지',
+    className: 'bg-violet-100 text-violet-800 dark:bg-violet-950/30 dark:text-violet-200',
+    iconClassName: 'text-violet-700 dark:text-violet-200',
   },
 } as const;
 

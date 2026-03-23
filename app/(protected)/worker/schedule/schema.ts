@@ -26,6 +26,15 @@
       .references(() => profiles.profile_id, { onDelete: 'cascade' }),
     status: member_schedule_status_enum('status').notNull().default('pending'),
     message: text('message'),
+    // 현장 관리 필드
+    staff_status: text('staff_status').notNull().default('waiting'), // 포지션 상태: waiting | assigned
+    assigned_role: text('assigned_role'),
+    checkin_status: text('checkin_status').notNull().default('not_checked'), // 레거시 (movement_status로 대체)
+    checked_in_at: timestamp('checked_in_at', { withTimezone: true }),
+    arrived_at: timestamp('arrived_at', { withTimezone: true }),
+    manager_memo: text('manager_memo'),
+    movement_status: text('movement_status'), // 이동/출퇴근: departing | arrived | checked_in | checked_out
+    checked_out_at: timestamp('checked_out_at', { withTimezone: true }),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   });

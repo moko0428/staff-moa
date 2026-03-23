@@ -72,11 +72,25 @@ export const posts = pgTable('posts', {
   tax_withholding: boolean('tax_withholding').notNull().default(false), 
 
   work_slots: jsonb('work_slots').notNull().default([]).$type<Array<{
-    date: string;      
-    start_time: string;  
-    end_time: string;    
-    pay_amount: number;  
-  }>>(), 
+    date: string;
+    start_time: string;
+    end_time: string;
+    pay_amount: number;
+  }>>(),
+
+  event_positions: text('event_positions').array().notNull().default([]),
+
+  manual_staff: jsonb('manual_staff').notNull().default([]).$type<Array<{
+    id: string;
+    name: string;
+    phone: string | null;
+    position: string;
+    status: string;
+    checkedIn: boolean;
+    checkedInAt: string | null;
+    arrivedAt: string | null;
+    memo: string;
+  }>>(),
 });
 
 export const profile_relations = relations(profiles, ({ many }) => ({

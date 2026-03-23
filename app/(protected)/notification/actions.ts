@@ -34,7 +34,8 @@ export type NotificationType =
   | 'application_rejected'
   | 'new_application'
   | 'schedule_reminder'
-  | 'system';
+  | 'system'
+  | 'event_briefing';
 
 export type Notification = {
   notification_id: string;
