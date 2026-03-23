@@ -9,6 +9,7 @@ const FOOTER_HIDDEN_PATHS = [
   '/my-post/edit',
   '/manager/worker',
   '/manager/schedule',
+  '/manager/event',
   '/worker',
 ];
 

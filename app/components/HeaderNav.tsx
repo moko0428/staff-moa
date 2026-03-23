@@ -12,6 +12,7 @@ import {
   Heart,
   ListChecks,
   LogOut,
+  MapPin,
   Menu,
   Settings,
   ShieldCheck,
@@ -217,6 +218,16 @@ export default function HeaderNav() {
                       스케줄 관리
                     </NavigationMenuLink>
                   </NavigationMenuItem>
+                  {isManager && (
+                    <NavigationMenuItem>
+                      <NavigationMenuLink
+                        href="/manager/event"
+                        className={linkClass}
+                      >
+                        현장 관리
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  )}
                 </>
               )}
 
@@ -432,6 +443,19 @@ export default function HeaderNav() {
                             </span>
                           </Link>
                         </DropdownMenuItem>
+                        {isManager && (
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href="/manager/event"
+                              className="flex items-center gap-2"
+                            >
+                              <MapPin className="size-4" />
+                              <span className="text-sm font-medium">
+                                현장 관리
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                       </>
                     )}
 
