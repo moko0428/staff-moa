@@ -6,6 +6,7 @@ import { eachDayOfInterval, format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { createPostAction, getPostByIdAction } from '../actions';
 import { parsePastedText } from '../utils/pasteParser';
+import { extractPostText } from '../utils/textExtractor';
 import type { WorkType, WorkSlot, ActionResult } from '../types';
 
 const initialState: ActionResult<{ id: string }> = {
@@ -81,6 +82,8 @@ export const useCreatePost = () => {
   );
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
 
   const normalizeDates = (dates: string[]) => {
     const unique = Array.from(new Set(dates.filter(Boolean)));
@@ -400,19 +403,84 @@ export const useCreatePost = () => {
       setKeywords((prev) => [...prev, parsed.keyword]);
     }
 
-    if (parsed.date && parsed.startTime && parsed.endTime && parsed.location) {
+    const slotBase = {
+      pay_type: parsed.payType,
+      pay_amount: parsed.payAmount || 0,
+      tax_withholding: parsed.taxWithholding,
+      meal_included: false as const,
+      meal_amount: 0,
+      location: parsed.location || '',
+    };
+
+    const isConsecutiveDates = (dates: string[]) => {
+      const sorted = [...dates].sort();
+      for (let i = 1; i < sorted.length; i++) {
+        const diff = Math.round(
+          (new Date(sorted[i]!).getTime() -
+            new Date(sorted[i - 1]!).getTime()) /
+            (24 * 60 * 60 * 1000),
+        );
+        if (diff !== 1) return false;
+      }
+      return true;
+    };
+
+    if (parsed.workSlots && parsed.workSlots.length >= 2) {
+      // 다중 슬롯 (추출기 출력 형식)
+      const dates = parsed.workSlots.map((s) => s.date);
+      const wt: WorkType = isConsecutiveDates(dates) ? 'range' : 'multi';
+      const newSlots: WorkSlot[] = parsed.workSlots.map((s) => ({
+        ...slotBase,
+        work_type: wt,
+        date: s.date,
+        start: s.startTime,
+        end: s.endTime,
+      }));
+      setWorkSlots(newSlots);
+      setWorkType(wt);
+      const sortedDates = [...dates].sort();
+      if (wt === 'range') {
+        setSelectedRange({
+          from: new Date(sortedDates[0]!),
+          to: new Date(sortedDates[sortedDates.length - 1]!),
+        });
+        setSelectedSingleDate(undefined);
+      } else {
+        setSelectedRange(undefined);
+        setSelectedSingleDate(undefined);
+      }
+      setMultiDraftDate(undefined);
+      setMultiDraftStart(parsed.workSlots[0].startTime);
+      setMultiDraftEnd(parsed.workSlots[0].endTime);
+    } else if (parsed.dateRangeFrom && parsed.dateRangeTo) {
+      // 날짜 범위 (예: "2024-01-01 ~ 2024-01-03")
+      const from = new Date(parsed.dateRangeFrom);
+      const to = new Date(parsed.dateRangeTo);
+      const days = eachDayOfInterval({ start: from, end: to }).map((d) =>
+        format(d, 'yyyy-MM-dd'),
+      );
+      const newSlots: WorkSlot[] = days.map((date) => ({
+        ...slotBase,
+        work_type: 'range' as const,
+        date,
+        start: parsed.startTime || '09:00',
+        end: parsed.endTime || '18:00',
+      }));
+      setWorkSlots(newSlots);
+      setWorkType('range');
+      setSelectedRange({ from, to });
+      setSelectedSingleDate(undefined);
+      setMultiDraftDate(undefined);
+      setMultiDraftStart(parsed.startTime || '09:00');
+      setMultiDraftEnd(parsed.endTime || '18:00');
+    } else if (parsed.date && parsed.startTime && parsed.endTime && parsed.location) {
       setWorkSlots([
         {
+          ...slotBase,
           work_type: 'single',
           date: parsed.date,
           start: parsed.startTime,
           end: parsed.endTime,
-          location: parsed.location,
-          pay_type: parsed.payType,
-          pay_amount: parsed.payAmount || 0,
-          tax_withholding: parsed.taxWithholding,
-          meal_included: false,
-          meal_amount: 0,
         },
       ]);
       setWorkType('single');
@@ -424,16 +492,11 @@ export const useCreatePost = () => {
     } else if (parsed.location) {
       setWorkSlots([
         {
+          ...slotBase,
           work_type: 'single',
           date: parsed.date || '',
           start: parsed.startTime || '09:00',
           end: parsed.endTime || '18:00',
-          location: parsed.location,
-          pay_type: parsed.payType,
-          pay_amount: parsed.payAmount || 0,
-          tax_withholding: parsed.taxWithholding,
-          meal_included: false,
-          meal_amount: 0,
         },
       ]);
       setWorkType('single');
@@ -454,6 +517,23 @@ export const useCreatePost = () => {
 
     setShowPasteModal(false);
     setPasteText('');
+  };
+
+  const handleExtract = () => {
+    const text = extractPostText({
+      title,
+      description,
+      workSlots,
+      recruitCount,
+      managerName,
+      managerPhone,
+      equipments,
+      qualifications,
+      preferences,
+      notes,
+    });
+    setExtractedText(text);
+    setShowExtractModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -590,6 +670,9 @@ export const useCreatePost = () => {
     setShowPasteModal,
     pasteText,
     setPasteText,
+    showExtractModal,
+    setShowExtractModal,
+    extractedText,
     // handlers
     switchToSingle,
     switchToRange,
@@ -603,6 +686,7 @@ export const useCreatePost = () => {
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,
+    handleExtract,
     handleSubmit,
   };
 };

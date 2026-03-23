@@ -16,6 +16,9 @@ type ParsedPost = {
   managerPhone: string;
   notes: string;
   keyword: string;
+  workSlots?: Array<{ date: string; startTime: string; endTime: string }>;
+  dateRangeFrom?: string;
+  dateRangeTo?: string;
 };
 
 export const parsePastedText = (text: string): ParsedPost => {
@@ -244,11 +247,11 @@ export const parsePastedText = (text: string): ParsedPost => {
   }
 
   const timePatterns = [
-    /시간\s*:\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/,
-    /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/,
-    /(\d{1,2})시\s*-\s*(\d{1,2})시/,
-    /오전\s*(\d{1,2}):(\d{2})\s*-\s*오후\s*(\d{1,2}):(\d{2})/,
-    /오후\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/,
+    /시간\s*:\s*(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
+    /(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
+    /(\d{1,2})시\s*[-~～]\s*(\d{1,2})시/,
+    /오전\s*(\d{1,2}):(\d{2})\s*[-~～]\s*오후\s*(\d{1,2}):(\d{2})/,
+    /오후\s*(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
   ];
 
   for (const pattern of timePatterns) {
@@ -445,6 +448,76 @@ export const parsePastedText = (text: string): ParsedPost => {
     }
   }
 
+  // ── 다중 날짜 슬롯 감지 ──────────────────────────────────────────
+  // 형식: "- 2024-01-01 09:00~18:00" (추출기 출력 형식)
+  const slotLineRegex =
+    /^[-•*]\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{1,2}:\d{2})\s*[-~～]\s*(\d{1,2}:\d{2}))?/gm;
+  const detectedSlots: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  }> = [];
+  let slotLineMatch: RegExpExecArray | null;
+  while ((slotLineMatch = slotLineRegex.exec(fullText)) !== null) {
+    detectedSlots.push({
+      date: slotLineMatch[1],
+      startTime: slotLineMatch[2] || parsedStartTime,
+      endTime: slotLineMatch[3] || parsedEndTime,
+    });
+  }
+
+  let parsedWorkSlots: ParsedPost['workSlots'];
+  let parsedDateRangeFrom: string | undefined;
+  let parsedDateRangeTo: string | undefined;
+
+  if (detectedSlots.length >= 2) {
+    parsedWorkSlots = detectedSlots;
+    // 첫 슬롯으로 단일 필드도 업데이트
+    parsedDate = detectedSlots[0].date;
+    parsedStartTime = detectedSlots[0].startTime;
+    parsedEndTime = detectedSlots[0].endTime;
+  } else {
+    // ── 날짜 범위 감지 ─────────────────────────────────────────────
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    // YYYY-MM-DD ~ YYYY-MM-DD
+    const isoRangeMatch = fullText.match(
+      /(\d{4}-\d{2}-\d{2})\s*[~～]\s*(\d{4}-\d{2}-\d{2})/,
+    );
+    // MM/DD ~ MM/DD
+    const slashRangeMatch = fullText.match(
+      /(\d{1,2})\/(\d{1,2})\s*[~～]\s*(\d{1,2})\/(\d{1,2})/,
+    );
+    // M월 D일 ~ M월 D일
+    const korRangeMatch = fullText.match(
+      /(\d{1,2})월\s*(\d{1,2})일\s*[~～]\s*(\d{1,2})월\s*(\d{1,2})일/,
+    );
+
+    if (isoRangeMatch) {
+      parsedDateRangeFrom = isoRangeMatch[1];
+      parsedDateRangeTo = isoRangeMatch[2];
+    } else if (slashRangeMatch) {
+      const m1 = slashRangeMatch[1].padStart(2, '0');
+      const d1 = slashRangeMatch[2].padStart(2, '0');
+      const m2 = slashRangeMatch[3].padStart(2, '0');
+      const d2 = slashRangeMatch[4].padStart(2, '0');
+      const y1 = parseInt(m1) < currentMonth ? currentYear + 1 : currentYear;
+      const y2 = parseInt(m2) < parseInt(m1) ? y1 + 1 : y1;
+      parsedDateRangeFrom = `${y1}-${m1}-${d1}`;
+      parsedDateRangeTo = `${y2}-${m2}-${d2}`;
+    } else if (korRangeMatch) {
+      const m1 = korRangeMatch[1].padStart(2, '0');
+      const d1 = korRangeMatch[2].padStart(2, '0');
+      const m2 = korRangeMatch[3].padStart(2, '0');
+      const d2 = korRangeMatch[4].padStart(2, '0');
+      const y1 = parseInt(m1) < currentMonth ? currentYear + 1 : currentYear;
+      const y2 = parseInt(m2) < parseInt(m1) ? y1 + 1 : y1;
+      parsedDateRangeFrom = `${y1}-${m1}-${d1}`;
+      parsedDateRangeTo = `${y2}-${m2}-${d2}`;
+    }
+  }
+
   return {
     title: parsedTitle,
     description: parsedDescription,
@@ -466,5 +539,8 @@ export const parsePastedText = (text: string): ParsedPost => {
       .join('\n')
       .trim(),
     keyword: keywordFromTitle,
+    workSlots: parsedWorkSlots,
+    dateRangeFrom: parsedDateRangeFrom,
+    dateRangeTo: parsedDateRangeTo,
   };
 };

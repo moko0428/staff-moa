@@ -5,7 +5,7 @@ import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
-import { Clipboard } from 'lucide-react';
+import { Clipboard, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCreatePost } from '../hooks/useCreatePost';
 import { BasicInfoCard } from '../components/organisms/BasicInfoCard';
@@ -16,6 +16,7 @@ import { FormStatusMessage } from '../components/molecules/FormStatusMessage';
 import { FormActionBar } from '../components/molecules/FormActionBar';
 import { WorkSlotsCard } from './components/organisms/WorkSlotsCard';
 import { PasteModal } from './components/organisms/PasteModal';
+import { ExtractModal } from './components/organisms/ExtractModal';
 
 function CreatePostContent() {
   const router = useRouter();
@@ -69,6 +70,9 @@ function CreatePostContent() {
     setShowPasteModal,
     pasteText,
     setPasteText,
+    showExtractModal,
+    setShowExtractModal,
+    extractedText,
     switchToSingle,
     switchToRange,
     switchToMulti,
@@ -81,6 +85,7 @@ function CreatePostContent() {
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,
+    handleExtract,
     handleSubmit,
   } = useCreatePost();
 
@@ -112,12 +117,27 @@ function CreatePostContent() {
             type="button"
             variant="outline"
             size="sm"
+            onClick={handleExtract}
+          >
+            <FileText className="size-4 mr-2" />
+            추출하기
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setShowPasteModal(true)}
           >
             <Clipboard className="size-4 mr-2" />
             붙여넣기
           </Button>
         </div>
+
+        <ExtractModal
+          open={showExtractModal}
+          onOpenChange={setShowExtractModal}
+          extractedText={extractedText}
+        />
 
         <PasteModal
           open={showPasteModal}
