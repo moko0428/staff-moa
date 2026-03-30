@@ -16,6 +16,7 @@ import {
   Check,
   ChevronDown,
   Clock,
+  KeyRound,
   MapPin,
   MessageSquare,
   Plus,
@@ -37,6 +38,7 @@ import {
   updateStaffMemoAction,
   updateStaffPositionAction,
 } from '../actions';
+import { generateDailyCode } from '@/lib/arrivalCode';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -131,6 +133,12 @@ const CO_MANAGER_ROLE_COLORS: Record<CoManagerRole, string> = {
 const CO_MANAGER_ROLES: CoManagerRole[] = ['팀장', '보조 매니저'];
 
 // ── Helpers ───────────────────────────────────────────────────────────
+
+function isTodayEvent(workSlots: PostRoster['work_slots']): boolean {
+  if (!workSlots?.length) return false;
+  const today = new Date().toISOString().split('T')[0];
+  return workSlots.some((s) => s.date === today);
+}
 
 function nowHHmm(): string {
   return new Date().toLocaleTimeString('ko-KR', {
@@ -1389,6 +1397,12 @@ export default function EventRosterClient({
                     ? ` / 모집 ${selected.recruit_count}명`
                     : ''}
                 </span>
+                {isTodayEvent(selected.work_slots) && (
+                  <span className="flex items-center gap-1 font-mono font-semibold text-primary">
+                    <KeyRound className="size-3.5 shrink-0" />
+                    {generateDailyCode(selected.post_id)}
+                  </span>
+                )}
               </div>
             )}
 

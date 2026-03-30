@@ -1,7 +1,16 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createBulkNotificationsAction } from '@/app/(protected)/notification/actions';
+
+// RLS를 우회해야 하는 매니저 write 작업용 서비스 롤 클라이언트
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase 서비스 롤 환경변수가 설정되지 않았습니다.');
+  return createServiceClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -340,7 +349,7 @@ export async function updateStaffPositionAction(
       staff_status: role ? 'assigned' : 'waiting',
     };
 
-    const { error } = await supabase
+    const { error } = await getAdminClient()
       .from('member_schedules')
       .update(update)
       .eq('member_schedule_id', memberScheduleId);
@@ -381,7 +390,7 @@ export async function updateMovementStatusAction(
     }
     if (status === 'checked_out') update.checked_out_at = now;
 
-    const { error } = await supabase
+    const { error } = await getAdminClient()
       .from('member_schedules')
       .update(update)
       .eq('member_schedule_id', memberScheduleId);
@@ -420,7 +429,7 @@ export async function updateStaffMemoAction(
     const isOwner = await verifyManagerOwnsSchedule(supabase, memberScheduleId, managerId);
     if (!isOwner) return { ok: false, message: '권한이 없습니다.' };
 
-    const { error } = await supabase
+    const { error } = await getAdminClient()
       .from('member_schedules')
       .update({ manager_memo: memo || null })
       .eq('member_schedule_id', memberScheduleId);
