@@ -244,6 +244,14 @@ export default function HeaderNav() {
                   </NavigationMenuItem>
                   <NavigationMenuItem>
                     <NavigationMenuLink
+                      href="/worker/my-event"
+                      className={linkClass}
+                    >
+                      내 현장
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
                       href="/worker/favorit"
                       className={linkClass}
                     >
@@ -470,6 +478,17 @@ export default function HeaderNav() {
                             <Calendar className="size-4" />
                             <span className="text-sm font-medium">
                               내 스케줄
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/worker/my-event"
+                            className="flex items-center gap-2"
+                          >
+                            <MapPin className="size-4" />
+                            <span className="text-sm font-medium">
+                              내 현장
                             </span>
                           </Link>
                         </DropdownMenuItem>
