@@ -202,6 +202,42 @@ export type Database = {
           },
         ]
       }
+      landing_popups: {
+        Row: {
+          content: string
+          created_at: string
+          image_url: string | null
+          is_active: boolean
+          link_text: string | null
+          link_url: string | null
+          popup_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_text?: string | null
+          link_url?: string | null
+          popup_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_text?: string | null
+          link_url?: string | null
+          popup_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       manager_follows: {
         Row: {
           created_at: string
@@ -288,29 +324,53 @@ export type Database = {
       }
       member_schedules: {
         Row: {
+          arrived_at: string | null
+          assigned_role: string | null
+          checked_in_at: string | null
+          checked_out_at: string | null
+          checkin_status: string
           created_at: string
+          manager_memo: string | null
           member_id: string
           member_schedule_id: string
           message: string | null
+          movement_status: string | null
           post_id: number
+          staff_status: string
           status: Database["public"]["Enums"]["member_schedule_status"]
           updated_at: string
         }
         Insert: {
+          arrived_at?: string | null
+          assigned_role?: string | null
+          checked_in_at?: string | null
+          checked_out_at?: string | null
+          checkin_status?: string
           created_at?: string
+          manager_memo?: string | null
           member_id: string
           member_schedule_id?: string
           message?: string | null
+          movement_status?: string | null
           post_id: number
+          staff_status?: string
           status?: Database["public"]["Enums"]["member_schedule_status"]
           updated_at?: string
         }
         Update: {
+          arrived_at?: string | null
+          assigned_role?: string | null
+          checked_in_at?: string | null
+          checked_out_at?: string | null
+          checkin_status?: string
           created_at?: string
+          manager_memo?: string | null
           member_id?: string
           member_schedule_id?: string
           message?: string | null
+          movement_status?: string | null
           post_id?: number
+          staff_status?: string
           status?: Database["public"]["Enums"]["member_schedule_status"]
           updated_at?: string
         }
@@ -501,6 +561,7 @@ export type Database = {
           created_at: string
           description: string
           equipments: string | null
+          event_positions: string[]
           external_link: string | null
           form_type: string | null
           keywords: string[] | null
@@ -508,6 +569,7 @@ export type Database = {
           manager_contact_type: string
           manager_name: string
           manager_phone: string
+          manual_staff: Json
           notes: string | null
           pay_amount: number
           pay_type: Database["public"]["Enums"]["pay_type"]
@@ -529,6 +591,7 @@ export type Database = {
           created_at?: string
           description: string
           equipments?: string | null
+          event_positions?: string[]
           external_link?: string | null
           form_type?: string | null
           keywords?: string[] | null
@@ -536,6 +599,7 @@ export type Database = {
           manager_contact_type?: string
           manager_name: string
           manager_phone: string
+          manual_staff?: Json
           notes?: string | null
           pay_amount: number
           pay_type?: Database["public"]["Enums"]["pay_type"]
@@ -557,6 +621,7 @@ export type Database = {
           created_at?: string
           description?: string
           equipments?: string | null
+          event_positions?: string[]
           external_link?: string | null
           form_type?: string | null
           keywords?: string[] | null
@@ -564,6 +629,7 @@ export type Database = {
           manager_contact_type?: string
           manager_name?: string
           manager_phone?: string
+          manual_staff?: Json
           notes?: string | null
           pay_amount?: number
           pay_type?: Database["public"]["Enums"]["pay_type"]
@@ -713,6 +779,48 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_profiles_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -786,6 +894,7 @@ export type Database = {
         | "new_application"
         | "schedule_reminder"
         | "system"
+        | "event_briefing"
       pay_type: "hourly" | "daily" | "weekly" | "monthly"
       post_status: "recruiting" | "completed" | "urgent"
       report_reason:
@@ -950,6 +1059,7 @@ export const Constants = {
         "new_application",
         "schedule_reminder",
         "system",
+        "event_briefing",
       ],
       pay_type: ["hourly", "daily", "weekly", "monthly"],
       post_status: ["recruiting", "completed", "urgent"],
