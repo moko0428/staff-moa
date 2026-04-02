@@ -35,13 +35,20 @@ export const extractPostText = (params: ExtractParams): string => {
     lines.push('📅 일시:');
     for (const ws of params.workSlots) {
       if (ws.date) {
-        const timeStr = ws.start && ws.end ? ` ${ws.start}~${ws.end}` : '';
+        const firstPart = ws.parts?.[0];
+        const timeStr =
+          firstPart?.start && firstPart?.end
+            ? ` ${firstPart.start}~${firstPart.end}`
+            : '';
         lines.push(`- ${ws.date}${timeStr}`);
       }
     }
   } else if (slot) {
+    const firstPart = slot.parts?.[0];
     const timeStr =
-      slot.start && slot.end ? ` ${slot.start}~${slot.end}` : '';
+      firstPart?.start && firstPart?.end
+        ? ` ${firstPart.start}~${firstPart.end}`
+        : '';
     if (slot.date || timeStr) {
       lines.push(`📅 일시: ${slot.date}${timeStr}`);
     }

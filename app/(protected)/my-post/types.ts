@@ -1,5 +1,13 @@
 export type WorkType = 'single' | 'range' | 'multi';
 
+export type WorkPart = {
+  label: 'A' | 'B' | 'C';
+  name: string;
+  start: string;
+  end: string;
+  recruit_count: number;
+};
+
 export type PostRow = {
   id: string;
   author_id: string;
@@ -8,15 +16,22 @@ export type PostRow = {
   location?: string;
   work_slots: Array<{
     date: string;
-    start: string;
-    end: string;
-    work_type?: WorkType;
     location?: string;
     pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
     pay_amount: number;
     tax_withholding: boolean;
+    meal_included?: boolean;
+    meal_amount?: number;
+    parts?: WorkPart[];
+    // Legacy backward compat
+    start?: string;
+    end?: string;
+    start_time?: string;
+    end_time?: string;
   }>;
   recruit_count: number;
+  recruit_male?: number | null;
+  recruit_female?: number | null;
   manager_name: string;
   manager_phone: string;
   equipments?: string | null;
@@ -37,26 +52,14 @@ export type PostRow = {
 };
 
 export type WorkSlot = {
-  work_type: WorkType;
   date: string;
-  start: string;
-  end: string;
   location: string;
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pay_amount: number;
   tax_withholding: boolean;
   meal_included: boolean;
   meal_amount: number;
-};
-
-export type EditWorkSlot = {
-  date: string;
-  start: string;
-  end: string;
-  location: string;
-  pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
-  pay_amount: number;
-  tax_withholding: boolean;
+  parts: WorkPart[];
 };
 
 export type ActionResult<T = void> = {

@@ -2,18 +2,37 @@
 
 import { useState, useEffect, useActionState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { eachDayOfInterval, format } from 'date-fns';
-import type { DateRange } from 'react-day-picker';
 import { createPostAction, getPostByIdAction } from '../actions';
 import { parsePastedText } from '../utils/pasteParser';
 import { extractPostText } from '../utils/textExtractor';
-import type { WorkType, WorkSlot, ActionResult } from '../types';
+import type { WorkSlot, WorkPart, ActionResult } from '../types';
 
 const initialState: ActionResult<{ id: string }> = {
   ok: false,
   message: '',
   data: undefined,
 };
+
+const defaultPart = (): WorkPart => ({
+  label: 'A',
+  name: '',
+  start: '',
+  end: '',
+  recruit_count: 1,
+});
+
+const defaultSlot = (): WorkSlot => ({
+  date: '',
+  location: '',
+  pay_type: 'daily',
+  pay_amount: 0,
+  tax_withholding: false,
+  meal_included: false,
+  meal_amount: 0,
+  parts: [defaultPart()],
+});
+
+const PART_LABELS: Array<'A' | 'B' | 'C'> = ['A', 'B', 'C'];
 
 export const useCreatePost = () => {
   const router = useRouter();
@@ -38,33 +57,11 @@ export const useCreatePost = () => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [workSlots, setWorkSlots] = useState<WorkSlot[]>([
-    {
-      work_type: 'single',
-      date: '',
-      start: '',
-      end: '',
-      location: '',
-      pay_type: 'hourly',
-      pay_amount: 0,
-      tax_withholding: false,
-      meal_included: false,
-      meal_amount: 0,
-    },
-  ]);
-  const [workType, setWorkType] = useState<WorkType>('single');
-  const [selectedSingleDate, setSelectedSingleDate] = useState<
-    Date | undefined
-  >(undefined);
-  const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(
-    undefined,
-  );
-  const [multiDraftDate, setMultiDraftDate] = useState<Date | undefined>(
-    undefined,
-  );
-  const [multiDraftStart, setMultiDraftStart] = useState('');
-  const [multiDraftEnd, setMultiDraftEnd] = useState('');
+  const [workSlots, setWorkSlots] = useState<WorkSlot[]>([defaultSlot()]);
+  const [genderType, setGenderType] = useState<'any' | 'separated'>('any');
   const [recruitCount, setRecruitCount] = useState(1);
+  const [recruitMale, setRecruitMale] = useState(0);
+  const [recruitFemale, setRecruitFemale] = useState(0);
   const [managerName, setManagerName] = useState('');
   const [managerContactType, setManagerContactType] = useState<
     'phone' | 'kakao' | 'email' | 'other'
@@ -84,129 +81,290 @@ export const useCreatePost = () => {
   const [pasteText, setPasteText] = useState('');
   const [showExtractModal, setShowExtractModal] = useState(false);
   const [extractedText, setExtractedText] = useState('');
+  const [openSections, setOpenSections] = useState<string[]>(['basic-info', 'work-info']);
+  // highlight effect: set of field IDs filled by paste
+  const [pasteHighlights, setPasteHighlights] = useState<Set<string>>(new Set());
 
-  const normalizeDates = (dates: string[]) => {
-    const unique = Array.from(new Set(dates.filter(Boolean)));
-    unique.sort();
-    return unique;
-  };
-
-  const getBaseSlot = (prevSlots: WorkSlot[]): WorkSlot => {
-    return (
-      prevSlots[0] ?? {
-        work_type: 'single' as const,
+  // ── Slot handlers ────────────────────────────────────────────────────
+  const handleAddSlot = () => {
+    const base = workSlots[0];
+    setWorkSlots((prev) => [
+      ...prev,
+      {
         date: '',
-        start: '',
-        end: '',
-        location: '',
-        pay_type: 'hourly' as const,
-        pay_amount: 0,
-        tax_withholding: false,
-        meal_included: false,
-        meal_amount: 0,
-      }
-    );
+        location: base?.location || '',
+        pay_type: base?.pay_type || 'daily',
+        pay_amount: base?.pay_amount || 0,
+        tax_withholding: base?.tax_withholding || false,
+        meal_included: base?.meal_included || false,
+        meal_amount: base?.meal_amount || 0,
+        parts: [defaultPart()],
+      },
+    ]);
   };
 
-  const setSlotsFromDates = (nextWorkType: WorkType, dates: string[]) => {
-    const nextDates = normalizeDates(dates);
-    setWorkSlots((prev) => {
-      const base = getBaseSlot(prev);
-      const common = {
-        start: base.start,
-        end: base.end,
-        location: base.location,
-        pay_type: base.pay_type,
-        pay_amount: base.pay_amount,
-        tax_withholding: base.tax_withholding,
-        meal_included: base.meal_included,
-        meal_amount: base.meal_amount,
-      };
-
-      if (nextDates.length === 0) {
-        return [{ ...base, ...common, work_type: nextWorkType, date: '' }];
-      }
-
-      return nextDates.map((d) => ({
-        ...base,
-        ...common,
-        work_type: nextWorkType,
-        date: d,
-      }));
-    });
+  const handleRemoveSlot = (index: number) => {
+    if (workSlots.length <= 1) return;
+    setWorkSlots((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const updateMultiSlotTime = (
-    date: string,
-    patch: Partial<Pick<WorkSlot, 'start' | 'end'>>,
+  const handleUpdateSlot = (
+    index: number,
+    patch: Partial<Omit<WorkSlot, 'parts'>>,
   ) => {
     setWorkSlots((prev) =>
-      prev.map((s) => (s.date === date ? { ...s, ...patch } : s)),
+      prev.map((slot, i) => (i === index ? { ...slot, ...patch } : slot)),
     );
   };
 
-  const upsertMultiSlot = (slot: Pick<WorkSlot, 'date' | 'start' | 'end'>) => {
-    setWorkSlots((prev) => {
-      const base = getBaseSlot(prev);
-      const common = {
-        location: base.location,
-        pay_type: base.pay_type,
-        pay_amount: base.pay_amount,
-        tax_withholding: base.tax_withholding,
-        meal_included: base.meal_included,
-        meal_amount: base.meal_amount,
-      };
-
-      const exists = prev.some((s) => s.date === slot.date);
-      const next = exists
-        ? prev.map((s) =>
-            s.date === slot.date
-              ? { ...s, ...slot, work_type: 'multi' as const }
-              : s,
-          )
-        : [
-            ...prev,
-            {
-              ...base,
-              ...common,
-              work_type: 'multi' as const,
-              date: slot.date,
-              start: slot.start,
-              end: slot.end,
-            },
-          ];
-
-      return next.slice().sort((a, b) => a.date.localeCompare(b.date));
-    });
+  // ── Part handlers ────────────────────────────────────────────────────
+  const handleAddPart = (slotIndex: number) => {
+    setWorkSlots((prev) =>
+      prev.map((slot, i) => {
+        if (i !== slotIndex) return slot;
+        const parts = slot.parts;
+        if (parts.length >= 3) return slot;
+        const nextLabel = PART_LABELS[parts.length] || 'C';
+        return {
+          ...slot,
+          parts: [
+            ...parts,
+            { label: nextLabel, name: '', start: '', end: '', recruit_count: 1 },
+          ],
+        };
+      }),
+    );
   };
 
-  const removeMultiSlot = (date: string) => {
-    setWorkSlots((prev) => {
-      const next = prev.filter((s) => s.date !== date);
-      return next.length > 0
-        ? next
-        : [{ ...getBaseSlot(prev), work_type: 'multi', date: '' }];
-    });
+  const handleRemovePart = (slotIndex: number, partIndex: number) => {
+    setWorkSlots((prev) =>
+      prev.map((slot, i) => {
+        if (i !== slotIndex) return slot;
+        if (slot.parts.length <= 1) return slot;
+        const newParts = slot.parts
+          .filter((_, pi) => pi !== partIndex)
+          .map((p, pi) => ({ ...p, label: PART_LABELS[pi] || p.label }));
+        return { ...slot, parts: newParts };
+      }),
+    );
   };
 
-  const patchCommonFields = (
-    patch: Partial<
-      Pick<
-        WorkSlot,
-        | 'start'
-        | 'end'
-        | 'location'
-        | 'pay_type'
-        | 'pay_amount'
-        | 'tax_withholding'
-        | 'meal_included'
-        | 'meal_amount'
-      >
-    >,
+  const handleUpdatePart = (
+    slotIndex: number,
+    partIndex: number,
+    patch: Partial<WorkPart>,
   ) => {
-    setWorkSlots((prev) => prev.map((s) => ({ ...s, ...patch })));
+    setWorkSlots((prev) =>
+      prev.map((slot, i) => {
+        if (i !== slotIndex) return slot;
+        const newParts = slot.parts.map((p, pi) =>
+          pi === partIndex ? { ...p, ...patch } : p,
+        );
+        return { ...slot, parts: newParts };
+      }),
+    );
   };
 
+  // ── Keyword handlers ─────────────────────────────────────────────────
+  const handleAddKeyword = () => {
+    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
+      setKeywords([...keywords, newKeyword.trim()]);
+      setNewKeyword('');
+    }
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setKeywords(keywords.filter((k) => k !== keyword));
+  };
+
+  // ── Paste & parse ────────────────────────────────────────────────────
+  const handlePasteAndParse = () => {
+    if (!pasteText.trim()) return;
+
+    const parsed = parsePastedText(pasteText);
+
+    const highlights = new Set<string>();
+    const newOpenSections = new Set(openSections);
+
+    if (parsed.title) {
+      setTitle(parsed.title);
+      highlights.add('title');
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.description) {
+      setDescription(parsed.description);
+      highlights.add('description');
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.keyword && !keywords.includes(parsed.keyword)) {
+      setKeywords((prev) => [...prev, parsed.keyword]);
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.recruitCount) {
+      setRecruitCount(parsed.recruitCount);
+      highlights.add('recruit_count');
+      newOpenSections.add('basic-info');
+    }
+
+    // Build work slots from parsed data
+    const slotBase = {
+      pay_type: parsed.payType,
+      pay_amount: parsed.payAmount || 0,
+      tax_withholding: parsed.taxWithholding,
+      meal_included: false as const,
+      meal_amount: 0,
+      location: parsed.location || '',
+    };
+
+    if (parsed.workSlots && parsed.workSlots.length >= 2) {
+      const newSlots: WorkSlot[] = parsed.workSlots.map((s, idx) => ({
+        ...slotBase,
+        date: s.date,
+        parts: [
+          {
+            label: 'A' as const,
+            name: '',
+            start: s.startTime || '09:00',
+            end: s.endTime || '18:00',
+            recruit_count: 1,
+          },
+        ],
+      }));
+      setWorkSlots(newSlots);
+      newOpenSections.add('work-info');
+    } else if (parsed.dateRangeFrom && parsed.dateRangeTo) {
+      // Range: create multiple slots
+      const from = new Date(parsed.dateRangeFrom);
+      const to = new Date(parsed.dateRangeTo);
+      const days: string[] = [];
+      const cur = new Date(from);
+      while (cur <= to) {
+        days.push(cur.toISOString().split('T')[0]!);
+        cur.setDate(cur.getDate() + 1);
+      }
+      const newSlots: WorkSlot[] = days.map((date) => ({
+        ...slotBase,
+        date,
+        parts: [
+          {
+            label: 'A' as const,
+            name: '',
+            start: parsed.startTime || '09:00',
+            end: parsed.endTime || '18:00',
+            recruit_count: 1,
+          },
+        ],
+      }));
+      setWorkSlots(newSlots);
+      newOpenSections.add('work-info');
+    } else if (parsed.date || parsed.location) {
+      setWorkSlots([
+        {
+          ...slotBase,
+          date: parsed.date || '',
+          parts: [
+            {
+              label: 'A' as const,
+              name: '',
+              start: parsed.startTime || '09:00',
+              end: parsed.endTime || '18:00',
+              recruit_count: 1,
+            },
+          ],
+        },
+      ]);
+      newOpenSections.add('work-info');
+      if (parsed.date) highlights.add('slot-0-date');
+      if (parsed.location) highlights.add('slot-0-location');
+    }
+
+    if (parsed.managerName) {
+      setManagerName(parsed.managerName);
+      highlights.add('manager_name');
+      newOpenSections.add('manager-info');
+    }
+    if (parsed.managerPhone) {
+      setManagerPhone(parsed.managerPhone);
+      highlights.add('manager_phone');
+      newOpenSections.add('manager-info');
+    }
+    if (parsed.equipments) {
+      setEquipments(parsed.equipments);
+      highlights.add('equipments');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.qualifications) {
+      setQualifications(parsed.qualifications);
+      highlights.add('qualifications');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.preferences) {
+      setPreferences(parsed.preferences);
+      highlights.add('preferences');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.notes) {
+      setNotes(parsed.notes);
+      highlights.add('notes');
+      newOpenSections.add('additional-info');
+    }
+
+    setOpenSections(Array.from(newOpenSections));
+    setPasteHighlights(highlights);
+    // Clear highlights after 3 seconds
+    setTimeout(() => setPasteHighlights(new Set()), 3000);
+
+    setShowPasteModal(false);
+    setPasteText('');
+  };
+
+  const handleExtract = () => {
+    const text = extractPostText({
+      title,
+      description,
+      workSlots,
+      recruitCount,
+      managerName,
+      managerPhone,
+      equipments,
+      qualifications,
+      preferences,
+      notes,
+    });
+    setExtractedText(text);
+    setShowExtractModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('work_slots', JSON.stringify(workSlots));
+    formData.append('recruit_count', recruitCount.toString());
+    if (genderType === 'separated') {
+      formData.append('recruit_male', recruitMale.toString());
+      formData.append('recruit_female', recruitFemale.toString());
+    }
+    formData.append('manager_name', managerName);
+    formData.append('manager_contact_type', managerContactType);
+    formData.append('manager_phone', managerPhone);
+    if (equipments) formData.append('equipments', equipments);
+    if (qualifications) formData.append('qualifications', qualifications);
+    if (preferences) formData.append('preferences', preferences);
+    if (notes) formData.append('notes', notes);
+    if (externalLink) formData.append('external_link', externalLink);
+    formData.append('keywords', JSON.stringify(keywords));
+    formData.append('status', status);
+    formData.append('form_type', 'basic');
+
+    startTransition(() => {
+      formAction(formData);
+    });
+  };
+
+  // ── Effects ──────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -261,110 +419,57 @@ export const useCreatePost = () => {
           setKeywords((post.keywords as string[]) || []);
           setStatus('recruiting');
 
+          // recruit_male / recruit_female
+          if (post.recruit_male !== undefined && post.recruit_male !== null) {
+            setRecruitMale(post.recruit_male as number);
+            setRecruitFemale((post.recruit_female as number) || 0);
+            setGenderType('separated');
+          }
+
           if (post.work_slots && Array.isArray(post.work_slots)) {
-            const slots = (
-              post.work_slots as Array<Record<string, unknown>>
-            ).map((slot) => ({
-              work_type:
-                (slot.work_type as WorkType) || ('single' as WorkType),
-              date: (slot.date as string) || '',
-              start: ((slot.start_time || slot.start) as string) || '',
-              end: ((slot.end_time || slot.end) as string) || '',
-              location: ((slot.location || post.location) as string) || '',
-              pay_type: (slot.pay_type ||
-                post.pay_type ||
-                'hourly') as WorkSlot['pay_type'],
-              pay_amount: (slot.pay_amount || post.pay_amount || 0) as number,
-              tax_withholding:
-                slot.tax_withholding !== undefined
-                  ? (slot.tax_withholding as boolean)
-                  : (post.tax_withholding as boolean) || false,
-              meal_included:
-                slot.meal_included !== undefined
-                  ? (slot.meal_included as boolean)
-                  : false,
-              meal_amount:
-                slot.meal_amount !== undefined
-                  ? Number(slot.meal_amount)
-                  : 0,
-            }));
-            setWorkSlots(slots);
-
-            const rawDates = slots.map((s) => s.date).filter(Boolean).sort();
-            const inferredWorkType: WorkType = (() => {
-              const fromSlot = slots[0]?.work_type;
-              if (
-                fromSlot === 'range' ||
-                fromSlot === 'multi' ||
-                fromSlot === 'single'
-              ) {
-                return fromSlot;
-              }
-              if (rawDates.length <= 1) return 'single';
-              const asDates = rawDates
-                .map((d) => new Date(d))
-                .sort((a, b) => a.getTime() - b.getTime());
-              let consecutive = true;
-              for (let i = 1; i < asDates.length; i++) {
-                const prev = asDates[i - 1]!;
-                const cur = asDates[i]!;
-                const diffDays = Math.round(
-                  (cur.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000),
-                );
-                if (diffDays !== 1) {
-                  consecutive = false;
-                  break;
-                }
-              }
-              return consecutive ? 'range' : 'multi';
-            })();
-
-            setWorkType(inferredWorkType);
-            if (rawDates.length === 1) {
-              setSelectedSingleDate(new Date(rawDates[0]!));
-              setSelectedRange(undefined);
-              setMultiDraftDate(undefined);
-              setMultiDraftStart(slots[0]?.start ?? '');
-              setMultiDraftEnd(slots[0]?.end ?? '');
-            } else if (rawDates.length > 1) {
-              if (inferredWorkType === 'range') {
-                setSelectedRange({
-                  from: new Date(rawDates[0]!),
-                  to: new Date(rawDates[rawDates.length - 1]!),
-                });
-                setSelectedSingleDate(undefined);
-                setMultiDraftDate(undefined);
-                setMultiDraftStart(slots[0]?.start ?? '');
-                setMultiDraftEnd(slots[0]?.end ?? '');
+            const rawSlots = post.work_slots as Array<Record<string, unknown>>;
+            const slots: WorkSlot[] = rawSlots.map((slot) => {
+              // If slot has parts, use them; otherwise convert from legacy start/end
+              const existingParts = slot.parts as WorkPart[] | undefined;
+              let parts: WorkPart[];
+              if (existingParts && existingParts.length > 0) {
+                parts = existingParts;
               } else {
-                setSelectedSingleDate(undefined);
-                setSelectedRange(undefined);
-                setMultiDraftDate(undefined);
-                setMultiDraftStart(slots[0]?.start ?? '');
-                setMultiDraftEnd(slots[0]?.end ?? '');
+                const legacyStart = ((slot.start_time || slot.start) as string) || '';
+                const legacyEnd = ((slot.end_time || slot.end) as string) || '';
+                parts = [{ label: 'A', name: '', start: legacyStart, end: legacyEnd, recruit_count: 1 }];
               }
-            }
+              return {
+                date: (slot.date as string) || '',
+                location: ((slot.location || post.location) as string) || '',
+                pay_type: (slot.pay_type || post.pay_type || 'daily') as WorkSlot['pay_type'],
+                pay_amount: (slot.pay_amount || post.pay_amount || 0) as number,
+                tax_withholding: (slot.tax_withholding !== undefined
+                  ? slot.tax_withholding
+                  : (post.tax_withholding || false)) as boolean,
+                meal_included: (slot.meal_included !== undefined ? slot.meal_included : false) as boolean,
+                meal_amount: slot.meal_amount !== undefined ? Number(slot.meal_amount) : 0,
+                parts,
+              };
+            });
+            setWorkSlots(slots);
           } else if (post.work_date) {
-            setWorkSlots([
-              {
-                work_type: 'single',
-                date: (post.work_date as string) || '',
+            setWorkSlots([{
+              date: (post.work_date as string) || '',
+              location: (post.location as string) || '',
+              pay_type: (post.pay_type || 'daily') as WorkSlot['pay_type'],
+              pay_amount: Number(post.pay_amount) || 0,
+              tax_withholding: (post.tax_withholding as boolean) || false,
+              meal_included: false,
+              meal_amount: 0,
+              parts: [{
+                label: 'A',
+                name: '',
                 start: (post.work_time_start as string) || '',
                 end: (post.work_time_end as string) || '',
-                location: (post.location as string) || '',
-                pay_type: (post.pay_type || 'hourly') as WorkSlot['pay_type'],
-                pay_amount: Number(post.pay_amount) || 0,
-                tax_withholding: (post.tax_withholding as boolean) || false,
-                meal_included: false,
-                meal_amount: 0,
-              },
-            ]);
-            setWorkType('single');
-            setSelectedSingleDate(new Date(post.work_date as string));
-            setSelectedRange(undefined);
-            setMultiDraftDate(undefined);
-            setMultiDraftStart((post.work_time_start as string) || '');
-            setMultiDraftEnd((post.work_time_end as string) || '');
+                recruit_count: 1,
+              }],
+            }]);
           }
         }
       } catch (err) {
@@ -381,248 +486,6 @@ export const useCreatePost = () => {
     }
   }, [state, router]);
 
-  const handleAddKeyword = () => {
-    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
-      setKeywords([...keywords, newKeyword.trim()]);
-      setNewKeyword('');
-    }
-  };
-
-  const handleRemoveKeyword = (keyword: string) => {
-    setKeywords(keywords.filter((k) => k !== keyword));
-  };
-
-  const handlePasteAndParse = () => {
-    if (!pasteText.trim()) return;
-
-    const parsed = parsePastedText(pasteText);
-
-    if (parsed.title) setTitle(parsed.title);
-    if (parsed.description) setDescription(parsed.description);
-    if (parsed.keyword && !keywords.includes(parsed.keyword)) {
-      setKeywords((prev) => [...prev, parsed.keyword]);
-    }
-
-    const slotBase = {
-      pay_type: parsed.payType,
-      pay_amount: parsed.payAmount || 0,
-      tax_withholding: parsed.taxWithholding,
-      meal_included: false as const,
-      meal_amount: 0,
-      location: parsed.location || '',
-    };
-
-    const isConsecutiveDates = (dates: string[]) => {
-      const sorted = [...dates].sort();
-      for (let i = 1; i < sorted.length; i++) {
-        const diff = Math.round(
-          (new Date(sorted[i]!).getTime() -
-            new Date(sorted[i - 1]!).getTime()) /
-            (24 * 60 * 60 * 1000),
-        );
-        if (diff !== 1) return false;
-      }
-      return true;
-    };
-
-    if (parsed.workSlots && parsed.workSlots.length >= 2) {
-      // 다중 슬롯 (추출기 출력 형식)
-      const dates = parsed.workSlots.map((s) => s.date);
-      const wt: WorkType = isConsecutiveDates(dates) ? 'range' : 'multi';
-      const newSlots: WorkSlot[] = parsed.workSlots.map((s) => ({
-        ...slotBase,
-        work_type: wt,
-        date: s.date,
-        start: s.startTime,
-        end: s.endTime,
-      }));
-      setWorkSlots(newSlots);
-      setWorkType(wt);
-      const sortedDates = [...dates].sort();
-      if (wt === 'range') {
-        setSelectedRange({
-          from: new Date(sortedDates[0]!),
-          to: new Date(sortedDates[sortedDates.length - 1]!),
-        });
-        setSelectedSingleDate(undefined);
-      } else {
-        setSelectedRange(undefined);
-        setSelectedSingleDate(undefined);
-      }
-      setMultiDraftDate(undefined);
-      setMultiDraftStart(parsed.workSlots[0].startTime);
-      setMultiDraftEnd(parsed.workSlots[0].endTime);
-    } else if (parsed.dateRangeFrom && parsed.dateRangeTo) {
-      // 날짜 범위 (예: "2024-01-01 ~ 2024-01-03")
-      const from = new Date(parsed.dateRangeFrom);
-      const to = new Date(parsed.dateRangeTo);
-      const days = eachDayOfInterval({ start: from, end: to }).map((d) =>
-        format(d, 'yyyy-MM-dd'),
-      );
-      const newSlots: WorkSlot[] = days.map((date) => ({
-        ...slotBase,
-        work_type: 'range' as const,
-        date,
-        start: parsed.startTime || '09:00',
-        end: parsed.endTime || '18:00',
-      }));
-      setWorkSlots(newSlots);
-      setWorkType('range');
-      setSelectedRange({ from, to });
-      setSelectedSingleDate(undefined);
-      setMultiDraftDate(undefined);
-      setMultiDraftStart(parsed.startTime || '09:00');
-      setMultiDraftEnd(parsed.endTime || '18:00');
-    } else if (parsed.date && parsed.startTime && parsed.endTime && parsed.location) {
-      setWorkSlots([
-        {
-          ...slotBase,
-          work_type: 'single',
-          date: parsed.date,
-          start: parsed.startTime,
-          end: parsed.endTime,
-        },
-      ]);
-      setWorkType('single');
-      setSelectedSingleDate(new Date(parsed.date));
-      setSelectedRange(undefined);
-      setMultiDraftDate(undefined);
-      setMultiDraftStart(parsed.startTime);
-      setMultiDraftEnd(parsed.endTime);
-    } else if (parsed.location) {
-      setWorkSlots([
-        {
-          ...slotBase,
-          work_type: 'single',
-          date: parsed.date || '',
-          start: parsed.startTime || '09:00',
-          end: parsed.endTime || '18:00',
-        },
-      ]);
-      setWorkType('single');
-      setSelectedSingleDate(parsed.date ? new Date(parsed.date) : undefined);
-      setSelectedRange(undefined);
-      setMultiDraftDate(undefined);
-      setMultiDraftStart(parsed.startTime || '09:00');
-      setMultiDraftEnd(parsed.endTime || '18:00');
-    }
-
-    if (parsed.recruitCount) setRecruitCount(parsed.recruitCount);
-    if (parsed.equipments) setEquipments(parsed.equipments);
-    if (parsed.qualifications) setQualifications(parsed.qualifications);
-    if (parsed.preferences) setPreferences(parsed.preferences);
-    if (parsed.managerName) setManagerName(parsed.managerName);
-    if (parsed.managerPhone) setManagerPhone(parsed.managerPhone);
-    if (parsed.notes) setNotes(parsed.notes);
-
-    setShowPasteModal(false);
-    setPasteText('');
-  };
-
-  const handleExtract = () => {
-    const text = extractPostText({
-      title,
-      description,
-      workSlots,
-      recruitCount,
-      managerName,
-      managerPhone,
-      equipments,
-      qualifications,
-      preferences,
-      notes,
-    });
-    setExtractedText(text);
-    setShowExtractModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('work_slots', JSON.stringify(workSlots));
-    formData.append('recruit_count', recruitCount.toString());
-    formData.append('manager_name', managerName);
-    formData.append('manager_contact_type', managerContactType);
-    formData.append('manager_phone', managerPhone);
-    if (equipments) formData.append('equipments', equipments);
-    if (qualifications) formData.append('qualifications', qualifications);
-    if (preferences) formData.append('preferences', preferences);
-    if (notes) formData.append('notes', notes);
-    if (externalLink) formData.append('external_link', externalLink);
-    formData.append('keywords', JSON.stringify(keywords));
-    formData.append('status', status);
-    formData.append('form_type', 'basic');
-
-    startTransition(() => {
-      formAction(formData);
-    });
-  };
-
-  // WorkType switching helpers
-  const switchToSingle = () => {
-    setWorkType('single');
-    setSelectedRange(undefined);
-    setMultiDraftDate(undefined);
-    const first = workSlots[0]?.date;
-    const d = first ? new Date(first) : undefined;
-    setSelectedSingleDate(d);
-    setSlotsFromDates('single', first ? [first] : []);
-  };
-
-  const switchToRange = () => {
-    setWorkType('range');
-    setSelectedSingleDate(undefined);
-    setMultiDraftDate(undefined);
-    const dates = workSlots.map((s) => s.date).filter(Boolean).sort();
-    if (dates.length >= 2) {
-      setSelectedRange({
-        from: new Date(dates[0]!),
-        to: new Date(dates[dates.length - 1]!),
-      });
-      setSlotsFromDates('range', dates);
-    } else {
-      setSelectedRange(undefined);
-      setSlotsFromDates('range', dates);
-    }
-  };
-
-  const switchToMulti = () => {
-    setWorkType('multi');
-    setSelectedSingleDate(undefined);
-    setSelectedRange(undefined);
-    const dates = workSlots.map((s) => s.date).filter(Boolean).sort();
-    setWorkSlots((prev) =>
-      prev.map((s) => ({ ...s, work_type: 'multi' as const })),
-    );
-    setMultiDraftStart(workSlots[0]?.start || '09:00');
-    setMultiDraftEnd(workSlots[0]?.end || '18:00');
-    setMultiDraftDate(dates[0] ? new Date(dates[0]) : undefined);
-  };
-
-  const handleSingleDateSelect = (d: Date | undefined) => {
-    setSelectedSingleDate(d);
-    const ds = d ? format(d, 'yyyy-MM-dd') : '';
-    setSlotsFromDates('single', ds ? [ds] : []);
-  };
-
-  const handleRangeSelect = (range: DateRange | undefined) => {
-    setSelectedRange(range);
-    const from = range?.from;
-    const to = range?.to ?? range?.from;
-    if (!from || !to) {
-      const ds = from ? format(from, 'yyyy-MM-dd') : '';
-      setSlotsFromDates('range', ds ? [ds] : []);
-      return;
-    }
-    const days = eachDayOfInterval({ start: from, end: to }).map((x) =>
-      format(x, 'yyyy-MM-dd'),
-    );
-    setSlotsFromDates('range', days);
-  };
-
   return {
     // state
     state,
@@ -634,17 +497,14 @@ export const useCreatePost = () => {
     description,
     setDescription,
     workSlots,
-    workType,
-    selectedSingleDate,
-    selectedRange,
-    multiDraftDate,
-    setMultiDraftDate,
-    multiDraftStart,
-    setMultiDraftStart,
-    multiDraftEnd,
-    setMultiDraftEnd,
+    genderType,
+    setGenderType,
     recruitCount,
     setRecruitCount,
+    recruitMale,
+    setRecruitMale,
+    recruitFemale,
+    setRecruitFemale,
     managerName,
     setManagerName,
     managerContactType,
@@ -673,16 +533,16 @@ export const useCreatePost = () => {
     showExtractModal,
     setShowExtractModal,
     extractedText,
+    openSections,
+    setOpenSections,
+    pasteHighlights,
     // handlers
-    switchToSingle,
-    switchToRange,
-    switchToMulti,
-    handleSingleDateSelect,
-    handleRangeSelect,
-    updateMultiSlotTime,
-    upsertMultiSlot,
-    removeMultiSlot,
-    patchCommonFields,
+    handleAddSlot,
+    handleRemoveSlot,
+    handleUpdateSlot,
+    handleAddPart,
+    handleRemovePart,
+    handleUpdatePart,
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,

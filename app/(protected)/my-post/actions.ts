@@ -4,34 +4,44 @@ import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { createBulkNotificationsAction } from '@/app/(protected)/notification/actions';
 
+type WorkPart = {
+  label: 'A' | 'B' | 'C';
+  name: string;
+  start: string;
+  end: string;
+  recruit_count: number;
+};
+
 type WorkSlot = {
-  work_type?: 'single' | 'range' | 'multi';
-  date: string; // YYYY-MM-DD
-  start: string; // HH:MM
-  end: string; // HH:MM
+  date: string;
   location: string;
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pay_amount: number;
   tax_withholding: boolean;
   meal_included?: boolean;
   meal_amount?: number;
+  parts: WorkPart[];
 };
 
+const workPartSchema = z.object({
+  label: z.enum(['A', 'B', 'C']),
+  name: z.string().default(''),
+  start: z.string().regex(/^\d{2}:\d{2}$/, '시작 시간 형식이 올바르지 않습니다.'),
+  end: z.string().regex(/^\d{2}:\d{2}$/, '종료 시간 형식이 올바르지 않습니다.'),
+  recruit_count: z.number().int().min(1, '파트 모집인원은 1명 이상이어야 합니다.'),
+});
+
 const workSlotSchema = z.object({
-  work_type: z.enum(['single', 'range', 'multi']).optional().default('single'),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.'),
-  start: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/, '시작 시간 형식이 올바르지 않습니다.'),
-  end: z.string().regex(/^\d{2}:\d{2}$/, '종료 시간 형식이 올바르지 않습니다.'),
   location: z.string().min(1, '장소를 입력해주세요.'),
   pay_type: z.enum(['hourly', 'daily', 'weekly', 'monthly']),
   pay_amount: z.number().positive('급여는 0보다 커야 합니다.'),
   tax_withholding: z.boolean(),
   meal_included: z.boolean().optional().default(false),
-  meal_amount: z.number().min(0, '식대 금액은 0 이상이어야 합니다.').optional().default(0),
+  meal_amount: z.number().min(0).optional().default(0),
+  parts: z.array(workPartSchema).min(1, '최소 하나의 파트를 입력해주세요.'),
 });
 
 const createPostSchema = z.object({
@@ -41,6 +51,8 @@ const createPostSchema = z.object({
     .array(workSlotSchema)
     .min(1, '최소 하나의 날짜/시간/급여 정보를 입력해주세요.'),
   recruit_count: z.number().int().positive('모집인원은 1명 이상이어야 합니다.'),
+  recruit_male: z.number().int().min(0).nullable().optional(),
+  recruit_female: z.number().int().min(0).nullable().optional(),
   manager_name: z.string().min(1, '담당자 이름을 입력해주세요.'),
   manager_contact_type: z.enum(['phone', 'kakao', 'email', 'other']).default('phone'),
   manager_phone: z.string().min(1, '담당자 연락처를 입력해주세요.'),
@@ -53,13 +65,13 @@ const createPostSchema = z.object({
     .url('올바른 URL 형식이 아닙니다.')
     .optional()
     .or(z.literal('')),
-  keywords: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).min(1, '키워드를 최소 하나 이상 입력해주세요.'),
   status: z.enum(['recruiting', 'completed', 'urgent']).default('recruiting'),
   form_type: z.enum(['basic', 'free']).default('basic'),
 });
 
 const updatePostSchema = createPostSchema.extend({
-  id: z.string().min(1, '공고 ID가 필요합니다.'), // post_id는 bigint이므로 UUID가 아님
+  id: z.string().min(1, '공고 ID가 필요합니다.'),
 });
 
 type ActionResult<T = void> = {
@@ -82,7 +94,11 @@ function isPostPast(post: Record<string, unknown>): boolean {
     const slots = post.work_slots as Array<Record<string, unknown>>;
     const lastSlot = slots[slots.length - 1];
     const lastDate = lastSlot?.date as string;
-    const lastEndTime = (lastSlot?.end_time || lastSlot?.end) as string;
+
+    // 신규: parts 배열에서 마지막 파트의 end time
+    const parts = lastSlot?.parts as Array<Record<string, unknown>> | undefined;
+    const lastPart = parts && parts.length > 0 ? parts[parts.length - 1] : undefined;
+    const lastEndTime = (lastPart?.end || lastSlot?.end_time || lastSlot?.end) as string;
 
     if (lastDate && lastEndTime) {
       try {
@@ -262,11 +278,19 @@ export async function createPostAction(
         : keywordsJson
       : [];
 
+    // recruit_male / recruit_female 파싱
+    const recruitMaleRaw = formData.get('recruit_male');
+    const recruitFemaleRaw = formData.get('recruit_female');
+    const recruitMale = recruitMaleRaw ? Number(recruitMaleRaw) : null;
+    const recruitFemale = recruitFemaleRaw ? Number(recruitFemaleRaw) : null;
+
     const parsed = createPostSchema.safeParse({
       title: formData.get('title'),
       description: formData.get('description'),
       work_slots: workSlots,
       recruit_count: Number(formData.get('recruit_count')),
+      recruit_male: recruitMale,
+      recruit_female: recruitFemale,
       manager_name: formData.get('manager_name') || profile.name,
       manager_contact_type: formData.get('manager_contact_type') || 'phone',
       manager_phone: formData.get('manager_phone'),
@@ -300,26 +324,27 @@ export async function createPostAction(
           .filter(Boolean)
       : [];
 
-    // work_date, work_time_start, work_time_end는 work_slots의 첫 번째 항목에서 추출
+    // 레거시 컬럼용: work_slots의 첫 번째 슬롯, 첫 번째 파트에서 추출
     const firstSlot = parsed.data.work_slots[0];
+    const firstPart = firstSlot?.parts?.[0];
     const workDate = firstSlot?.date || null;
-    const workTimeStart = firstSlot?.start || null;
-    const workTimeEnd = firstSlot?.end || null;
+    const workTimeStart = firstPart?.start || null;
+    const workTimeEnd = firstPart?.end || null;
     const location = firstSlot?.location || '';
     const payAmount = firstSlot?.pay_amount || 0;
-    const payType = firstSlot?.pay_type || 'hourly';
+    const payType = firstSlot?.pay_type || 'daily';
     const taxWithholding = firstSlot?.tax_withholding || false;
 
-    // work_slots를 스키마 형식으로 변환 (start_time, end_time 사용)
+    // work_slots를 DB 형식으로 변환 (parts 포함)
     const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
-    work_type: slot.work_type ?? 'single',
       date: slot.date,
-      start_time: slot.start,
-      end_time: slot.end,
+      location: slot.location,
+      pay_type: slot.pay_type,
       pay_amount: slot.pay_amount,
-      // location, pay_type, tax_withholding은 work_slots에 포함하지 않고 테이블 레벨에서 관리
-    meal_included: slot.meal_included ?? false,
-    meal_amount: slot.meal_amount ?? 0,
+      tax_withholding: slot.tax_withholding,
+      meal_included: slot.meal_included ?? false,
+      meal_amount: slot.meal_amount ?? 0,
+      parts: slot.parts,
     }));
 
     const { data, error } = await supabase
@@ -336,6 +361,8 @@ export async function createPostAction(
         tax_withholding: taxWithholding,
         work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
+        recruit_male: parsed.data.recruit_male ?? null,
+        recruit_female: parsed.data.recruit_female ?? null,
         manager_name: parsed.data.manager_name,
         manager_contact_type: parsed.data.manager_contact_type,
         manager_phone: parsed.data.manager_phone,
@@ -400,7 +427,7 @@ export async function createPostAction(
           link: string;
         }> = [];
 
-        // 팔로우 알림: "OOO 매니저님이 공고를 올리셨습니다 지금 바로 확인해보세요!"
+        // 팔로우 알림
         if (followerRecipients.size > 0) {
           const managerName = parsed.data.manager_name || profile?.name || '매니저';
           Array.from(followerRecipients).forEach((userId) => {
@@ -414,7 +441,7 @@ export async function createPostAction(
           });
         }
 
-        // 키워드 알림: 기존 메시지 유지 (팔로우 대상과 겹치면 팔로우 메시지를 우선)
+        // 키워드 알림
         if (keywordRecipients.size > 0) {
           Array.from(keywordRecipients).forEach((userId) => {
             if (followerRecipients.has(userId)) return;
@@ -500,12 +527,20 @@ export async function updatePostAction(
         : keywordsJson
       : [];
 
+    // recruit_male / recruit_female 파싱
+    const recruitMaleRaw = formData.get('recruit_male');
+    const recruitFemaleRaw = formData.get('recruit_female');
+    const recruitMale = recruitMaleRaw ? Number(recruitMaleRaw) : null;
+    const recruitFemale = recruitFemaleRaw ? Number(recruitFemaleRaw) : null;
+
     const parsed = updatePostSchema.safeParse({
       id: postId,
       title: formData.get('title'),
       description: formData.get('description'),
       work_slots: workSlots,
       recruit_count: Number(formData.get('recruit_count')),
+      recruit_male: recruitMale,
+      recruit_female: recruitFemale,
       manager_name: formData.get('manager_name'),
       manager_contact_type: formData.get('manager_contact_type') || 'phone',
       manager_phone: formData.get('manager_phone'),
@@ -532,33 +567,36 @@ export async function updatePostAction(
       return { ok: false, message: firstError, fieldErrors };
     }
 
-    // work_date, work_time_start, work_time_end는 work_slots의 첫 번째 항목에서 추출
+    // 레거시 컬럼용: 첫 번째 슬롯의 첫 번째 파트에서 추출
     const firstSlot = parsed.data.work_slots[0];
+    const firstPart = firstSlot?.parts?.[0];
     const workDate = firstSlot?.date || null;
-    const workTimeStart = firstSlot?.start || null;
-    const workTimeEnd = firstSlot?.end || null;
+    const workTimeStart = firstPart?.start || null;
+    const workTimeEnd = firstPart?.end || null;
     const location = firstSlot?.location || '';
     const payAmount = firstSlot?.pay_amount || 0;
-    const payType = firstSlot?.pay_type || 'hourly';
+    const payType = firstSlot?.pay_type || 'daily';
     const taxWithholding = firstSlot?.tax_withholding || false;
 
-    // work_slots를 스키마 형식으로 변환
+    // work_slots를 DB 형식으로 변환 (parts 포함)
     const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
       date: slot.date,
-      start_time: slot.start,
-      end_time: slot.end,
+      location: slot.location,
+      pay_type: slot.pay_type,
       pay_amount: slot.pay_amount,
+      tax_withholding: slot.tax_withholding,
+      meal_included: slot.meal_included ?? false,
+      meal_amount: slot.meal_amount ?? 0,
+      parts: slot.parts,
     }));
 
-    // 필수 필드 검증
-    if (!workDate || !workTimeStart || !workTimeEnd || !location) {
+    if (!workDate || !location) {
       return {
         ok: false,
-        message: '날짜, 시간, 장소 정보가 필요합니다.',
+        message: '날짜와 장소 정보가 필요합니다.',
       };
     }
 
-    // 수정 시 작성일도 현재 시점으로 업데이트
     const now = new Date().toISOString();
 
     const { error } = await supabase
@@ -575,6 +613,8 @@ export async function updatePostAction(
         tax_withholding: taxWithholding,
         work_slots: transformedWorkSlots,
         recruit_count: parsed.data.recruit_count,
+        recruit_male: parsed.data.recruit_male ?? null,
+        recruit_female: parsed.data.recruit_female ?? null,
         manager_name: parsed.data.manager_name,
         manager_contact_type: parsed.data.manager_contact_type,
         manager_phone: parsed.data.manager_phone,
@@ -664,12 +704,17 @@ export async function deletePostAction(
 
         if (workSlots.length > 0) {
           for (const slot of workSlots) {
+            // 신규: parts 배열에서 시간 추출, 레거시 폴백
+            const parts = slot.parts as Array<Record<string, unknown>> | undefined;
+            const firstPart = parts && parts.length > 0 ? parts[0] : undefined;
             const startTime =
+              (firstPart?.start as string) ||
               (slot.start_time as string) ||
               (slot.start as string) ||
               post.work_time_start ||
               '00:00';
             const endTime =
+              (firstPart?.end as string) ||
               (slot.end_time as string) ||
               (slot.end as string) ||
               post.work_time_end ||
@@ -838,29 +883,40 @@ export async function getMyPostsAction(): Promise<
           rejected: rejectedCount,
         };
 
-        // work_slots 형식 변환: start_time/end_time → start/end
+        // work_slots 형식 변환 (parts 포함)
         if (post.work_slots && Array.isArray(post.work_slots)) {
-          transformed.work_slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => ({
-            date: slot.date,
-            start: slot.start_time || slot.start,
-            end: slot.end_time || slot.end,
-            location: slot.location || post.location,
-            pay_type: slot.pay_type || post.pay_type || 'hourly',
-            pay_amount: slot.pay_amount || post.pay_amount || 0,
-            tax_withholding: slot.tax_withholding !== undefined
-              ? slot.tax_withholding
-              : (post.tax_withholding || false),
-          }));
+          transformed.work_slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => {
+            const parts = slot.parts as Array<Record<string, unknown>> | undefined;
+            const firstPart = parts && parts.length > 0 ? parts[0] : undefined;
+            return {
+              date: slot.date,
+              location: slot.location || post.location,
+              pay_type: slot.pay_type || post.pay_type || 'hourly',
+              pay_amount: slot.pay_amount || post.pay_amount || 0,
+              tax_withholding: slot.tax_withholding !== undefined
+                ? slot.tax_withholding
+                : (post.tax_withholding || false),
+              meal_included: slot.meal_included || false,
+              meal_amount: slot.meal_amount || 0,
+              parts: parts || [],
+              // Legacy backward compat for display
+              start: firstPart?.start || slot.start_time || slot.start,
+              end: firstPart?.end || slot.end_time || slot.end,
+            };
+          });
         } else {
           // work_slots가 없으면 테이블 레벨 데이터로 생성
           transformed.work_slots = [{
             date: post.work_date || '',
-            start: post.work_time_start || '',
-            end: post.work_time_end || '',
             location: post.location || '',
             pay_type: post.pay_type || 'hourly',
             pay_amount: post.pay_amount || 0,
             tax_withholding: post.tax_withholding || false,
+            meal_included: false,
+            meal_amount: 0,
+            parts: [],
+            start: post.work_time_start || '',
+            end: post.work_time_end || '',
           }];
         }
 
