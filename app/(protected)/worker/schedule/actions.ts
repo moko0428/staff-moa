@@ -102,7 +102,9 @@ function normalizeScheduleData(
 // Member가 공고에 지원
 export async function applyToPostAction(
   postId: number,
-  message?: string
+  message?: string,
+  selectedPart?: string,
+  selectedSlotIndex?: number
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -148,6 +150,8 @@ export async function applyToPostAction(
       member_id: userData.user.id,
       status: 'pending',
       message: message || null,
+      selected_part: selectedPart || null,
+      selected_slot_index: selectedSlotIndex ?? null,
     });
 
     if (error) {

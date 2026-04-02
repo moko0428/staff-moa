@@ -35,6 +35,8 @@
     manager_memo: text('manager_memo'),
     movement_status: text('movement_status'), // 이동/출퇴근: departing | arrived | checked_in | checked_out
     checked_out_at: timestamp('checked_out_at', { withTimezone: true }),
+    selected_part: text('selected_part'), // 지원 시 선택한 파트: A | B | C
+    selected_slot_index: integer('selected_slot_index'), // 지원 시 선택한 슬롯 인덱스
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   });
