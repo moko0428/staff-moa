@@ -17,18 +17,18 @@ import {
   SelectValue,
 } from '@/app/components/ui/select';
 import { Plus, X } from 'lucide-react';
-import type { EditWorkSlot } from '../../../types';
+import { cn } from '@/lib/utils';
+import type { WorkSlot, WorkPart } from '../../../types';
 
 interface EditWorkSlotsCardProps {
-  workSlots: EditWorkSlot[];
+  workSlots: WorkSlot[];
   fieldErrors?: Record<string, string>;
   onAddWorkSlot: () => void;
   onRemoveWorkSlot: (index: number) => void;
-  onWorkSlotChange: (
-    index: number,
-    field: keyof EditWorkSlot,
-    value: string | number | boolean,
-  ) => void;
+  onWorkSlotChange: (index: number, patch: Partial<Omit<WorkSlot, 'parts'>>) => void;
+  onAddPart: (slotIndex: number) => void;
+  onRemovePart: (slotIndex: number, partIndex: number) => void;
+  onUpdatePart: (slotIndex: number, partIndex: number, patch: Partial<WorkPart>) => void;
 }
 
 export const EditWorkSlotsCard = ({
@@ -37,32 +37,43 @@ export const EditWorkSlotsCard = ({
   onAddWorkSlot,
   onRemoveWorkSlot,
   onWorkSlotChange,
+  onAddPart,
+  onRemovePart,
+  onUpdatePart,
 }: EditWorkSlotsCardProps) => {
   return (
     <Card>
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle>날짜/시간/급여 정보</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>근무 정보</CardTitle>
         <Button type="button" variant="outline" size="sm" onClick={onAddWorkSlot}>
-          <Plus className="size-4 mr-2" />
-          추가
+          <Plus className="size-4 mr-1" />
+          날짜 추가
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {workSlots.map((slot, index) => (
-          <div key={index} className="p-4 border rounded-lg space-y-3">
+      <CardContent className="space-y-6">
+        {workSlots.map((slot, slotIndex) => (
+          <div
+            key={slotIndex}
+            className="border rounded-lg p-4 space-y-4 bg-muted/20"
+          >
+            {/* Slot header */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">슬롯 {index + 1}</span>
+              <span className="text-sm font-semibold text-muted-foreground">
+                근무 {slotIndex + 1}
+              </span>
               {workSlots.length > 1 && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onRemoveWorkSlot(index)}
+                  onClick={() => onRemoveWorkSlot(slotIndex)}
                 >
                   <X className="size-4" />
                 </Button>
               )}
             </div>
+
+            {/* Date + Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Label>
@@ -72,33 +83,7 @@ export const EditWorkSlotsCard = ({
                   type="date"
                   value={slot.date}
                   onChange={(e) =>
-                    onWorkSlotChange(index, 'date', e.target.value)
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <Label>
-                  시작 시간 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="time"
-                  value={slot.start}
-                  onChange={(e) =>
-                    onWorkSlotChange(index, 'start', e.target.value)
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <Label>
-                  종료 시간 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="time"
-                  value={slot.end}
-                  onChange={(e) =>
-                    onWorkSlotChange(index, 'end', e.target.value)
+                    onWorkSlotChange(slotIndex, { date: e.target.value })
                   }
                   required
                 />
@@ -110,11 +95,16 @@ export const EditWorkSlotsCard = ({
                 <Input
                   value={slot.location}
                   onChange={(e) =>
-                    onWorkSlotChange(index, 'location', e.target.value)
+                    onWorkSlotChange(slotIndex, { location: e.target.value })
                   }
+                  placeholder="예: 서울 강남구 역삼동"
                   required
                 />
               </div>
+            </div>
+
+            {/* Pay */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Label>
                   급여 유형 <span className="text-red-500">*</span>
@@ -122,11 +112,7 @@ export const EditWorkSlotsCard = ({
                 <Select
                   value={slot.pay_type}
                   onValueChange={(v) =>
-                    onWorkSlotChange(
-                      index,
-                      'pay_type',
-                      v as EditWorkSlot['pay_type'],
-                    )
+                    onWorkSlotChange(slotIndex, { pay_type: v as WorkSlot['pay_type'] })
                   }
                 >
                   <SelectTrigger>
@@ -149,36 +135,155 @@ export const EditWorkSlotsCard = ({
                   min="0"
                   value={slot.pay_amount || ''}
                   onChange={(e) =>
-                    onWorkSlotChange(
-                      index,
-                      'pay_amount',
-                      Number(e.target.value),
-                    )
+                    onWorkSlotChange(slotIndex, { pay_amount: Number(e.target.value) })
                   }
                   required
                 />
               </div>
-              <div className="md:col-span-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={`tax-${index}`}
-                  checked={slot.tax_withholding}
-                  onChange={(e) =>
-                    onWorkSlotChange(
-                      index,
-                      'tax_withholding',
-                      e.target.checked,
-                    )
-                  }
-                  className="size-4"
-                />
-                <Label htmlFor={`tax-${index}`} className="cursor-pointer">
-                  3.3% 원천징수 공제
-                </Label>
+              <div className="md:col-span-2 flex flex-wrap gap-4 items-center">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={slot.tax_withholding}
+                    onChange={(e) =>
+                      onWorkSlotChange(slotIndex, { tax_withholding: e.target.checked })
+                    }
+                    className="size-4"
+                  />
+                  <span className="text-sm">3.3% 원천징수 공제</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={slot.meal_included}
+                    onChange={(e) =>
+                      onWorkSlotChange(slotIndex, {
+                        meal_included: e.target.checked,
+                        meal_amount: e.target.checked ? slot.meal_amount : 0,
+                      })
+                    }
+                    className="size-4"
+                  />
+                  <span className="text-sm">식대 포함</span>
+                </label>
+                {slot.meal_included && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">식대 금액(원)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      className="w-32"
+                      value={slot.meal_amount || ''}
+                      onChange={(e) =>
+                        onWorkSlotChange(slotIndex, { meal_amount: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Parts */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">근무 파트</Label>
+                {slot.parts.length < 3 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAddPart(slotIndex)}
+                  >
+                    <Plus className="size-3 mr-1" />
+                    파트 추가
+                  </Button>
+                )}
+              </div>
+
+              {slot.parts.map((part, partIndex) => (
+                <div
+                  key={partIndex}
+                  className={cn('rounded-md border p-3 space-y-2 bg-background')}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      파트 {part.label}
+                    </span>
+                    {slot.parts.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRemovePart(slotIndex, partIndex)}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs text-muted-foreground">파트 이름 (선택)</Label>
+                      <Input
+                        value={part.name}
+                        onChange={(e) =>
+                          onUpdatePart(slotIndex, partIndex, { name: e.target.value })
+                        }
+                        placeholder="예: 오전 파트"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        시작 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="time"
+                        value={part.start}
+                        onChange={(e) =>
+                          onUpdatePart(slotIndex, partIndex, { start: e.target.value })
+                        }
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        종료 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="time"
+                        value={part.end}
+                        onChange={(e) =>
+                          onUpdatePart(slotIndex, partIndex, { end: e.target.value })
+                        }
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        모집인원 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={part.recruit_count}
+                        onChange={(e) =>
+                          onUpdatePart(slotIndex, partIndex, {
+                            recruit_count: Number(e.target.value),
+                          })
+                        }
+                        className="h-8 text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
+
         {fieldErrors?.['work_slots'] && (
           <p className="text-sm text-red-500">{fieldErrors['work_slots']}</p>
         )}

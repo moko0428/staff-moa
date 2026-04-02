@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface ManagerInfoCardProps {
   managerName: string;
@@ -25,6 +26,8 @@ interface ManagerInfoCardProps {
   ) => void;
   managerPhone: string;
   setManagerPhone: (v: string) => void;
+  /** 아코디언 등에서 상단 제목·카드 테두리 중복 제거 */
+  plainSection?: boolean;
 }
 
 export const ManagerInfoCard = ({
@@ -34,12 +37,19 @@ export const ManagerInfoCard = ({
   setManagerContactType,
   managerPhone,
   setManagerPhone,
+  plainSection = false,
 }: ManagerInfoCardProps) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>담당자 정보</CardTitle>
-      </CardHeader>
+    <Card
+      className={cn(
+        plainSection && 'border-0 shadow-none bg-transparent',
+      )}
+    >
+      {!plainSection && (
+        <CardHeader>
+          <CardTitle>담당자 정보</CardTitle>
+        </CardHeader>
+      )}
       <CardContent className="space-y-4">
         <div>
           <Label htmlFor="manager_name">

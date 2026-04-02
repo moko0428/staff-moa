@@ -5,6 +5,12 @@ import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/app/components/ui/accordion';
 import { Clipboard, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCreatePost } from '../hooks/useCreatePost';
@@ -34,17 +40,14 @@ function CreatePostContent() {
     description,
     setDescription,
     workSlots,
-    workType,
-    selectedSingleDate,
-    selectedRange,
-    multiDraftDate,
-    setMultiDraftDate,
-    multiDraftStart,
-    setMultiDraftStart,
-    multiDraftEnd,
-    setMultiDraftEnd,
+    genderType,
+    setGenderType,
     recruitCount,
     setRecruitCount,
+    recruitMale,
+    setRecruitMale,
+    recruitFemale,
+    setRecruitFemale,
     managerName,
     setManagerName,
     managerContactType,
@@ -73,15 +76,15 @@ function CreatePostContent() {
     showExtractModal,
     setShowExtractModal,
     extractedText,
-    switchToSingle,
-    switchToRange,
-    switchToMulti,
-    handleSingleDateSelect,
-    handleRangeSelect,
-    updateMultiSlotTime,
-    upsertMultiSlot,
-    removeMultiSlot,
-    patchCommonFields,
+    openSections,
+    setOpenSections,
+    pasteHighlights,
+    handleAddSlot,
+    handleRemoveSlot,
+    handleUpdateSlot,
+    handleAddPart,
+    handleRemovePart,
+    handleUpdatePart,
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,
@@ -147,70 +150,106 @@ function CreatePostContent() {
           onApply={handlePasteAndParse}
         />
 
-        <form action={formAction} onSubmit={handleSubmit} className="space-y-6">
-          <BasicInfoCard
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            recruitCount={recruitCount}
-            setRecruitCount={setRecruitCount}
-            fieldErrors={state.fieldErrors}
-            descriptionRows={10}
-            showTitleHint
-          />
+        <form action={formAction} onSubmit={handleSubmit} className="space-y-2">
+          <Accordion
+            type="multiple"
+            value={openSections}
+            onValueChange={setOpenSections}
+            className="border rounded-lg bg-card divide-y"
+          >
+            <AccordionItem value="basic-info" className="border-0">
+              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+                기본 정보
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <BasicInfoCard
+                  title={title}
+                  setTitle={setTitle}
+                  description={description}
+                  setDescription={setDescription}
+                  recruitCount={recruitCount}
+                  setRecruitCount={setRecruitCount}
+                  genderType={genderType}
+                  setGenderType={setGenderType}
+                  recruitMale={recruitMale}
+                  setRecruitMale={setRecruitMale}
+                  recruitFemale={recruitFemale}
+                  setRecruitFemale={setRecruitFemale}
+                  keywords={keywords}
+                  newKeyword={newKeyword}
+                  setNewKeyword={setNewKeyword}
+                  handleAddKeyword={handleAddKeyword}
+                  handleRemoveKeyword={handleRemoveKeyword}
+                  fieldErrors={state.fieldErrors}
+                  descriptionRows={10}
+                  showTitleHint
+                  pasteHighlights={pasteHighlights}
+                  plainSection
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-          <WorkSlotsCard
-            workType={workType}
-            workSlots={workSlots}
-            selectedSingleDate={selectedSingleDate}
-            selectedRange={selectedRange}
-            multiDraftDate={multiDraftDate}
-            multiDraftStart={multiDraftStart}
-            multiDraftEnd={multiDraftEnd}
-            fieldErrors={state.fieldErrors}
-            onSwitchToSingle={switchToSingle}
-            onSwitchToRange={switchToRange}
-            onSwitchToMulti={switchToMulti}
-            onSingleDateSelect={handleSingleDateSelect}
-            onRangeSelect={handleRangeSelect}
-            onMultiDraftDateSelect={setMultiDraftDate}
-            onMultiDraftStartChange={setMultiDraftStart}
-            onMultiDraftEndChange={setMultiDraftEnd}
-            onUpsertMultiSlot={upsertMultiSlot}
-            onUpdateMultiSlotTime={updateMultiSlotTime}
-            onRemoveMultiSlot={removeMultiSlot}
-            onPatchCommonFields={patchCommonFields}
-          />
+            <AccordionItem value="work-info" className="border-0">
+              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+                근무 정보
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <WorkSlotsCard
+                  workSlots={workSlots}
+                  fieldErrors={state.fieldErrors}
+                  pasteHighlights={pasteHighlights}
+                  plainSection
+                  onAddSlot={handleAddSlot}
+                  onRemoveSlot={handleRemoveSlot}
+                  onUpdateSlot={handleUpdateSlot}
+                  onAddPart={handleAddPart}
+                  onRemovePart={handleRemovePart}
+                  onUpdatePart={handleUpdatePart}
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-          <ManagerInfoCard
-            managerName={managerName}
-            setManagerName={setManagerName}
-            managerContactType={managerContactType}
-            setManagerContactType={setManagerContactType}
-            managerPhone={managerPhone}
-            setManagerPhone={setManagerPhone}
-          />
+            <AccordionItem value="manager-info" className="border-0">
+              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+                담당자 정보
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <ManagerInfoCard
+                  managerName={managerName}
+                  setManagerName={setManagerName}
+                  managerContactType={managerContactType}
+                  setManagerContactType={setManagerContactType}
+                  managerPhone={managerPhone}
+                  setManagerPhone={setManagerPhone}
+                  plainSection
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-          <AdditionalInfoCard
-            equipments={equipments}
-            setEquipments={setEquipments}
-            qualifications={qualifications}
-            setQualifications={setQualifications}
-            preferences={preferences}
-            setPreferences={setPreferences}
-            notes={notes}
-            setNotes={setNotes}
-            externalLink={externalLink}
-            setExternalLink={setExternalLink}
-            keywords={keywords}
-            newKeyword={newKeyword}
-            setNewKeyword={setNewKeyword}
-            handleAddKeyword={handleAddKeyword}
-            handleRemoveKeyword={handleRemoveKeyword}
-            status={status}
-            setStatus={setStatus}
-          />
+            <AccordionItem value="additional-info" className="border-0">
+              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+                추가 정보
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <AdditionalInfoCard
+                  equipments={equipments}
+                  setEquipments={setEquipments}
+                  qualifications={qualifications}
+                  setQualifications={setQualifications}
+                  preferences={preferences}
+                  setPreferences={setPreferences}
+                  notes={notes}
+                  setNotes={setNotes}
+                  externalLink={externalLink}
+                  setExternalLink={setExternalLink}
+                  status={status}
+                  setStatus={setStatus}
+                  pasteHighlights={pasteHighlights}
+                  plainSection
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <FormStatusMessage message={state.message} ok={state.ok} />
 
