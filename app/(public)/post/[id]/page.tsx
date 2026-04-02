@@ -33,6 +33,10 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     applicationMessage,
     setApplicationMessage,
     hasApplied,
+    selectedSlotIndex,
+    setSelectedSlotIndex,
+    selectedPart,
+    setSelectedPart,
     reportOpen,
     setReportOpen,
     hasReported,
@@ -96,6 +100,11 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         applicationMessage={applicationMessage}
         onMessageChange={setApplicationMessage}
         onSubmit={handleSubmitApplication}
+        workSlots={post.work_slots}
+        selectedSlotIndex={selectedSlotIndex}
+        onSlotSelect={setSelectedSlotIndex}
+        selectedPart={selectedPart}
+        onPartSelect={setSelectedPart}
       />
 
       {/* 신고하기 모달 */}

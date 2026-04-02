@@ -44,7 +44,9 @@ export const posts = pgTable('posts', {
   pay_amount: numeric('pay_amount').notNull(),                   
   pay_type: pay_type_enum('pay_type').notNull().default('hourly'), 
 
-  recruit_count: integer('recruit_count').notNull(),              
+  recruit_count: integer('recruit_count').notNull(),
+  recruit_male: integer('recruit_male'),
+  recruit_female: integer('recruit_female'),
 
   manager_name: text('manager_name').notNull(),
   manager_contact_type: text('manager_contact_type').notNull().default('phone'),
@@ -73,9 +75,25 @@ export const posts = pgTable('posts', {
 
   work_slots: jsonb('work_slots').notNull().default([]).$type<Array<{
     date: string;
-    start_time: string;
-    end_time: string;
+    location?: string;
+    pay_type?: string;
     pay_amount: number;
+    tax_withholding?: boolean;
+    meal_included?: boolean;
+    meal_amount?: number;
+    // New: parts array
+    parts?: Array<{
+      label: 'A' | 'B' | 'C';
+      name: string;
+      start: string;
+      end: string;
+      recruit_count: number;
+    }>;
+    // Legacy backward compat
+    start_time?: string;
+    end_time?: string;
+    start?: string;
+    end?: string;
   }>>(),
 
   event_positions: text('event_positions').array().notNull().default([]),
