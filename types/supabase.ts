@@ -336,6 +336,8 @@ export type Database = {
           message: string | null
           movement_status: string | null
           post_id: number
+          selected_part: string | null
+          selected_slot_index: number | null
           staff_status: string
           status: Database["public"]["Enums"]["member_schedule_status"]
           updated_at: string
@@ -353,6 +355,8 @@ export type Database = {
           message?: string | null
           movement_status?: string | null
           post_id: number
+          selected_part?: string | null
+          selected_slot_index?: number | null
           staff_status?: string
           status?: Database["public"]["Enums"]["member_schedule_status"]
           updated_at?: string
@@ -370,6 +374,8 @@ export type Database = {
           message?: string | null
           movement_status?: string | null
           post_id?: number
+          selected_part?: string | null
+          selected_slot_index?: number | null
           staff_status?: string
           status?: Database["public"]["Enums"]["member_schedule_status"]
           updated_at?: string
@@ -577,6 +583,8 @@ export type Database = {
           preferences: string | null
           qualifications: string | null
           recruit_count: number
+          recruit_female: number | null
+          recruit_male: number | null
           status: Database["public"]["Enums"]["post_status"]
           tax_withholding: boolean
           title: string
@@ -607,6 +615,8 @@ export type Database = {
           preferences?: string | null
           qualifications?: string | null
           recruit_count: number
+          recruit_female?: number | null
+          recruit_male?: number | null
           status?: Database["public"]["Enums"]["post_status"]
           tax_withholding?: boolean
           title: string
@@ -637,6 +647,8 @@ export type Database = {
           preferences?: string | null
           qualifications?: string | null
           recruit_count?: number
+          recruit_female?: number | null
+          recruit_male?: number | null
           status?: Database["public"]["Enums"]["post_status"]
           tax_withholding?: boolean
           title?: string
