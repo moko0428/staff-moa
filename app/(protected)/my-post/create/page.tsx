@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import { useUserStore } from '@/store/useUserStore';
 import Hero from '@/app/components/Hero';
 import { Button } from '@/app/components/ui/button';
@@ -11,7 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion';
-import { Clipboard, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Clipboard, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCreatePost } from '../hooks/useCreatePost';
 import { BasicInfoCard } from '../components/organisms/BasicInfoCard';
@@ -39,15 +39,7 @@ function CreatePostContent() {
     setTitle,
     description,
     setDescription,
-    workSlots,
-    genderType,
-    setGenderType,
-    recruitCount,
-    setRecruitCount,
-    recruitMale,
-    setRecruitMale,
-    recruitFemale,
-    setRecruitFemale,
+    workParts,
     managerName,
     setManagerName,
     managerContactType,
@@ -79,18 +71,85 @@ function CreatePostContent() {
     openSections,
     setOpenSections,
     pasteHighlights,
-    handleAddSlot,
-    handleRemoveSlot,
-    handleUpdateSlot,
     handleAddPart,
     handleRemovePart,
     handleUpdatePart,
+    handleAddShift,
+    handleRemoveShift,
+    handleUpdateShift,
+    handleToggleShiftMode,
+    handleUpdatePartTime,
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,
     handleExtract,
     handleSubmit,
   } = useCreatePost();
+
+  const sectionDone = useMemo(() => ({
+    'basic-info':
+      title.trim() !== '' &&
+      keywords.length > 0 &&
+      description.trim() !== '',
+    'work-info':
+      workParts.length > 0 &&
+      workParts.every(
+        (p) =>
+          p.location.trim() !== '' &&
+          p.pay_amount > 0 &&
+          p.shifts.length > 0 &&
+          p.shifts.every((s) =>
+            s.date_end === undefined
+              ? s.date !== ''
+              : s.date !== '' && s.date_end !== '',
+          ),
+      ),
+    'manager-info':
+      managerName.trim() !== '' && managerPhone.trim() !== '',
+  }), [title, keywords, description, workParts, managerName, managerPhone]);
+
+  const setSectionAccordion = (sectionId: string, value: string | undefined) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (value === sectionId) next.add(sectionId);
+      else next.delete(sectionId);
+      return Array.from(next);
+    });
+  };
+
+  const sectionProgress = useMemo(() => {
+    const basicFilled =
+      (title.trim() !== '' ? 1 : 0) +
+      (keywords.length > 0 ? 1 : 0) +
+      (description.trim() !== '' ? 1 : 0);
+
+    let workTotal = 0;
+    let workFilled = 0;
+    for (const part of workParts) {
+      workTotal += 3; // location + pay_amount + 공통 시간(start+end)
+      if (part.location.trim() !== '') workFilled++;
+      if (part.pay_amount > 0) workFilled++;
+      const sharedTime = part.shifts[0];
+      if (sharedTime?.start && sharedTime?.end) workFilled++;
+      for (const shift of part.shifts) {
+        workTotal += 1;
+        const dateOk = shift.date_end === undefined
+          ? shift.date !== ''
+          : shift.date !== '' && shift.date_end !== '';
+        if (dateOk) workFilled++;
+      }
+    }
+
+    const managerFilled =
+      (managerName.trim() !== '' ? 1 : 0) +
+      (managerPhone.trim() !== '' ? 1 : 0);
+
+    return {
+      basic:   { filled: basicFilled,   total: 3 },
+      work:    { filled: workFilled,     total: workTotal },
+      manager: { filled: managerFilled,  total: 2 },
+    };
+  }, [title, keywords, description, workParts, managerName, managerPhone]);
 
   return (
     <AccessGuard
@@ -150,106 +209,183 @@ function CreatePostContent() {
           onApply={handlePasteAndParse}
         />
 
-        <form action={formAction} onSubmit={handleSubmit} className="space-y-2">
-          <Accordion
-            type="multiple"
-            value={openSections}
-            onValueChange={setOpenSections}
-            className="border rounded-lg bg-card divide-y"
-          >
-            <AccordionItem value="basic-info" className="border-0">
-              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
-                기본 정보
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <BasicInfoCard
-                  title={title}
-                  setTitle={setTitle}
-                  description={description}
-                  setDescription={setDescription}
-                  recruitCount={recruitCount}
-                  setRecruitCount={setRecruitCount}
-                  genderType={genderType}
-                  setGenderType={setGenderType}
-                  recruitMale={recruitMale}
-                  setRecruitMale={setRecruitMale}
-                  recruitFemale={recruitFemale}
-                  setRecruitFemale={setRecruitFemale}
-                  keywords={keywords}
-                  newKeyword={newKeyword}
-                  setNewKeyword={setNewKeyword}
-                  handleAddKeyword={handleAddKeyword}
-                  handleRemoveKeyword={handleRemoveKeyword}
-                  fieldErrors={state.fieldErrors}
-                  descriptionRows={10}
-                  showTitleHint
-                  pasteHighlights={pasteHighlights}
-                  plainSection
-                />
-              </AccordionContent>
-            </AccordionItem>
+        <form action={formAction} onSubmit={handleSubmit} className="space-y-3">
+          <div className="border rounded-lg bg-card overflow-hidden">
+            <Accordion
+              type="single"
+              collapsible
+              value={openSections.includes('basic-info') ? 'basic-info' : undefined}
+              onValueChange={(v) => setSectionAccordion('basic-info', v)}
+            >
+              <AccordionItem value="basic-info" className="border-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-base font-semibold">
+                        기본 정보
+                        {sectionDone['basic-info']
+                          ? <CheckCircle2 className="size-4 text-green-500" />
+                          : <Circle className="size-4 text-muted-foreground/40" />}
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {sectionProgress.basic.filled} / {sectionProgress.basic.total}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${(sectionProgress.basic.filled / sectionProgress.basic.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <BasicInfoCard
+                    title={title}
+                    setTitle={setTitle}
+                    description={description}
+                    setDescription={setDescription}
+                    keywords={keywords}
+                    newKeyword={newKeyword}
+                    setNewKeyword={setNewKeyword}
+                    handleAddKeyword={handleAddKeyword}
+                    handleRemoveKeyword={handleRemoveKeyword}
+                    fieldErrors={state.fieldErrors}
+                    descriptionRows={10}
+                    showTitleHint
+                    pasteHighlights={pasteHighlights}
+                    plainSection
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
-            <AccordionItem value="work-info" className="border-0">
-              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
-                근무 정보
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <WorkSlotsCard
-                  workSlots={workSlots}
-                  fieldErrors={state.fieldErrors}
-                  pasteHighlights={pasteHighlights}
-                  plainSection
-                  onAddSlot={handleAddSlot}
-                  onRemoveSlot={handleRemoveSlot}
-                  onUpdateSlot={handleUpdateSlot}
-                  onAddPart={handleAddPart}
-                  onRemovePart={handleRemovePart}
-                  onUpdatePart={handleUpdatePart}
-                />
-              </AccordionContent>
-            </AccordionItem>
+          <div className="border rounded-lg bg-card overflow-hidden">
+            <Accordion
+              type="single"
+              collapsible
+              value={openSections.includes('work-info') ? 'work-info' : undefined}
+              onValueChange={(v) => setSectionAccordion('work-info', v)}
+            >
+              <AccordionItem value="work-info" className="border-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-base font-semibold">
+                        근무 정보
+                        {sectionDone['work-info']
+                          ? <CheckCircle2 className="size-4 text-green-500" />
+                          : <Circle className="size-4 text-muted-foreground/40" />}
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {sectionProgress.work.filled} / {sectionProgress.work.total}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: sectionProgress.work.total > 0 ? `${(sectionProgress.work.filled / sectionProgress.work.total) * 100}%` : '0%' }}
+                      />
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="p-0">
+                  <WorkSlotsCard
+                    workParts={workParts}
+                    fieldErrors={state.fieldErrors}
+                    pasteHighlights={pasteHighlights}
+                    plainSection
+                    onAddPart={handleAddPart}
+                    onRemovePart={handleRemovePart}
+                    onUpdatePart={handleUpdatePart}
+                    onAddShift={handleAddShift}
+                    onRemoveShift={handleRemoveShift}
+                    onUpdateShift={handleUpdateShift}
+                    onToggleShiftMode={handleToggleShiftMode}
+                    onUpdatePartTime={handleUpdatePartTime}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
-            <AccordionItem value="manager-info" className="border-0">
-              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
-                담당자 정보
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <ManagerInfoCard
-                  managerName={managerName}
-                  setManagerName={setManagerName}
-                  managerContactType={managerContactType}
-                  setManagerContactType={setManagerContactType}
-                  managerPhone={managerPhone}
-                  setManagerPhone={setManagerPhone}
-                  plainSection
-                />
-              </AccordionContent>
-            </AccordionItem>
+          <div className="border rounded-lg bg-card overflow-hidden">
+            <Accordion
+              type="single"
+              collapsible
+              value={openSections.includes('manager-info') ? 'manager-info' : undefined}
+              onValueChange={(v) => setSectionAccordion('manager-info', v)}
+            >
+              <AccordionItem value="manager-info" className="border-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-base font-semibold">
+                        담당자 정보
+                        {sectionDone['manager-info']
+                          ? <CheckCircle2 className="size-4 text-green-500" />
+                          : <Circle className="size-4 text-muted-foreground/40" />}
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {sectionProgress.manager.filled} / {sectionProgress.manager.total}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${(sectionProgress.manager.filled / sectionProgress.manager.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ManagerInfoCard
+                    managerName={managerName}
+                    setManagerName={setManagerName}
+                    managerContactType={managerContactType}
+                    setManagerContactType={setManagerContactType}
+                    managerPhone={managerPhone}
+                    setManagerPhone={setManagerPhone}
+                    plainSection
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
-            <AccordionItem value="additional-info" className="border-0">
-              <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
-                추가 정보
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <AdditionalInfoCard
-                  equipments={equipments}
-                  setEquipments={setEquipments}
-                  qualifications={qualifications}
-                  setQualifications={setQualifications}
-                  preferences={preferences}
-                  setPreferences={setPreferences}
-                  notes={notes}
-                  setNotes={setNotes}
-                  externalLink={externalLink}
-                  setExternalLink={setExternalLink}
-                  status={status}
-                  setStatus={setStatus}
-                  pasteHighlights={pasteHighlights}
-                  plainSection
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          <div className="border rounded-lg bg-card overflow-hidden">
+            <Accordion
+              type="single"
+              collapsible
+              value={openSections.includes('additional-info') ? 'additional-info' : undefined}
+              onValueChange={(v) => setSectionAccordion('additional-info', v)}
+            >
+              <AccordionItem value="additional-info" className="border-0">
+                <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+                  추가 정보
+                </AccordionTrigger>
+                <AccordionContent>
+                  <AdditionalInfoCard
+                    equipments={equipments}
+                    setEquipments={setEquipments}
+                    qualifications={qualifications}
+                    setQualifications={setQualifications}
+                    preferences={preferences}
+                    setPreferences={setPreferences}
+                    notes={notes}
+                    setNotes={setNotes}
+                    externalLink={externalLink}
+                    setExternalLink={setExternalLink}
+                    status={status}
+                    setStatus={setStatus}
+                    pasteHighlights={pasteHighlights}
+                    plainSection
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
           <FormStatusMessage message={state.message} ok={state.ok} />
 

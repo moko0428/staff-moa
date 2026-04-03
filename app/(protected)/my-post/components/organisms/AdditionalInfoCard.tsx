@@ -68,7 +68,7 @@ export const AdditionalInfoCard = ({
         </CardHeader>
       )}
       <CardContent className="space-y-4">
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="equipments">준비물 (복장 등)</Label>
           <Input
             id="equipments"
@@ -77,7 +77,7 @@ export const AdditionalInfoCard = ({
             className={hl('equipments')}
           />
         </div>
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="qualifications">자격 요건</Label>
           <Textarea
             id="qualifications"
@@ -87,7 +87,7 @@ export const AdditionalInfoCard = ({
             className={hl('qualifications')}
           />
         </div>
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="preferences">우대 사항</Label>
           <Textarea
             id="preferences"
@@ -97,7 +97,7 @@ export const AdditionalInfoCard = ({
             className={hl('preferences')}
           />
         </div>
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="notes">기타 사항</Label>
           <Textarea
             id="notes"
@@ -107,7 +107,7 @@ export const AdditionalInfoCard = ({
             className={hl('notes')}
           />
         </div>
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="external_link">링크 (선택사항)</Label>
           <Input
             id="external_link"
@@ -117,7 +117,7 @@ export const AdditionalInfoCard = ({
             placeholder="https://example.com"
           />
         </div>
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="status">공고 상태</Label>
           <Select
             value={status}

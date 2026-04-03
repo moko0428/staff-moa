@@ -19,14 +19,6 @@ interface BasicInfoCardProps {
   setTitle: (v: string) => void;
   description: string;
   setDescription: (v: string) => void;
-  recruitCount: number;
-  setRecruitCount: (v: number) => void;
-  genderType: 'any' | 'separated';
-  setGenderType: (v: 'any' | 'separated') => void;
-  recruitMale: number;
-  setRecruitMale: (v: number) => void;
-  recruitFemale: number;
-  setRecruitFemale: (v: number) => void;
   keywords: string[];
   newKeyword: string;
   setNewKeyword: (v: string) => void;
@@ -45,14 +37,6 @@ export const BasicInfoCard = ({
   setTitle,
   description,
   setDescription,
-  recruitCount,
-  setRecruitCount,
-  genderType,
-  setGenderType,
-  recruitMale,
-  setRecruitMale,
-  recruitFemale,
-  setRecruitFemale,
   keywords,
   newKeyword,
   setNewKeyword,
@@ -68,11 +52,7 @@ export const BasicInfoCard = ({
     pasteHighlights?.has(id) ? 'ring-2 ring-blue-400' : '';
 
   return (
-    <Card
-      className={cn(
-        plainSection && 'border-0 shadow-none bg-transparent',
-      )}
-    >
+    <Card className={cn(plainSection && 'border-0 shadow-none bg-transparent')}>
       {!plainSection && (
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
@@ -80,7 +60,7 @@ export const BasicInfoCard = ({
       )}
       <CardContent className="space-y-4">
         {/* 제목 */}
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="title">
             제목 <span className="text-red-500">*</span>
           </Label>
@@ -100,19 +80,19 @@ export const BasicInfoCard = ({
         </div>
 
         {/* 키워드 (필수) */}
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label>
             키워드 <span className="text-red-500">*</span>
           </Label>
-          <small className="text-sm text-muted-foreground block mb-1">
+          <small className="text-sm text-muted-foreground block">
             효율적인 매칭을 위해 키워드를 1개 이상 입력해주세요.
           </small>
-          <div className="flex gap-2 mb-2">
+          <div className="flex gap-2">
             <Input
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   handleAddKeyword();
                 }
@@ -153,7 +133,7 @@ export const BasicInfoCard = ({
         </div>
 
         {/* 업무 내용 */}
-        <div>
+        <div className="flex flex-col gap-0.5">
           <Label htmlFor="description">
             업무 내용 <span className="text-red-500">*</span>
           </Label>
@@ -162,7 +142,9 @@ export const BasicInfoCard = ({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={descriptionRows}
-            placeholder={showTitleHint ? '업무 내용을 자세히 작성해주세요.' : undefined}
+            placeholder={
+              showTitleHint ? '업무 내용을 자세히 작성해주세요.' : undefined
+            }
             className={hl('description')}
             required
           />
@@ -170,77 +152,6 @@ export const BasicInfoCard = ({
             <p className="text-sm text-red-500 mt-1">
               {fieldErrors.description}
             </p>
-          )}
-        </div>
-
-        {/* 모집 인원 + 성별 */}
-        <div>
-          <Label>
-            모집인원 <span className="text-red-500">*</span>
-          </Label>
-          <div className="flex items-center gap-2 mb-2 mt-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={genderType === 'any' ? 'default' : 'outline'}
-              onClick={() => setGenderType('any')}
-            >
-              무관
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={genderType === 'separated' ? 'default' : 'outline'}
-              onClick={() => setGenderType('separated')}
-            >
-              남/여 구분
-            </Button>
-          </div>
-
-          {genderType === 'any' ? (
-            <Input
-              id="recruit_count"
-              type="number"
-              min="1"
-              value={recruitCount}
-              onChange={(e) => setRecruitCount(Number(e.target.value))}
-              className={hl('recruit_count')}
-              required
-            />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="recruit_male" className="text-sm">남성</Label>
-                <Input
-                  id="recruit_male"
-                  type="number"
-                  min="0"
-                  value={recruitMale}
-                  onChange={(e) => {
-                    const m = Number(e.target.value);
-                    setRecruitMale(m);
-                    setRecruitCount(m + recruitFemale);
-                  }}
-                />
-              </div>
-              <div>
-                <Label htmlFor="recruit_female" className="text-sm">여성</Label>
-                <Input
-                  id="recruit_female"
-                  type="number"
-                  min="0"
-                  value={recruitFemale}
-                  onChange={(e) => {
-                    const f = Number(e.target.value);
-                    setRecruitFemale(f);
-                    setRecruitCount(recruitMale + f);
-                  }}
-                />
-              </div>
-              <p className="col-span-2 text-sm text-muted-foreground">
-                총 모집인원: {recruitMale + recruitFemale}명
-              </p>
-            </div>
           )}
         </div>
       </CardContent>
