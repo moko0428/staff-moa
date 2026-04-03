@@ -1,25 +1,25 @@
-import type { WorkType } from '../types';
+import type { WorkPart, WorkType } from '../types';
 
-export const inferWorkType = (
-  slots: Array<{ date: string; work_type?: WorkType }>,
-): WorkType => {
-  if (!slots || slots.length <= 1) return 'single';
+export const inferWorkType = (parts: WorkPart[]): WorkType => {
+  if (!parts || parts.length === 0) return 'single';
 
-  const explicit = slots.find((s) => s.work_type)?.work_type;
-  if (explicit) return explicit;
+  // 모든 파트의 모든 shift 날짜 수집
+  const allDates = parts
+    .flatMap((p) => p.shifts.map((s) => s.date))
+    .filter(Boolean);
 
-  const dates = slots
-    .map((s) => s.date)
-    .filter(Boolean)
+  const uniqueDates = Array.from(new Set(allDates));
+
+  if (uniqueDates.length <= 1) return 'single';
+
+  const sortedDates = uniqueDates
     .map((d) => new Date(`${d}T00:00:00`))
     .sort((a, b) => a.getTime() - b.getTime());
 
-  if (dates.length <= 1) return 'single';
-
   let isContinuous = true;
-  for (let i = 1; i < dates.length; i += 1) {
+  for (let i = 1; i < sortedDates.length; i += 1) {
     const diffDays =
-      (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
+      (sortedDates[i]!.getTime() - sortedDates[i - 1]!.getTime()) / (1000 * 60 * 60 * 24);
     if (diffDays !== 1) {
       isContinuous = false;
       break;

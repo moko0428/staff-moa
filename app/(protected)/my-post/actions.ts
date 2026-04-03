@@ -4,52 +4,50 @@ import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { createBulkNotificationsAction } from '@/app/(protected)/notification/actions';
 
-type WorkPart = {
-  label: 'A' | 'B' | 'C';
-  name: string;
+type WorkShift = {
+  date: string;
   start: string;
   end: string;
-  recruit_count: number;
 };
 
-type WorkSlot = {
-  date: string;
+type WorkPart = {
+  name: string;
+  description?: string;
   location: string;
   pay_type: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pay_amount: number;
+  recruit_count: number;
   tax_withholding: boolean;
   meal_included?: boolean;
   meal_amount?: number;
-  parts: WorkPart[];
+  shifts: WorkShift[];
 };
 
-const workPartSchema = z.object({
-  label: z.enum(['A', 'B', 'C']),
-  name: z.string().default(''),
+const workShiftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.'),
   start: z.string().regex(/^\d{2}:\d{2}$/, '시작 시간 형식이 올바르지 않습니다.'),
   end: z.string().regex(/^\d{2}:\d{2}$/, '종료 시간 형식이 올바르지 않습니다.'),
-  recruit_count: z.number().int().min(1, '파트 모집인원은 1명 이상이어야 합니다.'),
 });
 
-const workSlotSchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.'),
+const workPartSchema = z.object({
+  name: z.string().default(''),
+  description: z.string().optional().default(''),
   location: z.string().min(1, '장소를 입력해주세요.'),
   pay_type: z.enum(['hourly', 'daily', 'weekly', 'monthly']),
   pay_amount: z.number().positive('급여는 0보다 커야 합니다.'),
+  recruit_count: z.number().int().min(1, '파트 모집인원은 1명 이상이어야 합니다.'),
   tax_withholding: z.boolean(),
   meal_included: z.boolean().optional().default(false),
   meal_amount: z.number().min(0).optional().default(0),
-  parts: z.array(workPartSchema).min(1, '최소 하나의 파트를 입력해주세요.'),
+  shifts: z.array(workShiftSchema).min(1, '최소 하나의 날짜/시간을 입력해주세요.'),
 });
 
 const createPostSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
   description: z.string().min(1, '업무 내용을 입력해주세요.'),
   work_slots: z
-    .array(workSlotSchema)
-    .min(1, '최소 하나의 날짜/시간/급여 정보를 입력해주세요.'),
+    .array(workPartSchema)
+    .min(1, '최소 하나의 파트 정보를 입력해주세요.'),
   recruit_count: z.number().int().positive('모집인원은 1명 이상이어야 합니다.'),
   recruit_male: z.number().int().min(0).nullable().optional(),
   recruit_female: z.number().int().min(0).nullable().optional(),
@@ -89,25 +87,53 @@ function normalizeKeyword(input: string): string {
 function isPostPast(post: Record<string, unknown>): boolean {
   const now = new Date();
 
-  // work_slots에서 가장 마지막 날짜와 시간 확인
   if (post.work_slots && Array.isArray(post.work_slots) && post.work_slots.length > 0) {
     const slots = post.work_slots as Array<Record<string, unknown>>;
-    const lastSlot = slots[slots.length - 1];
-    const lastDate = lastSlot?.date as string;
+    const firstSlot = slots[0];
 
-    // 신규: parts 배열에서 마지막 파트의 end time
-    const parts = lastSlot?.parts as Array<Record<string, unknown>> | undefined;
-    const lastPart = parts && parts.length > 0 ? parts[parts.length - 1] : undefined;
-    const lastEndTime = (lastPart?.end || lastSlot?.end_time || lastSlot?.end) as string;
-
-    if (lastDate && lastEndTime) {
-      try {
-        const [hours, minutes] = lastEndTime.split(':').map(Number);
-        const workDateTime = new Date(lastDate);
-        workDateTime.setHours(hours, minutes, 0, 0);
-        return workDateTime < now;
-      } catch {
-        // 파싱 실패 시 기본값 사용
+    if (firstSlot && 'shifts' in firstSlot) {
+      // v3: WorkPart[] — 모든 파트의 모든 shift 중 가장 마지막 날짜/시간 확인
+      let lastShiftDate = '';
+      let lastShiftEnd = '';
+      for (const part of slots) {
+        const shifts = part.shifts as Array<Record<string, unknown>> | undefined;
+        if (shifts && shifts.length > 0) {
+          for (const shift of shifts) {
+            const shiftDate = shift.date as string;
+            const shiftEnd = shift.end as string;
+            if (shiftDate && shiftDate >= lastShiftDate) {
+              lastShiftDate = shiftDate;
+              lastShiftEnd = shiftEnd || '';
+            }
+          }
+        }
+      }
+      if (lastShiftDate && lastShiftEnd) {
+        try {
+          const [hours, minutes] = lastShiftEnd.split(':').map(Number);
+          const workDateTime = new Date(lastShiftDate);
+          workDateTime.setHours(hours!, minutes!, 0, 0);
+          return workDateTime < now;
+        } catch {
+          // 파싱 실패 시 기본값 사용
+        }
+      }
+    } else {
+      // v2/v1: 날짜 중심 슬롯
+      const lastSlot = slots[slots.length - 1];
+      const lastDate = lastSlot?.date as string;
+      const parts = lastSlot?.parts as Array<Record<string, unknown>> | undefined;
+      const lastPart = parts && parts.length > 0 ? parts[parts.length - 1] : undefined;
+      const lastEndTime = (lastPart?.end || lastSlot?.end_time || lastSlot?.end) as string;
+      if (lastDate && lastEndTime) {
+        try {
+          const [hours, minutes] = lastEndTime.split(':').map(Number);
+          const workDateTime = new Date(lastDate);
+          workDateTime.setHours(hours!, minutes!, 0, 0);
+          return workDateTime < now;
+        } catch {
+          // 파싱 실패 시 기본값 사용
+        }
       }
     }
   }
@@ -120,7 +146,7 @@ function isPostPast(post: Record<string, unknown>): boolean {
     try {
       const [hours, minutes] = workTimeEnd.split(':').map(Number);
       const workDateTime = new Date(workDate);
-      workDateTime.setHours(hours, minutes, 0, 0);
+      workDateTime.setHours(hours!, minutes!, 0, 0);
       return workDateTime < now;
     } catch {
       // 파싱 실패 시 false 반환
@@ -260,7 +286,7 @@ export async function createPostAction(
       };
     }
 
-    let workSlots: WorkSlot[];
+    let workSlots: WorkPart[];
     try {
       workSlots = JSON.parse(workSlotsJson);
     } catch {
@@ -324,27 +350,29 @@ export async function createPostAction(
           .filter(Boolean)
       : [];
 
-    // 레거시 컬럼용: work_slots의 첫 번째 슬롯, 첫 번째 파트에서 추출
-    const firstSlot = parsed.data.work_slots[0];
-    const firstPart = firstSlot?.parts?.[0];
-    const workDate = firstSlot?.date || null;
-    const workTimeStart = firstPart?.start || null;
-    const workTimeEnd = firstPart?.end || null;
-    const location = firstSlot?.location || '';
-    const payAmount = firstSlot?.pay_amount || 0;
-    const payType = firstSlot?.pay_type || 'daily';
-    const taxWithholding = firstSlot?.tax_withholding || false;
+    // 레거시 컬럼용: 첫 번째 파트의 첫 번째 shift에서 추출
+    const firstPart = parsed.data.work_slots[0];
+    const firstShift = firstPart?.shifts?.[0];
+    const workDate = firstShift?.date || null;
+    const workTimeStart = firstShift?.start || null;
+    const workTimeEnd = firstShift?.end || null;
+    const location = firstPart?.location || '';
+    const payAmount = firstPart?.pay_amount || 0;
+    const payType = firstPart?.pay_type || 'daily';
+    const taxWithholding = firstPart?.tax_withholding || false;
 
-    // work_slots를 DB 형식으로 변환 (parts 포함)
-    const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
-      date: slot.date,
-      location: slot.location,
-      pay_type: slot.pay_type,
-      pay_amount: slot.pay_amount,
-      tax_withholding: slot.tax_withholding,
-      meal_included: slot.meal_included ?? false,
-      meal_amount: slot.meal_amount ?? 0,
-      parts: slot.parts,
+    // work_slots = WorkPart[] 그대로 저장
+    const transformedWorkSlots = parsed.data.work_slots.map((part) => ({
+      name: part.name,
+      description: part.description ?? '',
+      location: part.location,
+      pay_type: part.pay_type,
+      pay_amount: part.pay_amount,
+      recruit_count: part.recruit_count,
+      tax_withholding: part.tax_withholding,
+      meal_included: part.meal_included ?? false,
+      meal_amount: part.meal_amount ?? 0,
+      shifts: part.shifts,
     }));
 
     const { data, error } = await supabase
@@ -510,7 +538,7 @@ export async function updatePostAction(
       };
     }
 
-    let workSlots: WorkSlot[];
+    let workSlots: WorkPart[];
     try {
       workSlots = JSON.parse(workSlotsJson);
     } catch {
@@ -567,35 +595,30 @@ export async function updatePostAction(
       return { ok: false, message: firstError, fieldErrors };
     }
 
-    // 레거시 컬럼용: 첫 번째 슬롯의 첫 번째 파트에서 추출
-    const firstSlot = parsed.data.work_slots[0];
-    const firstPart = firstSlot?.parts?.[0];
-    const workDate = firstSlot?.date || null;
-    const workTimeStart = firstPart?.start || null;
-    const workTimeEnd = firstPart?.end || null;
-    const location = firstSlot?.location || '';
-    const payAmount = firstSlot?.pay_amount || 0;
-    const payType = firstSlot?.pay_type || 'daily';
-    const taxWithholding = firstSlot?.tax_withholding || false;
+    // 레거시 컬럼용: 첫 번째 파트의 첫 번째 shift에서 추출
+    const firstPart = parsed.data.work_slots[0];
+    const firstShift = firstPart?.shifts?.[0];
+    const workDate = firstShift?.date || null;
+    const workTimeStart = firstShift?.start || null;
+    const workTimeEnd = firstShift?.end || null;
+    const location = firstPart?.location || '';
+    const payAmount = firstPart?.pay_amount || 0;
+    const payType = firstPart?.pay_type || 'daily';
+    const taxWithholding = firstPart?.tax_withholding || false;
 
-    // work_slots를 DB 형식으로 변환 (parts 포함)
-    const transformedWorkSlots = parsed.data.work_slots.map((slot) => ({
-      date: slot.date,
-      location: slot.location,
-      pay_type: slot.pay_type,
-      pay_amount: slot.pay_amount,
-      tax_withholding: slot.tax_withholding,
-      meal_included: slot.meal_included ?? false,
-      meal_amount: slot.meal_amount ?? 0,
-      parts: slot.parts,
+    // work_slots = WorkPart[] 그대로 저장
+    const transformedWorkSlots = parsed.data.work_slots.map((part) => ({
+      name: part.name,
+      description: part.description ?? '',
+      location: part.location,
+      pay_type: part.pay_type,
+      pay_amount: part.pay_amount,
+      recruit_count: part.recruit_count,
+      tax_withholding: part.tax_withholding,
+      meal_included: part.meal_included ?? false,
+      meal_amount: part.meal_amount ?? 0,
+      shifts: part.shifts,
     }));
-
-    if (!workDate || !location) {
-      return {
-        ok: false,
-        message: '날짜와 장소 정보가 필요합니다.',
-      };
-    }
 
     const now = new Date().toISOString();
 
@@ -703,39 +726,60 @@ export async function deletePostAction(
           : [];
 
         if (workSlots.length > 0) {
-          for (const slot of workSlots) {
-            // 신규: parts 배열에서 시간 추출, 레거시 폴백
-            const parts = slot.parts as Array<Record<string, unknown>> | undefined;
-            const firstPart = parts && parts.length > 0 ? parts[0] : undefined;
-            const startTime =
-              (firstPart?.start as string) ||
-              (slot.start_time as string) ||
-              (slot.start as string) ||
-              post.work_time_start ||
-              '00:00';
-            const endTime =
-              (firstPart?.end as string) ||
-              (slot.end_time as string) ||
-              (slot.end as string) ||
-              post.work_time_end ||
-              '23:59';
+          const firstWorkSlot = workSlots[0];
+          if (firstWorkSlot && 'shifts' in firstWorkSlot) {
+            // v3: WorkPart[] — 각 파트의 첫 shift로 스케줄 생성
+            for (const part of workSlots) {
+              const shifts = part.shifts as Array<Record<string, unknown>> | undefined;
+              const firstShift = shifts && shifts.length > 0 ? shifts[0] : undefined;
+              personalSchedules.push({
+                user_id: schedule.member_id,
+                title: post.title,
+                date: (firstShift?.date as string) || post.work_date,
+                start_time: (firstShift?.start as string) || post.work_time_start || '00:00',
+                end_time: (firstShift?.end as string) || post.work_time_end || '23:59',
+                location: (part.location as string) || post.location || null,
+                pay_type: (part.pay_type as string) || post.pay_type || 'daily',
+                pay_amount: (part.pay_amount as number) || post.pay_amount || null,
+                description: post.description || null,
+                manager_name: post.manager_name || null,
+                manager_contact_type: post.manager_contact_type || 'phone',
+                manager_phone: post.manager_phone || null,
+              });
+            }
+          } else {
+            // v2/v1: 날짜 중심 슬롯
+            for (const slot of workSlots) {
+              const parts = slot.parts as Array<Record<string, unknown>> | undefined;
+              const firstPart = parts && parts.length > 0 ? parts[0] : undefined;
+              const startTime =
+                (firstPart?.start as string) ||
+                (slot.start_time as string) ||
+                (slot.start as string) ||
+                post.work_time_start ||
+                '00:00';
+              const endTime =
+                (firstPart?.end as string) ||
+                (slot.end_time as string) ||
+                (slot.end as string) ||
+                post.work_time_end ||
+                '23:59';
 
-            personalSchedules.push({
-              user_id: schedule.member_id,
-              title: post.title,
-              date: (slot.date as string) || post.work_date,
-              start_time: startTime,
-              end_time: endTime,
-              location:
-                (slot.location as string) || post.location || null,
-              pay_type:
-                (slot.pay_type as string) || post.pay_type || 'daily',
-              pay_amount: (slot.pay_amount as number) || post.pay_amount || null,
-              description: post.description || null,
-              manager_name: post.manager_name || null,
-              manager_contact_type: post.manager_contact_type || 'phone',
-              manager_phone: post.manager_phone || null,
-            });
+              personalSchedules.push({
+                user_id: schedule.member_id,
+                title: post.title,
+                date: (slot.date as string) || post.work_date,
+                start_time: startTime,
+                end_time: endTime,
+                location: (slot.location as string) || post.location || null,
+                pay_type: (slot.pay_type as string) || post.pay_type || 'daily',
+                pay_amount: (slot.pay_amount as number) || post.pay_amount || null,
+                description: post.description || null,
+                manager_name: post.manager_name || null,
+                manager_contact_type: post.manager_contact_type || 'phone',
+                manager_phone: post.manager_phone || null,
+              });
+            }
           }
         } else {
           personalSchedules.push({
@@ -883,40 +927,71 @@ export async function getMyPostsAction(): Promise<
           rejected: rejectedCount,
         };
 
-        // work_slots 형식 변환 (parts 포함)
-        if (post.work_slots && Array.isArray(post.work_slots)) {
-          transformed.work_slots = (post.work_slots as Array<Record<string, unknown>>).map((slot) => {
-            const parts = slot.parts as Array<Record<string, unknown>> | undefined;
-            const firstPart = parts && parts.length > 0 ? parts[0] : undefined;
-            return {
-              date: slot.date,
-              location: slot.location || post.location,
-              pay_type: slot.pay_type || post.pay_type || 'hourly',
-              pay_amount: slot.pay_amount || post.pay_amount || 0,
-              tax_withholding: slot.tax_withholding !== undefined
-                ? slot.tax_withholding
-                : (post.tax_withholding || false),
-              meal_included: slot.meal_included || false,
-              meal_amount: slot.meal_amount || 0,
-              parts: parts || [],
-              // Legacy backward compat for display
-              start: firstPart?.start || slot.start_time || slot.start,
-              end: firstPart?.end || slot.end_time || slot.end,
-            };
-          });
+        // work_slots → WorkPart[] 형식으로 변환
+        if (post.work_slots && Array.isArray(post.work_slots) && (post.work_slots as Array<unknown>).length > 0) {
+          const slots = post.work_slots as Array<Record<string, unknown>>;
+          const firstSlot = slots[0];
+
+          if (firstSlot && 'shifts' in firstSlot) {
+            // v3: 이미 WorkPart 형식
+            transformed.work_slots = slots;
+          } else {
+            // v2/v1: 날짜 중심 → WorkPart 변환
+            const converted: Array<Record<string, unknown>> = [];
+            for (const slot of slots) {
+              const parts = slot.parts as Array<Record<string, unknown>> | undefined;
+              if (parts && parts.length > 0) {
+                // v2: 각 파트 → WorkPart
+                for (const part of parts) {
+                  converted.push({
+                    name: (part.name as string) || (part.label as string) || '파트',
+                    location: (slot.location as string) || (post.location as string) || '',
+                    pay_type: slot.pay_type || post.pay_type || 'hourly',
+                    pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+                    recruit_count: (part.recruit_count as number) || 1,
+                    tax_withholding: slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false),
+                    meal_included: slot.meal_included || false,
+                    meal_amount: slot.meal_amount || 0,
+                    shifts: [{ date: slot.date as string, start: part.start as string, end: part.end as string }],
+                  });
+                }
+              } else {
+                // v1: 슬롯 → WorkPart
+                converted.push({
+                  name: '근무',
+                  location: (slot.location as string) || (post.location as string) || '',
+                  pay_type: slot.pay_type || post.pay_type || 'hourly',
+                  pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+                  recruit_count: 1,
+                  tax_withholding: slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false),
+                  meal_included: slot.meal_included || false,
+                  meal_amount: slot.meal_amount || 0,
+                  shifts: [{
+                    date: slot.date as string,
+                    start: ((slot.start_time || slot.start) as string) || '',
+                    end: ((slot.end_time || slot.end) as string) || '',
+                  }],
+                });
+              }
+            }
+            transformed.work_slots = converted;
+          }
         } else {
           // work_slots가 없으면 테이블 레벨 데이터로 생성
           transformed.work_slots = [{
-            date: post.work_date || '',
+            name: '근무',
             location: post.location || '',
             pay_type: post.pay_type || 'hourly',
-            pay_amount: post.pay_amount || 0,
+            pay_amount: Number(post.pay_amount) || 0,
+            recruit_count: 1,
             tax_withholding: post.tax_withholding || false,
             meal_included: false,
             meal_amount: 0,
-            parts: [],
-            start: post.work_time_start || '',
-            end: post.work_time_end || '',
+            shifts: [{
+              date: (post.work_date as string) || '',
+              start: (post.work_time_start as string) || '',
+              end: (post.work_time_end as string) || '',
+            }],
           }];
         }
 
