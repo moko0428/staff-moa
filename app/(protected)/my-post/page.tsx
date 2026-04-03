@@ -138,13 +138,10 @@ export default function MyPostPage() {
                     title: post.title,
                     description: post.description,
                     keywords: post.keywords || [],
-                    date: post.work_slots?.[0]?.date || '',
-                    location:
-                      (post.work_slots?.[0]?.location as string) ||
-                      (post.location as string) ||
-                      '',
-                    time: post.work_slots?.[0]
-                      ? `${post.work_slots[0].start} - ${post.work_slots[0].end}`
+                    date: post.work_slots?.[0]?.shifts?.[0]?.date || '',
+                    location: post.work_slots?.[0]?.location || (post.location as string) || '',
+                    time: post.work_slots?.[0]?.shifts?.[0]
+                      ? `${post.work_slots[0].shifts[0].start} - ${post.work_slots[0].shifts[0].end}`
                       : '',
                     salary: post.work_slots?.[0]?.pay_amount || 0,
                     paymentDate: '',
@@ -160,13 +157,15 @@ export default function MyPostPage() {
                     requirements: (post.qualifications as string) || undefined,
                     preferences: (post.preferences as string) || undefined,
                     workType: inferWorkType(post.work_slots || []),
-                    workDatesCount: post.work_slots?.length || 1,
-                    workSlots: (post.work_slots || []).map((slot) => ({
-                      date: slot.date,
-                      start: slot.start,
-                      end: slot.end,
-                      location: slot.location,
-                    })),
+                    workDatesCount: (post.work_slots || []).reduce((acc, p) => acc + (p.shifts?.length || 1), 0),
+                    workSlots: (post.work_slots || []).flatMap((part) =>
+                      (part.shifts || []).map((shift) => ({
+                        date: shift.date,
+                        start: shift.start,
+                        end: shift.end,
+                        location: part.location,
+                      }))
+                    ),
                     createdAt: post.created_at as string,
                     updatedAt: post.created_at as string,
                   }}

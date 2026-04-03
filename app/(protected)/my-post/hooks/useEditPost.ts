@@ -4,11 +4,10 @@ import { useState, useEffect, useActionState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { updatePostAction, getPostByIdAction } from '../actions';
-import type { WorkSlot, WorkPart } from '../types';
+import { convertToWorkParts } from './useCreatePost';
+import type { WorkPart, WorkShift } from '../types';
 
 const initialState = { ok: false, message: '', data: undefined };
-
-const PART_LABELS: Array<'A' | 'B' | 'C'> = ['A', 'B', 'C'];
 
 export const useEditPost = (postId: string, isManager: boolean) => {
   const router = useRouter();
@@ -22,11 +21,7 @@ export const useEditPost = (postId: string, isManager: boolean) => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [workSlots, setWorkSlots] = useState<WorkSlot[]>([]);
-  const [genderType, setGenderType] = useState<'any' | 'separated'>('any');
-  const [recruitCount, setRecruitCount] = useState(1);
-  const [recruitMale, setRecruitMale] = useState(0);
-  const [recruitFemale, setRecruitFemale] = useState(0);
+  const [workParts, setWorkParts] = useState<WorkPart[]>([]);
   const [managerName, setManagerName] = useState('');
   const [managerContactType, setManagerContactType] = useState<
     'phone' | 'kakao' | 'email' | 'other'
@@ -53,15 +48,10 @@ export const useEditPost = (postId: string, isManager: boolean) => {
           const post = result.data as Record<string, unknown>;
           setTitle((post.title as string) || '');
           setDescription((post.description as string) || '');
-          setRecruitCount((post.recruit_count as number) || 1);
           setManagerName((post.manager_name as string) || '');
           if (post.manager_contact_type) {
             setManagerContactType(
-              post.manager_contact_type as
-                | 'phone'
-                | 'kakao'
-                | 'email'
-                | 'other',
+              post.manager_contact_type as 'phone' | 'kakao' | 'email' | 'other',
             );
           }
           setManagerPhone((post.manager_phone as string) || '');
@@ -72,88 +62,31 @@ export const useEditPost = (postId: string, isManager: boolean) => {
           setExternalLink((post.external_link as string) || '');
           setKeywords((post.keywords as string[]) || []);
           setStatus(
-            (post.status as 'recruiting' | 'completed' | 'urgent') ||
-              'recruiting',
+            (post.status as 'recruiting' | 'completed' | 'urgent') || 'recruiting',
           );
           setFormType((post.form_type as 'basic' | 'free') || 'basic');
 
-          // recruit_male / recruit_female
-          if (post.recruit_male !== undefined && post.recruit_male !== null) {
-            setRecruitMale(post.recruit_male as number);
-            setRecruitFemale((post.recruit_female as number) || 0);
-            setGenderType('separated');
-          }
-
-          if (
-            post.work_slots &&
-            Array.isArray(post.work_slots) &&
-            post.work_slots.length > 0
-          ) {
+          if (post.work_slots && Array.isArray(post.work_slots) && (post.work_slots as Array<unknown>).length > 0) {
             const rawSlots = post.work_slots as Array<Record<string, unknown>>;
-            const convertedSlots: WorkSlot[] = rawSlots.map((slot) => {
-              // Use existing parts or convert from legacy start/end
-              const existingParts = slot.parts as WorkPart[] | undefined;
-              let parts: WorkPart[];
-              if (existingParts && existingParts.length > 0) {
-                parts = existingParts;
-              } else {
-                const legacyStart =
-                  ((slot.start_time || slot.start) as string) ||
-                  (post.work_time_start as string) ||
-                  '';
-                const legacyEnd =
-                  ((slot.end_time || slot.end) as string) ||
-                  (post.work_time_end as string) ||
-                  '';
-                parts = [{ label: 'A', name: '', start: legacyStart, end: legacyEnd, recruit_count: 1 }];
-              }
-              return {
-                date: (slot.date as string) || (post.work_date as string) || '',
-                location:
-                  (slot.location as string) || (post.location as string) || '',
-                pay_type: (slot.pay_type || post.pay_type || 'daily') as
-                  | 'hourly'
-                  | 'daily'
-                  | 'weekly'
-                  | 'monthly',
-                pay_amount:
-                  (slot.pay_amount as number) || Number(post.pay_amount) || 0,
-                tax_withholding: (slot.tax_withholding !== undefined
-                  ? slot.tax_withholding
-                  : post.tax_withholding || false) as boolean,
-                meal_included: (slot.meal_included !== undefined
-                  ? slot.meal_included
-                  : false) as boolean,
-                meal_amount: slot.meal_amount !== undefined ? Number(slot.meal_amount) : 0,
-                parts,
-              };
-            });
-            setWorkSlots(convertedSlots);
+            setWorkParts(convertToWorkParts(rawSlots, post));
           } else {
-            setWorkSlots([
-              {
+            // 완전 레거시 (work_slots 없음)
+            setWorkParts([{
+              name: '',
+              description: '',
+              location: (post.location as string) || '',
+              pay_type: ((post.pay_type || 'daily') as WorkPart['pay_type']),
+              pay_amount: Number(post.pay_amount) || 0,
+              recruit_count: 1,
+              tax_withholding: (post.tax_withholding as boolean) || false,
+              meal_included: false,
+              meal_amount: 0,
+              shifts: [{
                 date: (post.work_date as string) || '',
-                location: (post.location as string) || '',
-                pay_type: (post.pay_type || 'daily') as
-                  | 'hourly'
-                  | 'daily'
-                  | 'weekly'
-                  | 'monthly',
-                pay_amount: Number(post.pay_amount) || 0,
-                tax_withholding: (post.tax_withholding as boolean) || false,
-                meal_included: false,
-                meal_amount: 0,
-                parts: [
-                  {
-                    label: 'A',
-                    name: '',
-                    start: (post.work_time_start as string) || '',
-                    end: (post.work_time_end as string) || '',
-                    recruit_count: 1,
-                  },
-                ],
-              },
-            ]);
+                start: (post.work_time_start as string) || '',
+                end: (post.work_time_end as string) || '',
+              }],
+            }]);
           }
         } else {
           toast.error('공고를 불러오는데 실패했습니다.');
@@ -183,87 +116,80 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     }
   }, [state, router]);
 
-  // ── Slot handlers ────────────────────────────────────────────────────
-  const handleAddWorkSlot = () => {
-    const base = workSlots[0];
-    setWorkSlots([
-      ...workSlots,
+  // ── Part handlers ─────────────────────────────────────────────────────
+  const handleAddPart = () => {
+    const base = workParts[0];
+    setWorkParts([
+      ...workParts,
       {
-        date: '',
+        name: '',
+        description: '',
         location: base?.location || '',
         pay_type: base?.pay_type || 'daily',
         pay_amount: base?.pay_amount || 0,
+        recruit_count: 1,
         tax_withholding: base?.tax_withholding || false,
         meal_included: base?.meal_included || false,
         meal_amount: base?.meal_amount || 0,
-        parts: [{ label: 'A', name: '', start: '', end: '', recruit_count: 1 }],
+        shifts: [{ date: '', start: '', end: '' }],
       },
     ]);
   };
 
-  const handleRemoveWorkSlot = (index: number) => {
-    if (workSlots.length > 1) {
-      setWorkSlots(workSlots.filter((_, i) => i !== index));
+  const handleRemovePart = (partIndex: number) => {
+    if (workParts.length > 1) {
+      setWorkParts(workParts.filter((_, i) => i !== partIndex));
     }
   };
 
-  const handleWorkSlotChange = (
-    index: number,
-    patch: Partial<Omit<WorkSlot, 'parts'>>,
-  ) => {
-    const updated = [...workSlots];
-    updated[index] = { ...updated[index]!, ...patch };
-    setWorkSlots(updated);
-  };
-
-  // ── Part handlers ────────────────────────────────────────────────────
-  const handleAddPart = (slotIndex: number) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        if (slot.parts.length >= 3) return slot;
-        const nextLabel = PART_LABELS[slot.parts.length] || 'C';
-        return {
-          ...slot,
-          parts: [
-            ...slot.parts,
-            { label: nextLabel, name: '', start: '', end: '', recruit_count: 1 },
-          ],
-        };
-      }),
-    );
-  };
-
-  const handleRemovePart = (slotIndex: number, partIndex: number) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        if (slot.parts.length <= 1) return slot;
-        const newParts = slot.parts
-          .filter((_, pi) => pi !== partIndex)
-          .map((p, pi) => ({ ...p, label: PART_LABELS[pi] || p.label }));
-        return { ...slot, parts: newParts };
-      }),
-    );
-  };
-
   const handleUpdatePart = (
-    slotIndex: number,
     partIndex: number,
-    patch: Partial<WorkPart>,
+    patch: Partial<Omit<WorkPart, 'shifts'>>,
   ) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        const newParts = slot.parts.map((p, pi) =>
-          pi === partIndex ? { ...p, ...patch } : p,
-        );
-        return { ...slot, parts: newParts };
+    const updated = [...workParts];
+    updated[partIndex] = { ...updated[partIndex]!, ...patch };
+    setWorkParts(updated);
+  };
+
+  // ── Shift handlers ────────────────────────────────────────────────────
+  const handleAddShift = (partIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) =>
+        i === partIndex
+          ? { ...part, shifts: [...part.shifts, { date: '', start: '', end: '' }] }
+          : part,
+      ),
+    );
+  };
+
+  const handleRemoveShift = (partIndex: number, shiftIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        if (part.shifts.length <= 1) return part;
+        return { ...part, shifts: part.shifts.filter((_, si) => si !== shiftIndex) };
       }),
     );
   };
 
-  // ── Keyword handlers ─────────────────────────────────────────────────
+  const handleUpdateShift = (
+    partIndex: number,
+    shiftIndex: number,
+    field: keyof WorkShift,
+    value: string,
+  ) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        const newShifts = part.shifts.map((shift, si) =>
+          si === shiftIndex ? { ...shift, [field]: value } : shift,
+        );
+        return { ...part, shifts: newShifts };
+      }),
+    );
+  };
+
+  // ── Keyword handlers ──────────────────────────────────────────────────
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
       setKeywords([...keywords, newKeyword.trim()]);
@@ -278,16 +204,14 @@ export const useEditPost = (postId: string, isManager: boolean) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const totalRecruitCount = workParts.reduce((acc, p) => acc + p.recruit_count, 0);
+
     const formData = new FormData();
     formData.append('id', postId);
     formData.append('title', title);
     formData.append('description', description);
-    formData.append('work_slots', JSON.stringify(workSlots));
-    formData.append('recruit_count', recruitCount.toString());
-    if (genderType === 'separated') {
-      formData.append('recruit_male', recruitMale.toString());
-      formData.append('recruit_female', recruitFemale.toString());
-    }
+    formData.append('work_slots', JSON.stringify(workParts));
+    formData.append('recruit_count', String(totalRecruitCount));
     formData.append('manager_name', managerName);
     formData.append('manager_contact_type', managerContactType);
     formData.append('manager_phone', managerPhone);
@@ -315,15 +239,7 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     setTitle,
     description,
     setDescription,
-    workSlots,
-    genderType,
-    setGenderType,
-    recruitCount,
-    setRecruitCount,
-    recruitMale,
-    setRecruitMale,
-    recruitFemale,
-    setRecruitFemale,
+    workParts,
     managerName,
     setManagerName,
     managerContactType,
@@ -345,12 +261,12 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     setNewKeyword,
     status,
     setStatus,
-    handleAddWorkSlot,
-    handleRemoveWorkSlot,
-    handleWorkSlotChange,
     handleAddPart,
     handleRemovePart,
     handleUpdatePart,
+    handleAddShift,
+    handleRemoveShift,
+    handleUpdateShift,
     handleAddKeyword,
     handleRemoveKeyword,
     handleSubmit,

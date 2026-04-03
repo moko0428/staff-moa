@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createPostAction, getPostByIdAction } from '../actions';
 import { parsePastedText } from '../utils/pasteParser';
 import { extractPostText } from '../utils/textExtractor';
-import type { WorkSlot, WorkPart, ActionResult } from '../types';
+import type { WorkPart, WorkShift, ActionResult } from '../types';
 
 const initialState: ActionResult<{ id: string }> = {
   ok: false,
@@ -13,26 +13,20 @@ const initialState: ActionResult<{ id: string }> = {
   data: undefined,
 };
 
-const defaultPart = (): WorkPart => ({
-  label: 'A',
-  name: '',
-  start: '',
-  end: '',
-  recruit_count: 1,
-});
+const defaultShift = (): WorkShift => ({ date: '', date_end: '', start: '', end: '' });
 
-const defaultSlot = (): WorkSlot => ({
-  date: '',
+const defaultPart = (): WorkPart => ({
+  name: '',
+  description: '',
   location: '',
   pay_type: 'daily',
   pay_amount: 0,
+  recruit_count: 1,
   tax_withholding: false,
   meal_included: false,
   meal_amount: 0,
-  parts: [defaultPart()],
+  shifts: [defaultShift()],
 });
-
-const PART_LABELS: Array<'A' | 'B' | 'C'> = ['A', 'B', 'C'];
 
 export const useCreatePost = () => {
   const router = useRouter();
@@ -57,11 +51,7 @@ export const useCreatePost = () => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [workSlots, setWorkSlots] = useState<WorkSlot[]>([defaultSlot()]);
-  const [genderType, setGenderType] = useState<'any' | 'separated'>('any');
-  const [recruitCount, setRecruitCount] = useState(1);
-  const [recruitMale, setRecruitMale] = useState(0);
-  const [recruitFemale, setRecruitFemale] = useState(0);
+  const [workParts, setWorkParts] = useState<WorkPart[]>([defaultPart()]);
   const [managerName, setManagerName] = useState('');
   const [managerContactType, setManagerContactType] = useState<
     'phone' | 'kakao' | 'email' | 'other'
@@ -81,91 +71,127 @@ export const useCreatePost = () => {
   const [pasteText, setPasteText] = useState('');
   const [showExtractModal, setShowExtractModal] = useState(false);
   const [extractedText, setExtractedText] = useState('');
-  const [openSections, setOpenSections] = useState<string[]>(['basic-info', 'work-info']);
-  // highlight effect: set of field IDs filled by paste
+  const [openSections, setOpenSections] = useState<string[]>(['basic-info']);
   const [pasteHighlights, setPasteHighlights] = useState<Set<string>>(new Set());
 
-  // ── Slot handlers ────────────────────────────────────────────────────
-  const handleAddSlot = () => {
-    const base = workSlots[0];
-    setWorkSlots((prev) => [
+  // ── Part handlers ─────────────────────────────────────────────────────
+  const handleAddPart = () => {
+    const base = workParts[0];
+    setWorkParts((prev) => [
       ...prev,
       {
-        date: '',
+        name: '',
+        description: '',
         location: base?.location || '',
         pay_type: base?.pay_type || 'daily',
         pay_amount: base?.pay_amount || 0,
+        recruit_count: 1,
         tax_withholding: base?.tax_withholding || false,
         meal_included: base?.meal_included || false,
         meal_amount: base?.meal_amount || 0,
-        parts: [defaultPart()],
+        shifts: [defaultShift()],
       },
     ]);
   };
 
-  const handleRemoveSlot = (index: number) => {
-    if (workSlots.length <= 1) return;
-    setWorkSlots((prev) => prev.filter((_, i) => i !== index));
+  const handleRemovePart = (partIndex: number) => {
+    if (workParts.length <= 1) return;
+    setWorkParts((prev) => prev.filter((_, i) => i !== partIndex));
   };
 
-  const handleUpdateSlot = (
-    index: number,
-    patch: Partial<Omit<WorkSlot, 'parts'>>,
+  const handleUpdatePart = (
+    partIndex: number,
+    patch: Partial<Omit<WorkPart, 'shifts'>>,
   ) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => (i === index ? { ...slot, ...patch } : slot)),
+    setWorkParts((prev) =>
+      prev.map((part, i) => (i === partIndex ? { ...part, ...patch } : part)),
     );
   };
 
-  // ── Part handlers ────────────────────────────────────────────────────
-  const handleAddPart = (slotIndex: number) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        const parts = slot.parts;
-        if (parts.length >= 3) return slot;
-        const nextLabel = PART_LABELS[parts.length] || 'C';
+  // ── Shift handlers ────────────────────────────────────────────────────
+  const handleAddShift = (partIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        const shared = part.shifts[0];
+        const newShift: WorkShift = {
+          date: '',
+          start: shared?.start ?? '',
+          end: shared?.end ?? '',
+        };
+        // 첫 시프트가 기간 모드면 새 시프트도 기간 모드로 시작
+        if (shared?.date_end !== undefined) newShift.date_end = '';
+        return { ...part, shifts: [...part.shifts, newShift] };
+      }),
+    );
+  };
+
+  const handleToggleShiftMode = (partIndex: number, shiftIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
         return {
-          ...slot,
-          parts: [
-            ...parts,
-            { label: nextLabel, name: '', start: '', end: '', recruit_count: 1 },
-          ],
+          ...part,
+          shifts: part.shifts.map((shift, si) => {
+            if (si !== shiftIndex) return shift;
+            if (shift.date_end !== undefined) {
+              // 기간 → 당일: date_end 제거
+              const next = { ...shift };
+              delete next.date_end;
+              return next;
+            }
+            // 당일 → 기간: date_end 추가
+            return { ...shift, date_end: '' };
+          }),
         };
       }),
     );
   };
 
-  const handleRemovePart = (slotIndex: number, partIndex: number) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        if (slot.parts.length <= 1) return slot;
-        const newParts = slot.parts
-          .filter((_, pi) => pi !== partIndex)
-          .map((p, pi) => ({ ...p, label: PART_LABELS[pi] || p.label }));
-        return { ...slot, parts: newParts };
-      }),
-    );
-  };
-
-  const handleUpdatePart = (
-    slotIndex: number,
+  const handleUpdatePartTime = (
     partIndex: number,
-    patch: Partial<WorkPart>,
+    field: 'start' | 'end',
+    value: string,
   ) => {
-    setWorkSlots((prev) =>
-      prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        const newParts = slot.parts.map((p, pi) =>
-          pi === partIndex ? { ...p, ...patch } : p,
-        );
-        return { ...slot, parts: newParts };
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        return {
+          ...part,
+          shifts: part.shifts.map((shift) => ({ ...shift, [field]: value })),
+        };
       }),
     );
   };
 
-  // ── Keyword handlers ─────────────────────────────────────────────────
+  const handleRemoveShift = (partIndex: number, shiftIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        if (part.shifts.length <= 1) return part;
+        return { ...part, shifts: part.shifts.filter((_, si) => si !== shiftIndex) };
+      }),
+    );
+  };
+
+  const handleUpdateShift = (
+    partIndex: number,
+    shiftIndex: number,
+    field: keyof WorkShift,
+    value: string,
+  ) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        const newShifts = part.shifts.map((shift, si) =>
+          si === shiftIndex ? { ...shift, [field]: value } : shift,
+        );
+        return { ...part, shifts: newShifts };
+      }),
+    );
+  };
+
+  // ── Keyword handlers ──────────────────────────────────────────────────
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
       setKeywords([...keywords, newKeyword.trim()]);
@@ -177,7 +203,7 @@ export const useCreatePost = () => {
     setKeywords(keywords.filter((k) => k !== keyword));
   };
 
-  // ── Paste & parse ────────────────────────────────────────────────────
+  // ── Paste & parse ─────────────────────────────────────────────────────
   const handlePasteAndParse = () => {
     if (!pasteText.trim()) return;
 
@@ -200,82 +226,28 @@ export const useCreatePost = () => {
       setKeywords((prev) => [...prev, parsed.keyword]);
       newOpenSections.add('basic-info');
     }
-    if (parsed.recruitCount) {
-      setRecruitCount(parsed.recruitCount);
-      highlights.add('recruit_count');
-      newOpenSections.add('basic-info');
-    }
 
-    // Build work slots from parsed data
-    const slotBase = {
-      pay_type: parsed.payType,
-      pay_amount: parsed.payAmount || 0,
-      tax_withholding: parsed.taxWithholding,
-      meal_included: false as const,
-      meal_amount: 0,
-      location: parsed.location || '',
-    };
-
-    if (parsed.workSlots && parsed.workSlots.length >= 2) {
-      const newSlots: WorkSlot[] = parsed.workSlots.map((s, idx) => ({
-        ...slotBase,
-        date: s.date,
-        parts: [
-          {
-            label: 'A' as const,
-            name: '',
-            start: s.startTime || '09:00',
-            end: s.endTime || '18:00',
-            recruit_count: 1,
-          },
-        ],
-      }));
-      setWorkSlots(newSlots);
-      newOpenSections.add('work-info');
-    } else if (parsed.dateRangeFrom && parsed.dateRangeTo) {
-      // Range: create multiple slots
-      const from = new Date(parsed.dateRangeFrom);
-      const to = new Date(parsed.dateRangeTo);
-      const days: string[] = [];
-      const cur = new Date(from);
-      while (cur <= to) {
-        days.push(cur.toISOString().split('T')[0]!);
-        cur.setDate(cur.getDate() + 1);
-      }
-      const newSlots: WorkSlot[] = days.map((date) => ({
-        ...slotBase,
-        date,
-        parts: [
-          {
-            label: 'A' as const,
-            name: '',
-            start: parsed.startTime || '09:00',
-            end: parsed.endTime || '18:00',
-            recruit_count: 1,
-          },
-        ],
-      }));
-      setWorkSlots(newSlots);
-      newOpenSections.add('work-info');
-    } else if (parsed.date || parsed.location) {
-      setWorkSlots([
-        {
-          ...slotBase,
+    // 파싱 결과 → 파트 1개 + 시프트 1개
+    if (parsed.date || parsed.location) {
+      setWorkParts([{
+        name: '',
+        description: '',
+        location: parsed.location || '',
+        pay_type: parsed.payType,
+        pay_amount: parsed.payAmount || 0,
+        recruit_count: 1,
+        tax_withholding: parsed.taxWithholding,
+        meal_included: false,
+        meal_amount: 0,
+        shifts: [{
           date: parsed.date || '',
-          parts: [
-            {
-              label: 'A' as const,
-              name: '',
-              start: parsed.startTime || '09:00',
-              end: parsed.endTime || '18:00',
-              recruit_count: 1,
-            },
-          ],
-        },
-      ]);
+          start: parsed.startTime || '09:00',
+          end: parsed.endTime || '18:00',
+        }],
+      }]);
       newOpenSections.add('work-info');
-      if (parsed.date) highlights.add('slot-0-date');
-      if (parsed.location) highlights.add('slot-0-location');
+      if (parsed.date) highlights.add('part-0-shift-0-date');
+      if (parsed.location) highlights.add('part-0-location');
     }
 
     if (parsed.managerName) {
@@ -311,7 +283,6 @@ export const useCreatePost = () => {
 
     setOpenSections(Array.from(newOpenSections));
     setPasteHighlights(highlights);
-    // Clear highlights after 3 seconds
     setTimeout(() => setPasteHighlights(new Set()), 3000);
 
     setShowPasteModal(false);
@@ -322,8 +293,7 @@ export const useCreatePost = () => {
     const text = extractPostText({
       title,
       description,
-      workSlots,
-      recruitCount,
+      workParts,
       managerName,
       managerPhone,
       equipments,
@@ -338,15 +308,13 @@ export const useCreatePost = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const totalRecruitCount = workParts.reduce((acc, p) => acc + p.recruit_count, 0);
+
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
-    formData.append('work_slots', JSON.stringify(workSlots));
-    formData.append('recruit_count', recruitCount.toString());
-    if (genderType === 'separated') {
-      formData.append('recruit_male', recruitMale.toString());
-      formData.append('recruit_female', recruitFemale.toString());
-    }
+    formData.append('work_slots', JSON.stringify(workParts));
+    formData.append('recruit_count', String(totalRecruitCount));
     formData.append('manager_name', managerName);
     formData.append('manager_contact_type', managerContactType);
     formData.append('manager_phone', managerPhone);
@@ -364,7 +332,7 @@ export const useCreatePost = () => {
     });
   };
 
-  // ── Effects ──────────────────────────────────────────────────────────
+  // ── Effects ───────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -399,15 +367,10 @@ export const useCreatePost = () => {
           const post = result.data;
           setTitle((post.title as string) || '');
           setDescription((post.description as string) || '');
-          setRecruitCount((post.recruit_count as number) || 1);
           setManagerName((post.manager_name as string) || '');
           if (post.manager_contact_type) {
             setManagerContactType(
-              post.manager_contact_type as
-                | 'phone'
-                | 'kakao'
-                | 'email'
-                | 'other',
+              post.manager_contact_type as 'phone' | 'kakao' | 'email' | 'other',
             );
           }
           setManagerPhone((post.manager_phone as string) || '');
@@ -419,55 +382,25 @@ export const useCreatePost = () => {
           setKeywords((post.keywords as string[]) || []);
           setStatus('recruiting');
 
-          // recruit_male / recruit_female
-          if (post.recruit_male !== undefined && post.recruit_male !== null) {
-            setRecruitMale(post.recruit_male as number);
-            setRecruitFemale((post.recruit_female as number) || 0);
-            setGenderType('separated');
-          }
-
           if (post.work_slots && Array.isArray(post.work_slots)) {
             const rawSlots = post.work_slots as Array<Record<string, unknown>>;
-            const slots: WorkSlot[] = rawSlots.map((slot) => {
-              // If slot has parts, use them; otherwise convert from legacy start/end
-              const existingParts = slot.parts as WorkPart[] | undefined;
-              let parts: WorkPart[];
-              if (existingParts && existingParts.length > 0) {
-                parts = existingParts;
-              } else {
-                const legacyStart = ((slot.start_time || slot.start) as string) || '';
-                const legacyEnd = ((slot.end_time || slot.end) as string) || '';
-                parts = [{ label: 'A', name: '', start: legacyStart, end: legacyEnd, recruit_count: 1 }];
-              }
-              return {
-                date: (slot.date as string) || '',
-                location: ((slot.location || post.location) as string) || '',
-                pay_type: (slot.pay_type || post.pay_type || 'daily') as WorkSlot['pay_type'],
-                pay_amount: (slot.pay_amount || post.pay_amount || 0) as number,
-                tax_withholding: (slot.tax_withholding !== undefined
-                  ? slot.tax_withholding
-                  : (post.tax_withholding || false)) as boolean,
-                meal_included: (slot.meal_included !== undefined ? slot.meal_included : false) as boolean,
-                meal_amount: slot.meal_amount !== undefined ? Number(slot.meal_amount) : 0,
-                parts,
-              };
-            });
-            setWorkSlots(slots);
+            const converted = convertToWorkParts(rawSlots, post as Record<string, unknown>);
+            setWorkParts(converted);
           } else if (post.work_date) {
-            setWorkSlots([{
-              date: (post.work_date as string) || '',
+            setWorkParts([{
+              name: '',
+              description: '',
               location: (post.location as string) || '',
-              pay_type: (post.pay_type || 'daily') as WorkSlot['pay_type'],
+              pay_type: (post.pay_type as WorkPart['pay_type']) || 'daily',
               pay_amount: Number(post.pay_amount) || 0,
+              recruit_count: 1,
               tax_withholding: (post.tax_withholding as boolean) || false,
               meal_included: false,
               meal_amount: 0,
-              parts: [{
-                label: 'A',
-                name: '',
+              shifts: [{
+                date: (post.work_date as string) || '',
                 start: (post.work_time_start as string) || '',
                 end: (post.work_time_end as string) || '',
-                recruit_count: 1,
               }],
             }]);
           }
@@ -487,7 +420,6 @@ export const useCreatePost = () => {
   }, [state, router]);
 
   return {
-    // state
     state,
     isPending,
     formAction,
@@ -496,15 +428,7 @@ export const useCreatePost = () => {
     setTitle,
     description,
     setDescription,
-    workSlots,
-    genderType,
-    setGenderType,
-    recruitCount,
-    setRecruitCount,
-    recruitMale,
-    setRecruitMale,
-    recruitFemale,
-    setRecruitFemale,
+    workParts,
     managerName,
     setManagerName,
     managerContactType,
@@ -536,13 +460,14 @@ export const useCreatePost = () => {
     openSections,
     setOpenSections,
     pasteHighlights,
-    // handlers
-    handleAddSlot,
-    handleRemoveSlot,
-    handleUpdateSlot,
     handleAddPart,
     handleRemovePart,
     handleUpdatePart,
+    handleAddShift,
+    handleToggleShiftMode,
+    handleUpdatePartTime,
+    handleRemoveShift,
+    handleUpdateShift,
     handleAddKeyword,
     handleRemoveKeyword,
     handlePasteAndParse,
@@ -550,3 +475,64 @@ export const useCreatePost = () => {
     handleSubmit,
   };
 };
+
+// v2/v1 → v3 변환 공통 함수
+export function convertToWorkParts(
+  rawSlots: Array<Record<string, unknown>>,
+  post: Record<string, unknown>,
+): WorkPart[] {
+  if (rawSlots.length === 0) return [{ name: '', description: '', location: '', pay_type: 'daily', pay_amount: 0, recruit_count: 1, tax_withholding: false, meal_included: false, meal_amount: 0, shifts: [{ date: '', start: '', end: '' }] }];
+
+  const firstSlot = rawSlots[0];
+
+  if (firstSlot && 'shifts' in firstSlot) {
+    // v3: 그대로 (description 없는 구버전도 안전하게 병합)
+    return rawSlots.map((slot) => ({ description: '', ...slot })) as unknown as WorkPart[];
+  }
+
+  // v2 or v1
+  const converted: WorkPart[] = [];
+  for (const slot of rawSlots) {
+    const parts = slot.parts as Array<Record<string, unknown>> | undefined;
+    if (parts && parts.length > 0) {
+      // v2: 각 파트 → WorkPart (shift 1개)
+      for (const part of parts) {
+        converted.push({
+          name: (part.name as string) || '',
+          description: '',
+          location: (slot.location as string) || (post.location as string) || '',
+          pay_type: ((slot.pay_type || post.pay_type || 'daily') as WorkPart['pay_type']),
+          pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+          recruit_count: (part.recruit_count as number) || 1,
+          tax_withholding: (slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false)) as boolean,
+          meal_included: (slot.meal_included as boolean) || false,
+          meal_amount: Number(slot.meal_amount) || 0,
+          shifts: [{
+            date: (slot.date as string) || '',
+            start: (part.start as string) || '',
+            end: (part.end as string) || '',
+          }],
+        });
+      }
+    } else {
+      // v1: 슬롯 → WorkPart (shift 1개)
+      converted.push({
+        name: '',
+        description: '',
+        location: (slot.location as string) || (post.location as string) || '',
+        pay_type: ((slot.pay_type || post.pay_type || 'daily') as WorkPart['pay_type']),
+        pay_amount: (slot.pay_amount as number) || Number(post.pay_amount) || 0,
+        recruit_count: 1,
+        tax_withholding: (slot.tax_withholding !== undefined ? slot.tax_withholding : (post.tax_withholding || false)) as boolean,
+        meal_included: (slot.meal_included as boolean) || false,
+        meal_amount: Number(slot.meal_amount) || 0,
+        shifts: [{
+          date: (slot.date as string) || '',
+          start: ((slot.start_time || slot.start) as string) || (post.work_time_start as string) || '',
+          end: ((slot.end_time || slot.end) as string) || (post.work_time_end as string) || '',
+        }],
+      });
+    }
+  }
+  return converted;
+}
