@@ -34,15 +34,7 @@ export default function EditPostPage() {
     setTitle,
     description,
     setDescription,
-    workSlots,
-    genderType,
-    setGenderType,
-    recruitCount,
-    setRecruitCount,
-    recruitMale,
-    setRecruitMale,
-    recruitFemale,
-    setRecruitFemale,
+    workParts,
     managerName,
     setManagerName,
     managerContactType,
@@ -64,12 +56,12 @@ export default function EditPostPage() {
     setNewKeyword,
     status,
     setStatus,
-    handleAddWorkSlot,
-    handleRemoveWorkSlot,
-    handleWorkSlotChange,
     handleAddPart,
     handleRemovePart,
     handleUpdatePart,
+    handleAddShift,
+    handleRemoveShift,
+    handleUpdateShift,
     handleAddKeyword,
     handleRemoveKeyword,
     handleSubmit,
@@ -97,14 +89,6 @@ export default function EditPostPage() {
                   setTitle={setTitle}
                   description={description}
                   setDescription={setDescription}
-                  recruitCount={recruitCount}
-                  setRecruitCount={setRecruitCount}
-                  genderType={genderType}
-                  setGenderType={setGenderType}
-                  recruitMale={recruitMale}
-                  setRecruitMale={setRecruitMale}
-                  recruitFemale={recruitFemale}
-                  setRecruitFemale={setRecruitFemale}
                   keywords={keywords}
                   newKeyword={newKeyword}
                   setNewKeyword={setNewKeyword}
@@ -120,16 +104,16 @@ export default function EditPostPage() {
               <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
                 근무 정보
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="p-0">
                 <EditWorkSlotsCard
-                  workSlots={workSlots}
+                  workParts={workParts}
                   fieldErrors={state.fieldErrors}
-                  onAddWorkSlot={handleAddWorkSlot}
-                  onRemoveWorkSlot={handleRemoveWorkSlot}
-                  onWorkSlotChange={handleWorkSlotChange}
                   onAddPart={handleAddPart}
                   onRemovePart={handleRemovePart}
                   onUpdatePart={handleUpdatePart}
+                  onAddShift={handleAddShift}
+                  onRemoveShift={handleRemoveShift}
+                  onUpdateShift={handleUpdateShift}
                 />
               </AccordionContent>
             </AccordionItem>
