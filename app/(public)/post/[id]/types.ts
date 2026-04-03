@@ -1,12 +1,25 @@
-export type WorkPart = {
-  label: 'A' | 'B' | 'C';
-  name: string;
+export type WorkShift = {
+  date: string;
   start: string;
   end: string;
-  recruit_count: number;
 };
 
-export type WorkSlot = {
+// New v3: part-centric
+export type WorkPart = {
+  name: string;
+  description?: string;
+  location?: string;
+  pay_type?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  pay_amount?: number;
+  recruit_count: number;
+  tax_withholding?: boolean;
+  meal_included?: boolean;
+  meal_amount?: number;
+  shifts: WorkShift[];
+};
+
+// Legacy v2/v1: date-centric
+export type LegacySlot = {
   date: string;
   start_time?: string;
   end_time?: string;
@@ -18,8 +31,17 @@ export type WorkSlot = {
   tax_withholding?: boolean;
   meal_included?: boolean;
   meal_amount?: number;
-  parts?: WorkPart[];
+  parts?: Array<{
+    label: 'A' | 'B' | 'C';
+    name: string;
+    start: string;
+    end: string;
+    recruit_count: number;
+  }>;
 };
+
+export const isNewPart = (item: unknown): item is WorkPart =>
+  typeof item === 'object' && item !== null && 'shifts' in item;
 
 export type PostData = {
   post_id: number;
@@ -33,7 +55,7 @@ export type PostData = {
   pay_amount?: string | number;
   pay_type?: 'hourly' | 'daily' | 'weekly' | 'monthly';
   tax_withholding?: boolean;
-  work_slots?: WorkSlot[];
+  work_slots?: Array<WorkPart | LegacySlot>;
   recruit_count: number;
   recruit_male?: number | null;
   recruit_female?: number | null;

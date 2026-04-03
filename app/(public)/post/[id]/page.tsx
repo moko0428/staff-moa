@@ -33,8 +33,6 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     applicationMessage,
     setApplicationMessage,
     hasApplied,
-    selectedSlotIndex,
-    setSelectedSlotIndex,
     selectedPart,
     setSelectedPart,
     reportOpen,
@@ -101,8 +99,6 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         onMessageChange={setApplicationMessage}
         onSubmit={handleSubmitApplication}
         workSlots={post.work_slots}
-        selectedSlotIndex={selectedSlotIndex}
-        onSlotSelect={setSelectedSlotIndex}
         selectedPart={selectedPart}
         onPartSelect={setSelectedPart}
       />

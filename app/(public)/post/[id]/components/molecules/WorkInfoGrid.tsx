@@ -1,6 +1,5 @@
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { WorkSlot } from '../../types';
 import {
   formatNumberWithComma,
   getPayTypeLabel,
@@ -13,7 +12,7 @@ interface WorkInfoGridProps {
   workLocation?: string;
   payAmount?: string | number;
   payType?: string;
-  firstSlot?: WorkSlot;
+  taxWithholding?: boolean;
   totalSlots?: number;
 }
 
@@ -24,7 +23,7 @@ const WorkInfoGrid = ({
   workLocation,
   payAmount,
   payType,
-  firstSlot,
+  taxWithholding,
   totalSlots = 1,
 }: WorkInfoGridProps) => (
   <div className="grid grid-cols-2 gap-4">
@@ -66,7 +65,7 @@ const WorkInfoGrid = ({
           <p className="text-sm text-muted-foreground">급여</p>
           <p className="font-medium text-primary">
             {getPayTypeLabel(payType)} {formatNumberWithComma(payAmount)}원
-            {firstSlot?.tax_withholding && (
+            {taxWithholding && (
               <span className="text-xs text-muted-foreground ml-1">
                 (3.3% 공제)
               </span>

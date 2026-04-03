@@ -44,7 +44,6 @@ export const usePostDetail = (id: string) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [applicationMessage, setApplicationMessage] = useState('');
   const [hasApplied, setHasApplied] = useState(false);
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState(0);
   const [selectedPart, setSelectedPart] = useState<string | undefined>(undefined);
   const [reportOpen, setReportOpen] = useState(false);
   const [hasReported, setHasReported] = useState(false);
@@ -164,10 +163,11 @@ export const usePostDetail = (id: string) => {
       toast.error('로그인이 필요합니다.');
       return;
     }
-    // Validate part selection if the current slot has parts
-    const currentSlot = post.work_slots?.[selectedSlotIndex];
-    const hasParts = currentSlot?.parts && currentSlot.parts.length > 0;
-    if (hasParts && !selectedPart) {
+    // 파트가 있으면 선택 필수
+    const hasAnyParts = post.work_slots && post.work_slots.length > 0 &&
+      (post.work_slots.some((s) => 'shifts' in s) ||
+       post.work_slots.some((s) => !('shifts' in s) && 'parts' in s && (s as {parts?: unknown[]}).parts && ((s as {parts: unknown[]}).parts).length > 0));
+    if (hasAnyParts && !selectedPart) {
       toast.error('파트를 선택해주세요.');
       return;
     }
@@ -176,7 +176,6 @@ export const usePostDetail = (id: string) => {
         post.post_id,
         applicationMessage.trim() || undefined,
         selectedPart,
-        post.work_slots && post.work_slots.length > 1 ? selectedSlotIndex : undefined,
       );
       if (result.ok) {
         toast.success(result.message || '지원이 완료되었습니다.');
@@ -184,7 +183,6 @@ export const usePostDetail = (id: string) => {
         setApplyOpen(false);
         setApplicationMessage('');
         setSelectedPart(undefined);
-        setSelectedSlotIndex(0);
       } else {
         toast.error(result.message || '지원에 실패했습니다.');
       }
@@ -281,8 +279,6 @@ export const usePostDetail = (id: string) => {
     applicationMessage,
     setApplicationMessage,
     hasApplied,
-    selectedSlotIndex,
-    setSelectedSlotIndex,
     selectedPart,
     setSelectedPart,
     reportOpen,

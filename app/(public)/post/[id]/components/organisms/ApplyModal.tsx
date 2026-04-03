@@ -9,7 +9,16 @@ import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import Link from 'next/link';
 import { User } from '@/types/mockData';
-import { WorkSlot } from '../../types';
+import { WorkPart, LegacySlot, isNewPart } from '../../types';
+import { format, parseISO } from 'date-fns';
+import { ko } from 'date-fns/locale';
+
+const PAY_LABEL: Record<string, string> = {
+  hourly: '시급',
+  daily: '일급',
+  weekly: '주급',
+  monthly: '월급',
+};
 
 interface ApplyModalProps {
   open: boolean;
@@ -19,11 +28,9 @@ interface ApplyModalProps {
   applicationMessage: string;
   onMessageChange: (message: string) => void;
   onSubmit: () => void;
-  workSlots?: WorkSlot[];
-  selectedSlotIndex?: number;
-  onSlotSelect?: (index: number) => void;
+  workSlots?: Array<WorkPart | LegacySlot>;
   selectedPart?: string;
-  onPartSelect?: (part: string) => void;
+  onPartSelect?: (partName: string) => void;
 }
 
 const ApplyModal = ({
@@ -35,14 +42,23 @@ const ApplyModal = ({
   onMessageChange,
   onSubmit,
   workSlots,
-  selectedSlotIndex = 0,
-  onSlotSelect,
   selectedPart,
   onPartSelect,
 }: ApplyModalProps) => {
-  const hasMultipleSlots = workSlots && workSlots.length > 1;
-  const currentSlot = workSlots?.[selectedSlotIndex];
-  const hasParts = currentSlot?.parts && currentSlot.parts.length > 0;
+  // v3 파트 기반 선택
+  const newParts = workSlots?.filter(isNewPart) as WorkPart[] | undefined;
+  const hasNewParts = newParts && newParts.length > 0;
+
+  // v2 폴백: 현재 슬롯의 파트 선택
+  const legacySlots = workSlots?.filter((s) => !isNewPart(s)) as
+    | LegacySlot[]
+    | undefined;
+  const hasMultipleLegacySlots = legacySlots && legacySlots.length > 1;
+  const firstLegacySlot = legacySlots?.[0];
+  const hasLegacyParts =
+    firstLegacySlot?.parts && firstLegacySlot.parts.length > 0;
+
+  const hasParts = hasNewParts || hasLegacyParts;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,8 +70,10 @@ const ApplyModal = ({
           <div className="mt-2 space-y-4 text-sm">
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{currentUser.name}</span>님의 기본
-                정보가 함께 전달됩니다.
+                <span className="font-medium text-foreground">
+                  {currentUser.name}
+                </span>
+                님의 기본 정보가 함께 전달됩니다.
               </p>
               <Link
                 href="/settings"
@@ -66,37 +84,75 @@ const ApplyModal = ({
               </Link>
             </div>
 
-            {/* 날짜 선택 (슬롯이 여러 개인 경우) */}
-            {hasMultipleSlots && onSlotSelect && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">근무 날짜 선택</Label>
-                <div className="flex flex-wrap gap-2">
-                  {workSlots!.map((slot, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => onSlotSelect(idx)}
-                      className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
-                        selectedSlotIndex === idx
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-input hover:bg-muted'
-                      }`}
-                    >
-                      {slot.date}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 파트 선택 (파트가 있는 경우) */}
-            {hasParts && onPartSelect && (
+            {/* v3: 파트 선택 */}
+            {hasNewParts && onPartSelect && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   파트 선택 <span className="text-red-500">*</span>
                 </Label>
                 <div className="space-y-1.5">
-                  {currentSlot!.parts!.map((part) => (
+                  {newParts!.map((part, idx) => {
+                    const partKey = part.name || `파트 ${idx + 1}`;
+                    return (
+                      <label
+                        key={idx}
+                        className={`flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
+                          selectedPart === partKey
+                            ? 'bg-primary/10 border-primary'
+                            : 'bg-background border-input hover:bg-muted'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="apply-part"
+                          value={partKey}
+                          checked={selectedPart === partKey}
+                          onChange={() => onPartSelect(partKey)}
+                          className="size-4 mt-0.5 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm">
+                              {partKey}
+                            </span>
+                            {part.pay_amount !== undefined &&
+                              part.pay_amount > 0 && (
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  {PAY_LABEL[part.pay_type ?? 'daily']}{' '}
+                                  {part.pay_amount.toLocaleString()}원
+                                </span>
+                              )}
+                          </div>
+                          {part.shifts && part.shifts.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {part.shifts
+                                .map((shift) => {
+                                  const dateStr = shift.date
+                                    ? format(parseISO(shift.date), 'MM.dd(E)', {
+                                        locale: ko,
+                                      })
+                                    : shift.date;
+                                  return `${dateStr} ${shift.start}~${shift.end}`;
+                                })
+                                .join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* v2 폴백: 레거시 파트 선택 */}
+            {!hasNewParts && hasLegacyParts && onPartSelect && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  파트 선택 <span className="text-red-500">*</span>
+                </Label>
+                <div className="space-y-1.5">
+                  {firstLegacySlot!.parts!.map((part) => (
                     <label
                       key={part.label}
                       className={`flex items-center gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
@@ -115,10 +171,12 @@ const ApplyModal = ({
                       />
                       <div className="flex-1 flex items-center justify-between">
                         <span className="font-medium">
-                          파트 {part.label}{part.name ? ` (${part.name})` : ''}
+                          파트 {part.label}
+                          {part.name ? ` (${part.name})` : ''}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {part.start} - {part.end} · {part.recruit_count}명 모집
+                          {part.start} - {part.end} · {part.recruit_count}명
+                          모집
                         </span>
                       </div>
                     </label>
@@ -127,8 +185,37 @@ const ApplyModal = ({
               </div>
             )}
 
+            {/* v2 폴백: 다중 날짜 선택 (파트 없는 경우) */}
+            {!hasNewParts &&
+              !hasLegacyParts &&
+              hasMultipleLegacySlots &&
+              onPartSelect && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">근무 기간 선택</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {legacySlots!.map((slot, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => onPartSelect(slot.date)}
+                        className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                          selectedPart === slot.date
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-input hover:bg-muted'
+                        }`}
+                      >
+                        {slot.date}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             <div className="space-y-2">
-              <Label htmlFor="apply-modal-message" className="text-sm font-medium">
+              <Label
+                htmlFor="apply-modal-message"
+                className="text-sm font-medium"
+              >
                 지원 메시지 (선택)
               </Label>
               <Textarea
