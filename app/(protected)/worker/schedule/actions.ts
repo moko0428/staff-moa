@@ -103,8 +103,7 @@ function normalizeScheduleData(
 export async function applyToPostAction(
   postId: number,
   message?: string,
-  selectedPart?: string,
-  selectedSlotIndex?: number
+  selectedPart?: string
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
@@ -151,7 +150,6 @@ export async function applyToPostAction(
       status: 'pending',
       message: message || null,
       selected_part: selectedPart || null,
-      selected_slot_index: selectedSlotIndex ?? null,
     });
 
     if (error) {
