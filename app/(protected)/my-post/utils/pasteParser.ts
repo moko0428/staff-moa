@@ -1,470 +1,276 @@
-type ParsedPost = {
+import type { WorkPart, WorkShift } from '../types';
+
+export type ParsedPost = {
   title: string;
+  keywords: string[];
   description: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  location: string;
+  workParts: WorkPart[];
+  managerName: string;
+  managerPhone: string;
   equipments: string;
   qualifications: string;
   preferences: string;
-  recruitCount: number;
-  payAmount: number;
-  payType: 'hourly' | 'daily' | 'weekly' | 'monthly';
-  taxWithholding: boolean;
-  managerName: string;
-  managerPhone: string;
   notes: string;
-  keyword: string;
 };
 
-export const parsePastedText = (text: string): ParsedPost => {
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line);
-  const fullText = text;
+// ── Helpers ────────────────────────────────────────────────────────────
 
-  let parsedTitle = '';
-  let keywordFromTitle = '';
+const getVal = (line: string): string => {
+  const idx = line.indexOf(':');
+  return idx === -1 ? '' : line.slice(idx + 1).trim();
+};
 
-  const bracketMatch = fullText.match(/^\[([^\]]+)\]/);
-  if (bracketMatch) {
-    keywordFromTitle = bracketMatch[1];
-  }
+const parsePayType = (s: string): WorkPart['pay_type'] => {
+  if (s.includes('시급')) return 'hourly';
+  if (s.includes('주급')) return 'weekly';
+  if (s.includes('월급')) return 'monthly';
+  return 'daily';
+};
 
-  const titlePatterns = [
-    /[^.\n]*[스탭|알바|직원|인력|채용|모집|구인][^.\n]*/,
-    /[^.\n]*[일|시|시간|기간][^.\n]*[근무|알바|스탭][^.\n]*/,
-  ];
+const parseAmount = (s: string): number => {
+  const m = s.match(/(\d[\d,]*)/);
+  return m ? parseInt(m[1].replace(/,/g, ''), 10) : 0;
+};
 
-  for (const pattern of titlePatterns) {
-    const match = fullText.match(pattern);
-    if (match && match[0].length > 5 && match[0].length < 100) {
-      parsedTitle = match[0].trim();
-      break;
-    }
-  }
+const parseTime = (s: string): { start: string; end: string } => {
+  const m = s.match(/(\d{1,2}:\d{2})\s*[~～-]\s*(\d{1,2}:\d{2})/);
+  return m ? { start: m[1], end: m[2] } : { start: '', end: '' };
+};
 
-  if (!parsedTitle && lines[0]) {
-    const firstLine = lines[0]
-      .replace(/^\[.+\]\s*/, '')
-      .replace(/^📣\s*/, '');
-    if (firstLine.length > 5 && firstLine.length < 100) {
-      parsedTitle = firstLine;
-    }
-  }
+const parseShiftDate = (s: string): { date: string; date_end?: string } => {
+  const rangeM = s.match(/(\d{4}-\d{2}-\d{2})\s*[~～]\s*(\d{4}-\d{2}-\d{2})/);
+  if (rangeM) return { date: rangeM[1], date_end: rangeM[2] };
+  const singleM = s.match(/\d{4}-\d{2}-\d{2}/);
+  return singleM ? { date: singleM[0] } : { date: '' };
+};
 
-  if (!parsedTitle) {
-    parsedTitle = '공고 제목';
-  }
+// ── Section parsers ────────────────────────────────────────────────────
 
-  type PasteSection =
-    | 'none'
-    | 'work'
-    | 'equipments'
-    | 'qualifications'
-    | 'preferences'
-    | 'notes';
+const parsePartSection = (content: string): WorkPart => {
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
 
-  const stripPrefix = (line: string) =>
-    line
-      .replace(/^[\s•\-\*\u2022]*/g, '')
-      .replace(/^[✳️‼️⭕️✅☑️]+/g, '')
-      .trim();
-
-  const splitAfterColon = (s: string) => {
-    const idx1 = s.indexOf(':');
-    const idx2 = s.indexOf('：');
-    const idx =
-      idx1 === -1 ? idx2 : idx2 === -1 ? idx1 : Math.min(idx1, idx2);
-    if (idx === -1) return { left: s.trim(), right: '' };
-    return { left: s.slice(0, idx).trim(), right: s.slice(idx + 1).trim() };
+  const part: WorkPart = {
+    name: '',
+    description: '',
+    location: '',
+    pay_type: 'daily',
+    pay_amount: 0,
+    recruit_count: 1,
+    tax_withholding: false,
+    meal_included: false,
+    meal_amount: 0,
+    shifts: [],
   };
 
-  const isMetaHeaderLine = (clean: string) => {
-    const metaKeys = [
-      '행사명',
-      '날짜',
-      '시간',
-      '장소',
-      '위치',
-      '근무지',
-      '주소',
-      '급여',
-      '페이',
-      '급여 지급',
-      '지급',
-      '담당자',
-      '연락처',
-      '인원',
-      '모집',
-      '모집인원',
-    ];
-    const { left } = splitAfterColon(clean);
-    return metaKeys.some((k) =>
-      left.replace(/\s/g, '').startsWith(k.replace(/\s/g, '')),
-    );
-  };
+  let sharedStart = '';
+  let sharedEnd = '';
+  let inDates = false;
 
-  const detectSectionHeader = (rawLine: string): PasteSection => {
-    const clean = stripPrefix(rawLine);
-    const { left } = splitAfterColon(clean);
-    const key = left.replace(/\s/g, '');
-
-    if (
-      /^(지원(방식|방법|형식|양식)|지원방식|지원방법|지원형식|지원양식|지원안내|문의|안내|기타사항|기타)$/.test(
-        key,
-      )
-    ) {
-      return 'notes';
+  for (const line of lines) {
+    if (/^(이름|파트이름)\s*:/.test(line)) {
+      part.name = getVal(line);
+      inDates = false;
+    } else if (/^내용\s*:/.test(line)) {
+      part.description = getVal(line);
+      inDates = false;
+    } else if (/^(장소|위치|근무지)\s*:/.test(line)) {
+      part.location = getVal(line);
+      inDates = false;
+    } else if (/^인원\s*:/.test(line)) {
+      const n = parseInt(getVal(line), 10);
+      if (!isNaN(n) && n > 0) part.recruit_count = n;
+      inDates = false;
+    } else if (/^급여\s*:/.test(line)) {
+      const val = getVal(line);
+      part.pay_type = parsePayType(val);
+      part.pay_amount = parseAmount(val);
+      inDates = false;
+    } else if (/^원천징수\s*:/.test(line)) {
+      const val = getVal(line).trim();
+      part.tax_withholding =
+        ['예', 'yes', 'true', 'o', '○'].includes(val.toLowerCase()) ||
+        val.includes('3.3');
+      inDates = false;
+    } else if (/^식대\s*:/.test(line)) {
+      const amount = parseAmount(getVal(line));
+      if (amount > 0) {
+        part.meal_included = true;
+        part.meal_amount = amount;
+      }
+      inDates = false;
+    } else if (/^시간\s*:/.test(line)) {
+      const t = parseTime(getVal(line));
+      sharedStart = t.start;
+      sharedEnd = t.end;
+      inDates = false;
+    } else if (/^날짜\s*:?\s*$/.test(line)) {
+      inDates = true;
+    } else if (inDates && line.startsWith('-')) {
+      const parsed = parseShiftDate(line.slice(1).trim());
+      if (parsed.date) {
+        const shift: WorkShift = { date: parsed.date, start: '', end: '' };
+        if (parsed.date_end !== undefined) shift.date_end = parsed.date_end;
+        part.shifts.push(shift);
+      }
+    } else {
+      inDates = false;
     }
+  }
 
-    if (
-      /^(지원자격|지원자격요건|지원자격조건|자격요건|자격조건|자격|요건|조건)$/.test(
-        key,
-      )
-    ) {
-      return 'qualifications';
+  // 시간은 어떤 순서로 나와도 모든 shift에 적용
+  part.shifts = part.shifts.map((s) => ({
+    ...s,
+    start: s.start || sharedStart,
+    end: s.end || sharedEnd,
+  }));
+
+  if (part.shifts.length === 0) {
+    part.shifts = [{ date: '', start: sharedStart, end: sharedEnd }];
+  }
+
+  return part;
+};
+
+const parseManagerSection = (content: string) => {
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  let name = '';
+  let phone = '';
+  for (const line of lines) {
+    if (/^이름\s*:/.test(line)) name = getVal(line);
+    else if (/^(연락처|전화|전화번호)\s*:/.test(line)) phone = getVal(line);
+  }
+  // 연락처 키 없이 전화번호 패턴만 있을 경우 폴백
+  if (!phone) {
+    for (const line of lines) {
+      const m = line.match(/010[-\s]?\d{4}[-\s]?\d{4}/);
+      if (m) { phone = m[0]; break; }
     }
+  }
+  return { name, phone };
+};
 
-    if (/^(우대사항|우대|선호)$/.test(key)) {
-      return 'preferences';
-    }
-
-    if (/^(복장|준비물|지참)$/.test(key)) {
-      return 'equipments';
-    }
-
-    if (/^(업무내용|업무|담당업무|담당|업무사항)$/.test(key)) {
-      return 'work';
-    }
-
-    return 'none';
-  };
-
-  const sectionBuckets: Record<Exclude<PasteSection, 'none'>, string[]> = {
-    work: [],
+const parseAdditionalSection = (content: string) => {
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  let current = '';
+  const buckets: Record<string, string[]> = {
     equipments: [],
     qualifications: [],
     preferences: [],
     notes: [],
   };
 
-  let currentSection: PasteSection = 'none';
-
-  for (const rawLine of lines) {
-    const clean = stripPrefix(rawLine);
-    if (!clean) continue;
-
-    if (isMetaHeaderLine(clean)) {
-      currentSection = 'none';
-      continue;
-    }
-
-    const detected = detectSectionHeader(rawLine);
-    if (detected !== 'none') {
-      currentSection = detected;
-
-      const { right } = splitAfterColon(stripPrefix(rawLine));
-      if (right) {
-        sectionBuckets[detected].push(right);
-      }
-      continue;
-    }
-
-    if (currentSection !== 'none') {
-      if (
-        currentSection === 'qualifications' &&
-        clean.includes('우대') &&
-        !clean.startsWith('우대')
-      ) {
-        sectionBuckets.preferences.push(clean);
-      } else {
-        sectionBuckets[currentSection].push(clean);
-      }
-    }
-  }
-
-  const parsedQualifications = sectionBuckets.qualifications
-    .join('\n')
-    .trim();
-  const parsedPreferences = sectionBuckets.preferences.join('\n').trim();
-  const parsedNotesFromSections = sectionBuckets.notes.join('\n').trim();
-
-  const parsedWorkSection = sectionBuckets.work.join('\n').trim();
-  let parsedDescription = parsedWorkSection || fullText.trim();
-
-  let parsedDate = '';
-  let parsedStartTime = '';
-  let parsedEndTime = '';
-
-  const datePatterns = [
-    /일자\s*:\s*(\d{1,2})\/(\d{1,2})(?:\s*\([^)]+\))?/,
-    /(\d{1,2})\/(\d{1,2})(?:\s*\([^)]+\))?(?:\s*-\s*(\d{1,2})(?:\s*\([^)]+\))?)?/,
-    /(\d{1,2})월\s*(\d{1,2})일(?:\s*-\s*(\d{1,2})일)?/,
-    /(\d{4})-(\d{1,2})-(\d{1,2})/,
-    /(\d{1,2})일(?:\s*-\s*(\d{1,2})일)?/,
-  ];
-
-  for (const pattern of datePatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1;
-      let month = '';
-      let day = '';
-
-      if (pattern.source.includes('일자')) {
-        month = match[1].padStart(2, '0');
-        day = match[2].padStart(2, '0');
-      } else if (match[0].includes('/')) {
-        month = match[1].padStart(2, '0');
-        day = match[2].padStart(2, '0');
-      } else if (match[0].includes('월')) {
-        month = match[1].padStart(2, '0');
-        day = match[2].padStart(2, '0');
-      } else if (match[0].includes('-') && match[1].length === 4) {
-        parsedDate = match[0];
-        break;
-      } else if (match[0].includes('일')) {
-        month = currentMonth.toString().padStart(2, '0');
-        day = match[1].padStart(2, '0');
-      }
-
-      if (month && day) {
-        let year = currentYear;
-        if (parseInt(month) < currentMonth) {
-          year = currentYear + 1;
-        }
-        parsedDate = `${year}-${month}-${day}`;
-        break;
-      }
-    }
-  }
-
-  const timePatterns = [
-    /시간\s*:\s*(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
-    /(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
-    /(\d{1,2})시\s*[-~～]\s*(\d{1,2})시/,
-    /오전\s*(\d{1,2}):(\d{2})\s*[-~～]\s*오후\s*(\d{1,2}):(\d{2})/,
-    /오후\s*(\d{1,2}):(\d{2})\s*[-~～]\s*(\d{1,2}):(\d{2})/,
-  ];
-
-  for (const pattern of timePatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      if (match[0].includes(':')) {
-        parsedStartTime = `${match[1].padStart(2, '0')}:${match[2]}`;
-        parsedEndTime = `${match[3].padStart(2, '0')}:${match[4]}`;
-      } else if (match[0].includes('시')) {
-        parsedStartTime = `${match[1].padStart(2, '0')}:00`;
-        parsedEndTime = `${match[2].padStart(2, '0')}:00`;
-      }
-      break;
-    }
-  }
-
-  let parsedLocation = '';
-  const locationKeywords = ['장소', '위치', '근무지', '주소', '🏢'];
-
-  for (const keyword of locationKeywords) {
-    const locationLine = lines.find((line) => line.includes(keyword));
-    if (locationLine) {
-      const match = locationLine.match(
-        new RegExp(`${keyword.replace('🏢', '')}\\s*:\\s*(.+)`, 'i'),
-      );
-      if (match) {
-        parsedLocation = match[1].trim();
-        break;
-      }
-    }
-  }
-
-  if (!parsedLocation) {
-    const addressPattern = /[가-힣]+(?:시|도)\s+[가-힣]+(?:시|군|구)[^.\n]*/;
-    const addressMatch = fullText.match(addressPattern);
-    if (addressMatch) {
-      parsedLocation = addressMatch[0].trim();
-    }
-  }
-
-  let parsedEquipments = '';
-  const equipmentKeywords = ['복장', '준비물', '지참', '👔'];
-  for (const keyword of equipmentKeywords) {
-    const equipLine = lines.find((line) => line.includes(keyword));
-    if (equipLine) {
-      const match = equipLine.match(
-        new RegExp(`${keyword.replace('👔', '')}\\s*:?\\s*(.+)`, 'i'),
-      );
-      if (match) {
-        parsedEquipments = match[1].trim();
-        break;
-      }
-    }
-  }
-
-  const workKeywords = ['업무', '담당', '작업', '⌨'];
-  for (const keyword of workKeywords) {
-    const workLine = lines.find((line) => line.includes(keyword));
-    if (workLine) {
-      const match = workLine.match(
-        new RegExp(`${keyword.replace('⌨', '')}\\s*:?\\s*(.+)`, 'i'),
-      );
-      if (match) {
-        const parsedWorkDescription = match[1].trim();
-        if (!parsedDescription.includes(parsedWorkDescription)) {
-          parsedDescription += '\n\n업무: ' + parsedWorkDescription;
-        }
-        break;
-      }
-    }
-  }
-
-  let parsedRecruitCount = 1;
-  const recruitPatterns = [
-    /(\d+)\s*명/,
-    /인원\s*:?\s*(\d+)/,
-    /모집\s*:?\s*(\d+)/,
-    /(\d+)\s*인/,
-  ];
-  for (const pattern of recruitPatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      parsedRecruitCount = parseInt(match[1], 10);
-      break;
-    }
-  }
-
-  let parsedPayAmount = 0;
-  let parsedPayType: 'hourly' | 'daily' | 'weekly' | 'monthly' = 'daily';
-  let parsedTaxWithholding = false;
-
-  if (fullText.includes('시급')) parsedPayType = 'hourly';
-  else if (fullText.includes('일급')) parsedPayType = 'daily';
-  else if (fullText.includes('주급')) parsedPayType = 'weekly';
-  else if (fullText.includes('월급')) parsedPayType = 'monthly';
-
-  const manwonPatterns = [
-    /시급\s*:?\s*(\d+(?:\.\d+)?)\s*만\s*원?/,
-    /일급\s*:?\s*(\d+(?:\.\d+)?)\s*만\s*원?/,
-    /(\d+(?:\.\d+)?)\s*만\s*원/,
-  ];
-
-  for (const pattern of manwonPatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      parsedPayAmount = Math.round(parseFloat(match[1]) * 10000);
-      break;
-    }
-  }
-
-  if (parsedPayAmount === 0) {
-    const amountPatterns = [
-      /(\d{1,3}(?:,\d{3})*)\s*원/,
-      /(\d+)\s*원/,
-      /시급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
-      /일급\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
-      /페이\s*:?\s*(\d{1,3}(?:,\d{3})*)/,
-    ];
-
-    for (const pattern of amountPatterns) {
-      const match = fullText.match(pattern);
-      if (match) {
-        parsedPayAmount = parseInt(match[1].replace(/,/g, ''), 10);
-        break;
-      }
-    }
-  }
-
-  if (
-    fullText.includes('3.3%') ||
-    fullText.includes('세공') ||
-    fullText.includes('원천징수')
-  ) {
-    parsedTaxWithholding = true;
-  }
-
-  let parsedManagerName = '';
-  let parsedManagerPhone = '';
-
-  const phonePatterns = [
-    /(\d{3}-\d{4}-\d{4})/,
-    /(\d{3}\s*\d{4}\s*\d{4})/,
-    /(\d{11})/,
-    /010[-\s]?\d{4}[-\s]?\d{4}/,
-  ];
-
-  for (const pattern of phonePatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      parsedManagerPhone = match[0].replace(/\s/g, '-');
-      break;
-    }
-  }
-
-  const managerPatterns = [
-    /담당자\s*:\s*([가-힣]+)\s*(?:매니저|대리|과장|팀장)?/,
-    /\(담당자\s*:\s*([가-힣]+)\s*(?:매니저|대리|과장|팀장)?\)/,
-    /담당자\s+([가-힣\s]+?)(?:\s+대리|\s+과장|\s+팀장|\s+매니저|\s+📞|$)/,
-    /([가-힣]{2,4})\s*(?:대리|과장|팀장|담당|매니저)\s*[📞\d-]/,
-  ];
-
-  for (const pattern of managerPatterns) {
-    const match = fullText.match(pattern);
-    if (match) {
-      parsedManagerName = match[1].trim();
-      break;
-    }
-  }
-
-  let parsedNotes = '';
-  const notesKeywords = [
-    '📩지원방법',
-    '지원방법',
-    '지원 방법',
-    '지원방식',
-    '지원 방식',
-    '지원형식',
-    '지원 형식',
-    '지원양식',
-    '지원 양식',
-    '문자 지원',
-    '문자지원',
-    '안내',
-    '✉',
-    '문의',
-    '‼️지원방식',
-    '‼️지원자격',
-  ];
-  for (const keyword of notesKeywords) {
-    const notesIndex = lines.findIndex((line) => line.includes(keyword));
-    if (notesIndex >= 0) {
-      parsedNotes = lines.slice(notesIndex).join('\n');
-      break;
+  for (const line of lines) {
+    if (/^(복장|준비물)\s*:/.test(line)) {
+      current = 'equipments';
+      const v = getVal(line); if (v) buckets.equipments.push(v);
+    } else if (/^지원자격\s*:/.test(line)) {
+      current = 'qualifications';
+      const v = getVal(line); if (v) buckets.qualifications.push(v);
+    } else if (/^우대사항\s*:/.test(line)) {
+      current = 'preferences';
+      const v = getVal(line); if (v) buckets.preferences.push(v);
+    } else if (/^지원방법\s*:/.test(line)) {
+      current = 'notes';
+      const v = getVal(line); if (v) buckets.notes.push(v);
+    } else if (current) {
+      const stripped = line.startsWith('-') ? line.slice(1).trim() : line;
+      if (stripped) buckets[current].push(stripped);
     }
   }
 
   return {
-    title: parsedTitle,
-    description: parsedDescription,
-    date: parsedDate,
-    startTime: parsedStartTime,
-    endTime: parsedEndTime,
-    location: parsedLocation,
-    equipments: parsedEquipments,
-    qualifications: parsedQualifications,
-    preferences: parsedPreferences,
-    recruitCount: parsedRecruitCount,
-    payAmount: parsedPayAmount,
-    payType: parsedPayType,
-    taxWithholding: parsedTaxWithholding,
-    managerName: parsedManagerName,
-    managerPhone: parsedManagerPhone,
-    notes: [parsedNotesFromSections, parsedNotes]
-      .filter(Boolean)
-      .join('\n')
-      .trim(),
-    keyword: keywordFromTitle,
+    equipments: buckets.equipments.join('\n').trim(),
+    qualifications: buckets.qualifications.join('\n').trim(),
+    preferences: buckets.preferences.join('\n').trim(),
+    notes: buckets.notes.join('\n').trim(),
+  };
+};
+
+// ── Main parser ────────────────────────────────────────────────────────
+
+export const parsePastedText = (text: string): ParsedPost => {
+  // [헤더] 마커로 섹션 분리
+  const sectionPattern = /^\[([^\]]+)\]\s*$/gm;
+  const sectionMatches: Array<{ header: string; index: number }> = [];
+  let m;
+  while ((m = sectionPattern.exec(text)) !== null) {
+    sectionMatches.push({ header: m[1].trim(), index: m.index });
+  }
+
+  const globalEnd =
+    sectionMatches.length > 0 ? sectionMatches[0].index : text.length;
+  const globalContent = text.slice(0, globalEnd);
+
+  const sections = sectionMatches.map((s, i) => {
+    const start = text.indexOf('\n', s.index) + 1;
+    const end =
+      i + 1 < sectionMatches.length
+        ? sectionMatches[i + 1].index
+        : text.length;
+    return { header: s.header, content: text.slice(start, end).trim() };
+  });
+
+  // 전역 필드 파싱
+  const globalLines = globalContent
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  let title = '';
+  let description = '';
+  let keywords: string[] = [];
+
+  for (const line of globalLines) {
+    if (/^공고제목\s*:/.test(line)) title = getVal(line);
+    else if (/^키워드\s*:/.test(line)) {
+      keywords = getVal(line)
+        .split(/[,，]/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+    } else if (/^업무내용\s*:/.test(line)) description = getVal(line);
+  }
+
+  if (!title) {
+    const first = globalLines.find(
+      (l) => !/^(키워드|업무내용)\s*:/.test(l),
+    );
+    if (first) title = first;
+  }
+
+  // 섹션별 파싱
+  const workParts: WorkPart[] = [];
+  let managerName = '';
+  let managerPhone = '';
+  let equipments = '';
+  let qualifications = '';
+  let preferences = '';
+  let notes = '';
+
+  for (const section of sections) {
+    if (/^파트/.test(section.header)) {
+      workParts.push(parsePartSection(section.content));
+    } else if (/^담당자/.test(section.header)) {
+      const mgr = parseManagerSection(section.content);
+      managerName = mgr.name;
+      managerPhone = mgr.phone;
+    } else if (/^추가정보/.test(section.header)) {
+      const add = parseAdditionalSection(section.content);
+      equipments = add.equipments;
+      qualifications = add.qualifications;
+      preferences = add.preferences;
+      notes = add.notes;
+    }
+  }
+
+  return {
+    title,
+    keywords,
+    description,
+    workParts,
+    managerName,
+    managerPhone,
+    equipments,
+    qualifications,
+    preferences,
+    notes,
   };
 };

@@ -48,17 +48,37 @@ export const PasteModal = ({
               className="min-h-[300px] font-mono text-sm"
             />
           </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>지원 형식:</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-2">
-              <li>📅 일시: 날짜 및 시간</li>
-              <li>🏢 장소: 근무 장소</li>
-              <li>👔 복장: 준비물/복장</li>
-              <li>⌨️ 업무: 업무 내용</li>
-              <li>🧑 인원: 모집 인원</li>
-              <li>💵 페이: 급여 정보</li>
-              <li>담당자 정보: 이름 및 연락처</li>
-            </ul>
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">
+              파싱 양식 — 아래 형식에 맞게 작성하면 자동으로 입력됩니다
+            </p>
+            <pre className="text-xs bg-muted rounded-md p-3 leading-relaxed text-muted-foreground whitespace-pre-wrap font-mono">{`공고제목:
+키워드:
+
+[파트1]
+이름:
+내용:
+시간: 00:00 ~ 00:00
+장소:
+인원:
+급여: 일급/시급/주급/월급 금액
+원천징수: 예/아니오
+날짜:
+- YYYY-MM-DD
+- YYYY-MM-DD ~ YYYY-MM-DD
+
+[파트2] (파트 추가 시)
+...
+
+[담당자]
+이름:
+연락처:
+
+[추가정보]
+복장:
+지원자격:
+우대사항:
+지원방법: `}</pre>
           </div>
         </div>
         <DialogFooter>
@@ -72,11 +92,7 @@ export const PasteModal = ({
           >
             취소
           </Button>
-          <Button
-            type="button"
-            onClick={onApply}
-            disabled={!pasteText.trim()}
-          >
+          <Button type="button" onClick={onApply} disabled={!pasteText.trim()}>
             <Check className="size-4 mr-2" />
             적용하기
           </Button>

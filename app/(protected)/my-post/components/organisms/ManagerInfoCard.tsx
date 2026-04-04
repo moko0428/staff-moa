@@ -57,29 +57,6 @@ export const ManagerInfoCard = ({
           />
         </div>
         <div className="flex flex-col gap-0.5">
-          <Label htmlFor="manager_contact_type">
-            연락처 유형 <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={managerContactType}
-            onValueChange={(value) =>
-              setManagerContactType(
-                value as 'phone' | 'kakao' | 'email' | 'other',
-              )
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="phone">전화번호</SelectItem>
-              <SelectItem value="kakao">카카오톡 ID</SelectItem>
-              <SelectItem value="email">이메일</SelectItem>
-              <SelectItem value="other">기타</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-0.5">
           <Label htmlFor="manager_phone">
             담당자 연락처 <span className="text-red-500">*</span>
           </Label>

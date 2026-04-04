@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { updatePostAction, getPostByIdAction } from '../actions';
 import { convertToWorkParts } from './useCreatePost';
+import { parsePastedText } from '../utils/pasteParser';
+import { extractPostText } from '../utils/textExtractor';
 import type { WorkPart, WorkShift } from '../types';
 
 const initialState = { ok: false, message: '', data: undefined };
@@ -39,6 +41,15 @@ export const useEditPost = (postId: string, isManager: boolean) => {
   );
   const [formType, setFormType] = useState<'basic' | 'free'>('basic');
 
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
+  const [openSections, setOpenSections] = useState<string[]>([
+    'basic-info', 'work-info', 'manager-info', 'additional-info',
+  ]);
+  const [pasteHighlights, setPasteHighlights] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     const fetchPost = async () => {
       setLoading(true);
@@ -70,7 +81,6 @@ export const useEditPost = (postId: string, isManager: boolean) => {
             const rawSlots = post.work_slots as Array<Record<string, unknown>>;
             setWorkParts(convertToWorkParts(rawSlots, post));
           } else {
-            // 완전 레거시 (work_slots 없음)
             setWorkParts([{
               name: '',
               description: '',
@@ -119,8 +129,8 @@ export const useEditPost = (postId: string, isManager: boolean) => {
   // ── Part handlers ─────────────────────────────────────────────────────
   const handleAddPart = () => {
     const base = workParts[0];
-    setWorkParts([
-      ...workParts,
+    setWorkParts((prev) => [
+      ...prev,
       {
         name: '',
         description: '',
@@ -138,7 +148,7 @@ export const useEditPost = (postId: string, isManager: boolean) => {
 
   const handleRemovePart = (partIndex: number) => {
     if (workParts.length > 1) {
-      setWorkParts(workParts.filter((_, i) => i !== partIndex));
+      setWorkParts((prev) => prev.filter((_, i) => i !== partIndex));
     }
   };
 
@@ -146,19 +156,25 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     partIndex: number,
     patch: Partial<Omit<WorkPart, 'shifts'>>,
   ) => {
-    const updated = [...workParts];
-    updated[partIndex] = { ...updated[partIndex]!, ...patch };
-    setWorkParts(updated);
+    setWorkParts((prev) =>
+      prev.map((part, i) => (i === partIndex ? { ...part, ...patch } : part)),
+    );
   };
 
   // ── Shift handlers ────────────────────────────────────────────────────
   const handleAddShift = (partIndex: number) => {
     setWorkParts((prev) =>
-      prev.map((part, i) =>
-        i === partIndex
-          ? { ...part, shifts: [...part.shifts, { date: '', start: '', end: '' }] }
-          : part,
-      ),
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        const shared = part.shifts[0];
+        const newShift: WorkShift = {
+          date: '',
+          start: shared?.start ?? '',
+          end: shared?.end ?? '',
+        };
+        if (shared?.date_end !== undefined) newShift.date_end = '';
+        return { ...part, shifts: [...part.shifts, newShift] };
+      }),
     );
   };
 
@@ -189,6 +205,42 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     );
   };
 
+  const handleToggleShiftMode = (partIndex: number, shiftIndex: number) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        return {
+          ...part,
+          shifts: part.shifts.map((shift, si) => {
+            if (si !== shiftIndex) return shift;
+            if (shift.date_end !== undefined) {
+              const next = { ...shift };
+              delete next.date_end;
+              return next;
+            }
+            return { ...shift, date_end: '' };
+          }),
+        };
+      }),
+    );
+  };
+
+  const handleUpdatePartTime = (
+    partIndex: number,
+    field: 'start' | 'end',
+    value: string,
+  ) => {
+    setWorkParts((prev) =>
+      prev.map((part, i) => {
+        if (i !== partIndex) return part;
+        return {
+          ...part,
+          shifts: part.shifts.map((shift) => ({ ...shift, [field]: value })),
+        };
+      }),
+    );
+  };
+
   // ── Keyword handlers ──────────────────────────────────────────────────
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
@@ -201,6 +253,96 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     setKeywords(keywords.filter((k) => k !== keyword));
   };
 
+  // ── Paste & parse ─────────────────────────────────────────────────────
+  const handlePasteAndParse = () => {
+    if (!pasteText.trim()) return;
+
+    const parsed = parsePastedText(pasteText);
+    const highlights = new Set<string>();
+    const newOpenSections = new Set(openSections);
+
+    if (parsed.title) {
+      setTitle(parsed.title);
+      highlights.add('title');
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.description) {
+      setDescription(parsed.description);
+      highlights.add('description');
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.keywords.length > 0) {
+      setKeywords((prev) => {
+        const existing = new Set(prev);
+        const toAdd = parsed.keywords.filter((k) => !existing.has(k));
+        return [...prev, ...toAdd];
+      });
+      newOpenSections.add('basic-info');
+    }
+    if (parsed.workParts.length > 0) {
+      setWorkParts(parsed.workParts);
+      newOpenSections.add('work-info');
+      parsed.workParts.forEach((_, i) => {
+        highlights.add(`part-${i}-location`);
+        highlights.add(`part-${i}-shift-0-date`);
+      });
+    }
+    if (parsed.managerName) {
+      setManagerName(parsed.managerName);
+      highlights.add('manager_name');
+      newOpenSections.add('manager-info');
+    }
+    if (parsed.managerPhone) {
+      setManagerPhone(parsed.managerPhone);
+      highlights.add('manager_phone');
+      newOpenSections.add('manager-info');
+    }
+    if (parsed.equipments) {
+      setEquipments(parsed.equipments);
+      highlights.add('equipments');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.qualifications) {
+      setQualifications(parsed.qualifications);
+      highlights.add('qualifications');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.preferences) {
+      setPreferences(parsed.preferences);
+      highlights.add('preferences');
+      newOpenSections.add('additional-info');
+    }
+    if (parsed.notes) {
+      setNotes(parsed.notes);
+      highlights.add('notes');
+      newOpenSections.add('additional-info');
+    }
+
+    setOpenSections(Array.from(newOpenSections));
+    setPasteHighlights(highlights);
+    setTimeout(() => setPasteHighlights(new Set()), 3000);
+    setShowPasteModal(false);
+    setPasteText('');
+  };
+
+  const handleExtract = () => {
+    const text = extractPostText({
+      title,
+      keywords,
+      description,
+      workParts,
+      managerName,
+      managerPhone,
+      equipments,
+      qualifications,
+      preferences,
+      notes,
+    });
+    setExtractedText(text);
+    setShowExtractModal(true);
+  };
+
+  // ── Submit ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -261,14 +403,28 @@ export const useEditPost = (postId: string, isManager: boolean) => {
     setNewKeyword,
     status,
     setStatus,
+    showPasteModal,
+    setShowPasteModal,
+    pasteText,
+    setPasteText,
+    showExtractModal,
+    setShowExtractModal,
+    extractedText,
+    openSections,
+    setOpenSections,
+    pasteHighlights,
     handleAddPart,
     handleRemovePart,
     handleUpdatePart,
     handleAddShift,
     handleRemoveShift,
     handleUpdateShift,
+    handleToggleShiftMode,
+    handleUpdatePartTime,
     handleAddKeyword,
     handleRemoveKeyword,
+    handlePasteAndParse,
+    handleExtract,
     handleSubmit,
   };
 };

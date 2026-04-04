@@ -2,6 +2,7 @@ import type { WorkPart } from '../types';
 
 interface ExtractParams {
   title: string;
+  keywords: string[];
   description: string;
   workParts: WorkPart[];
   managerName: string;
@@ -22,85 +23,64 @@ const PAY_TYPE_LABEL: Record<WorkPart['pay_type'], string> = {
 export const extractPostText = (params: ExtractParams): string => {
   const lines: string[] = [];
 
-  if (params.title) {
-    lines.push(params.title);
+  if (params.title) lines.push(`공고제목: ${params.title}`);
+  if (params.keywords.length > 0)
+    lines.push(`키워드: ${params.keywords.join(', ')}`);
+  if (params.description) lines.push(`업무내용: ${params.description}`);
+  if (params.title || params.keywords.length > 0 || params.description)
     lines.push('');
-  }
 
-  if (params.workParts.length > 0) {
-    for (const part of params.workParts) {
-      const partLabel = part.name || '근무';
-      lines.push(`[${partLabel}]`);
-      if (part.description) {
-        lines.push(part.description);
-      }
-      if (part.location) {
-        lines.push(`🏢 장소: ${part.location}`);
-      }
-      if (part.pay_amount > 0) {
-        const label = PAY_TYPE_LABEL[part.pay_type] ?? '급여';
-        const taxStr = part.tax_withholding ? ' (3.3% 원천징수)' : '';
-        lines.push(`💵 ${label}: ${part.pay_amount.toLocaleString()}원${taxStr}`);
-        if (part.meal_included && part.meal_amount > 0) {
-          lines.push(`🍱 식비: ${part.meal_amount.toLocaleString()}원 포함`);
-        }
-      }
-      if (part.recruit_count > 0) {
-        lines.push(`🧑 인원: ${part.recruit_count}명`);
-      }
-      if (part.shifts.length > 0) {
-        lines.push('📅 일정:');
-        for (const shift of part.shifts) {
-          const timeStr = shift.start && shift.end ? ` ${shift.start}~${shift.end}` : '';
-          if (shift.date) {
-            lines.push(`- ${shift.date}${timeStr}`);
-          }
-        }
-      }
-      lines.push('');
+  for (let i = 0; i < params.workParts.length; i++) {
+    const part = params.workParts[i];
+    lines.push(`[파트${i + 1}]`);
+    if (part.name) lines.push(`이름: ${part.name}`);
+    if (part.description) lines.push(`내용: ${part.description}`);
+
+    const firstShift = part.shifts[0];
+    if (firstShift?.start && firstShift?.end)
+      lines.push(`시간: ${firstShift.start} ~ ${firstShift.end}`);
+    if (part.location) lines.push(`장소: ${part.location}`);
+    lines.push(`인원: ${part.recruit_count}`);
+
+    if (part.pay_amount > 0) {
+      const label = PAY_TYPE_LABEL[part.pay_type];
+      lines.push(`급여: ${label} ${part.pay_amount.toLocaleString()}`);
+      if (part.tax_withholding) lines.push('원천징수: 예');
+      if (part.meal_included && part.meal_amount > 0)
+        lines.push(`식대: ${part.meal_amount.toLocaleString()}`);
     }
 
-    const totalRecruit = params.workParts.reduce((acc, p) => acc + p.recruit_count, 0);
-    if (params.workParts.length > 1 && totalRecruit > 0) {
-      lines.push(`총 모집인원: ${totalRecruit}명`);
-      lines.push('');
+    if (part.shifts.some((s) => s.date)) {
+      lines.push('날짜:');
+      for (const shift of part.shifts) {
+        if (!shift.date) continue;
+        if (shift.date_end) lines.push(`- ${shift.date} ~ ${shift.date_end}`);
+        else lines.push(`- ${shift.date}`);
+      }
     }
-  }
-
-  if (params.description) {
-    lines.push('⌨️ 업무:');
-    lines.push(params.description);
-  }
-
-  if (params.equipments) {
     lines.push('');
-    lines.push(`👔 복장: ${params.equipments}`);
-  }
-
-  if (params.qualifications) {
-    lines.push('');
-    lines.push('지원자격:');
-    lines.push(params.qualifications);
-  }
-
-  if (params.preferences) {
-    lines.push('');
-    lines.push('우대사항:');
-    lines.push(params.preferences);
   }
 
   if (params.managerName || params.managerPhone) {
+    lines.push('[담당자]');
+    if (params.managerName) lines.push(`이름: ${params.managerName}`);
+    if (params.managerPhone) lines.push(`연락처: ${params.managerPhone}`);
     lines.push('');
-    const contact = [params.managerName, params.managerPhone]
-      .filter(Boolean)
-      .join(' ');
-    lines.push(`담당자: ${contact}`);
   }
 
-  if (params.notes) {
-    lines.push('');
-    lines.push('지원방법:');
-    lines.push(params.notes);
+  const hasAdditional =
+    params.equipments ||
+    params.qualifications ||
+    params.preferences ||
+    params.notes;
+
+  if (hasAdditional) {
+    lines.push('[추가정보]');
+    if (params.equipments) lines.push(`복장: ${params.equipments}`);
+    if (params.qualifications)
+      lines.push(`지원자격: ${params.qualifications}`);
+    if (params.preferences) lines.push(`우대사항: ${params.preferences}`);
+    if (params.notes) lines.push(`지원방법: ${params.notes}`);
   }
 
   return lines.join('\n').trim();

@@ -178,19 +178,19 @@ function CreatePostContent() {
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={handleExtract}
           >
-            <FileText className="size-4 mr-2" />
+            <FileText className="size-3" />
             추출하기
           </Button>
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             onClick={() => setShowPasteModal(true)}
           >
-            <Clipboard className="size-4 mr-2" />
+            <Clipboard className="size-3" />
             붙여넣기
           </Button>
         </div>
@@ -210,7 +210,7 @@ function CreatePostContent() {
         />
 
         <form action={formAction} onSubmit={handleSubmit} className="space-y-3">
-          <div className="border rounded-lg bg-card overflow-hidden">
+          <div className="border rounded-none bg-card overflow-hidden">
             <Accordion
               type="single"
               collapsible
@@ -261,7 +261,7 @@ function CreatePostContent() {
             </Accordion>
           </div>
 
-          <div className="border rounded-lg bg-card overflow-hidden">
+          <div className="border rounded-none bg-card overflow-hidden">
             <Accordion
               type="single"
               collapsible
@@ -310,7 +310,7 @@ function CreatePostContent() {
             </Accordion>
           </div>
 
-          <div className="border rounded-lg bg-card overflow-hidden">
+          <div className="border rounded-none bg-card overflow-hidden">
             <Accordion
               type="single"
               collapsible
@@ -354,7 +354,7 @@ function CreatePostContent() {
             </Accordion>
           </div>
 
-          <div className="border rounded-lg bg-card overflow-hidden">
+          <div className="border rounded-none bg-card overflow-hidden">
             <Accordion
               type="single"
               collapsible

@@ -222,32 +222,22 @@ export const useCreatePost = () => {
       highlights.add('description');
       newOpenSections.add('basic-info');
     }
-    if (parsed.keyword && !keywords.includes(parsed.keyword)) {
-      setKeywords((prev) => [...prev, parsed.keyword]);
+    if (parsed.keywords.length > 0) {
+      setKeywords((prev) => {
+        const existing = new Set(prev);
+        const toAdd = parsed.keywords.filter((k) => !existing.has(k));
+        return [...prev, ...toAdd];
+      });
       newOpenSections.add('basic-info');
     }
 
-    // 파싱 결과 → 파트 1개 + 시프트 1개
-    if (parsed.date || parsed.location) {
-      setWorkParts([{
-        name: '',
-        description: '',
-        location: parsed.location || '',
-        pay_type: parsed.payType,
-        pay_amount: parsed.payAmount || 0,
-        recruit_count: 1,
-        tax_withholding: parsed.taxWithholding,
-        meal_included: false,
-        meal_amount: 0,
-        shifts: [{
-          date: parsed.date || '',
-          start: parsed.startTime || '09:00',
-          end: parsed.endTime || '18:00',
-        }],
-      }]);
+    if (parsed.workParts.length > 0) {
+      setWorkParts(parsed.workParts);
       newOpenSections.add('work-info');
-      if (parsed.date) highlights.add('part-0-shift-0-date');
-      if (parsed.location) highlights.add('part-0-location');
+      parsed.workParts.forEach((_, i) => {
+        highlights.add(`part-${i}-location`);
+        highlights.add(`part-${i}-shift-0-date`);
+      });
     }
 
     if (parsed.managerName) {
@@ -292,6 +282,7 @@ export const useCreatePost = () => {
   const handleExtract = () => {
     const text = extractPostText({
       title,
+      keywords,
       description,
       workParts,
       managerName,

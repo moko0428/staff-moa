@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkPart, WorkShift } from '../../../types';
 
@@ -51,6 +52,25 @@ export const WorkSlotsCard = ({
   onToggleShiftMode,
   onUpdatePartTime,
 }: WorkSlotsCardProps) => {
+  const [openParts, setOpenParts] = useState<Set<number>>(() => new Set([0]));
+  const prevLengthRef = useRef(workParts.length);
+
+  useEffect(() => {
+    if (workParts.length > prevLengthRef.current) {
+      setOpenParts((prev) => new Set([...prev, workParts.length - 1]));
+    }
+    prevLengthRef.current = workParts.length;
+  }, [workParts.length]);
+
+  const togglePart = (idx: number) => {
+    setOpenParts((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
   const hl = (id: string) =>
     pasteHighlights?.has(id) ? 'ring-2 ring-blue-400' : '';
 
@@ -69,35 +89,61 @@ export const WorkSlotsCard = ({
         )}
       >
         {!plainSection && <CardTitle>근무 정보</CardTitle>}
-        <Button type="button" variant="outline" size="sm" onClick={onAddPart}>
-          <Plus className="size-4 mr-1" />
+        <Button type="button" variant="outline" size="xs" onClick={onAddPart}>
+          <Plus className="size-3" />
           파트 추가
         </Button>
       </CardHeader>
       <CardContent
-        className={cn('space-y-6', plainSection && 'p-0')}
+        className={cn('space-y-2', plainSection && 'p-0')}
       >
-        {workParts.map((part, partIndex) => (
+        {workParts.map((part, partIndex) => {
+          const isOpen = openParts.has(partIndex);
+          return (
           <div
             key={partIndex}
-            className="rounded-lg p-4 space-y-4 bg-muted/20"
+            className="border border-border rounded-lg overflow-hidden"
           >
-            {/* Part header */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-muted-foreground">
-                파트 {partIndex + 1}
-              </span>
-              {workParts.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onRemovePart(partIndex)}
-                >
-                  <X className="size-4" />
-                </Button>
+            {/* Part header strip */}
+            <div
+              className={cn(
+                'flex items-center justify-between bg-muted/60 px-4 py-2.5 cursor-pointer select-none',
+                isOpen && 'border-b',
               )}
+              onClick={() => togglePart(partIndex)}
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
+                  {partIndex + 1}
+                </span>
+                <span className="text-sm font-semibold">
+                  {part.name.trim() !== '' ? part.name : `파트 ${partIndex + 1}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <ChevronDown
+                  className={cn(
+                    'size-4 text-muted-foreground transition-transform duration-200',
+                    isOpen && 'rotate-180',
+                  )}
+                />
+                {workParts.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-mr-2"
+                    onClick={(e) => { e.stopPropagation(); onRemovePart(partIndex); }}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {/* Part content */}
+            {isOpen && (
+            <div className="p-4 space-y-4">
 
             {/* Part name */}
             <div className="flex flex-col gap-0.5">
@@ -161,10 +207,10 @@ export const WorkSlotsCard = ({
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   onClick={() => onAddShift(partIndex)}
                 >
-                  <Plus className="size-3 mr-1" />
+                  <Plus className="size-3" />
                   날짜 추가
                 </Button>
               </div>
@@ -369,8 +415,11 @@ export const WorkSlotsCard = ({
                 </div>
               </div>
             </div>
+            </div>
+            )}
           </div>
-        ))}
+          );
+        })}
 
         {fieldErrors?.['work_slots'] && (
           <p className="text-sm text-red-500">{fieldErrors['work_slots']}</p>

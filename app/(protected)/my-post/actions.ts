@@ -6,6 +6,7 @@ import { createBulkNotificationsAction } from '@/app/(protected)/notification/ac
 
 type WorkShift = {
   date: string;
+  date_end?: string;
   start: string;
   end: string;
 };
@@ -25,6 +26,7 @@ type WorkPart = {
 
 const workShiftSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.'),
+  date_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '종료일 형식이 올바르지 않습니다.').optional(),
   start: z.string().regex(/^\d{2}:\d{2}$/, '시작 시간 형식이 올바르지 않습니다.'),
   end: z.string().regex(/^\d{2}:\d{2}$/, '종료 시간 형식이 올바르지 않습니다.'),
 });
@@ -99,10 +101,11 @@ function isPostPast(post: Record<string, unknown>): boolean {
         const shifts = part.shifts as Array<Record<string, unknown>> | undefined;
         if (shifts && shifts.length > 0) {
           for (const shift of shifts) {
-            const shiftDate = shift.date as string;
+            // 기간 근무는 date_end(종료일) 기준, 당일 근무는 date 기준
+            const effectiveDate = (shift.date_end as string | undefined) || (shift.date as string);
             const shiftEnd = shift.end as string;
-            if (shiftDate && shiftDate >= lastShiftDate) {
-              lastShiftDate = shiftDate;
+            if (effectiveDate && effectiveDate >= lastShiftDate) {
+              lastShiftDate = effectiveDate;
               lastShiftEnd = shiftEnd || '';
             }
           }
