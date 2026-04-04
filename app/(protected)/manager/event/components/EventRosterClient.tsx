@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   Bell,
   Check,
+  CheckCheck,
   KeyRound,
   MapPin,
   Plus,
@@ -22,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { generateDailyCode } from '@/lib/arrivalCode';
+import { generateDailyCode, generateCheckinCode, checkinCodeExpiresInMs } from '@/lib/arrivalCode';
 import type { PostRoster, StaffPosition } from '../types';
 import { POSITION_CONFIG, SCHEDULE_STATUS_DOT } from '../constants';
 import { getScheduleStatus, isTodayEvent } from '../utils';
@@ -74,6 +76,24 @@ export default function EventRosterClient({ rosters }: { rosters: PostRoster[] }
 
   const selectedCount = roster.selectedIds.size;
   const { selected } = roster;
+
+  // ── TTL 체크인 코드 + 카운트다운 ────────────────────────────────────
+  const postId = selected?.post_id ?? 0;
+  const [checkinCode, setCheckinCode] = useState(() => generateCheckinCode(postId));
+  const [expiresIn, setExpiresIn] = useState(() => Math.ceil(checkinCodeExpiresInMs() / 1000));
+
+  useEffect(() => {
+    setCheckinCode(generateCheckinCode(postId));
+  }, [postId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const remaining = Math.ceil(checkinCodeExpiresInMs() / 1000);
+      setExpiresIn(remaining);
+      setCheckinCode(generateCheckinCode(postId));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [postId]);
 
   if (rosters.length === 0) {
     return (
@@ -163,10 +183,19 @@ export default function EventRosterClient({ rosters }: { rosters: PostRoster[] }
                   {selected.recruit_count ? ` / 모집 ${selected.recruit_count}명` : ''}
                 </span>
                 {isTodayEvent(selected.work_slots) && (
-                  <span className="flex items-center gap-1 font-mono font-semibold text-primary">
-                    <KeyRound className="size-3.5 shrink-0" />
-                    {generateDailyCode(selected.post_id)}
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1 font-mono font-semibold text-primary">
+                      <KeyRound className="size-3.5 shrink-0" />
+                      {generateDailyCode(selected.post_id)}
+                    </span>
+                    <span className="flex items-center gap-1 font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                      <CheckCheck className="size-3.5 shrink-0" />
+                      {checkinCode}
+                      <span className="text-xs font-normal text-muted-foreground ml-0.5">
+                        ({Math.floor(expiresIn / 60)}:{String(expiresIn % 60).padStart(2, '0')} 후 갱신)
+                      </span>
+                    </span>
+                  </>
                 )}
               </div>
             )}

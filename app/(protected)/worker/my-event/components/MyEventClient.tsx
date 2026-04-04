@@ -7,6 +7,7 @@ import {
   Calendar,
   Car,
   Check,
+  CheckCheck,
   Clock,
   MapPin,
   Navigation,
@@ -150,6 +151,8 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
   >({});
   const [loading, setLoading] = useState(false);
   const [showArrivalModal, setShowArrivalModal] = useState(false);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [checkedInAtOverride, setCheckedInAtOverride] = useState<Record<string, string>>({});
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -181,6 +184,7 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
       : event.movement_status;
 
   const arrivedAt = arrivedAtOverride[selectedId] ?? event.arrived_at;
+  const checkedInAt = checkedInAtOverride[selectedId] ?? event.checked_in_at;
 
   const isEventToday = isEventDay(event);
 
@@ -309,7 +313,7 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
         </div>
 
         {/* 타임스탬프 */}
-        {(arrivedAt || event.checked_in_at || event.checked_out_at) && (
+        {(arrivedAt || checkedInAt || event.checked_out_at) && (
           <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
             {arrivedAt && (
               <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
@@ -317,10 +321,10 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
                 {isoToHHmm(arrivedAt)} 도착
               </span>
             )}
-            {event.checked_in_at && (
+            {checkedInAt && (
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <Check className="size-3" />
-                {isoToHHmm(event.checked_in_at)} 출근
+                {isoToHHmm(checkedInAt)} 출근
               </span>
             )}
             {event.checked_out_at && (
@@ -375,9 +379,19 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
               </button>
             )}
             {movementStatus === 'arrived' && (
-              <p className="text-center text-xs text-muted-foreground py-2.5 border border-dashed rounded-xl">
-                도착이 확인됐습니다.
-              </p>
+              <div className="space-y-2">
+                <p className="text-center text-xs text-muted-foreground py-2.5 border border-dashed rounded-xl">
+                  도착이 확인됐습니다.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckinModal(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors"
+                >
+                  <CheckCheck className="size-4" />
+                  출근 코드 입력
+                </button>
+              </div>
             )}
             {movementStatus === 'checked_in' && (
               <p className="text-center text-xs text-emerald-600 dark:text-emerald-400 py-2.5 border border-emerald-200 dark:border-emerald-800 rounded-xl">
@@ -416,6 +430,18 @@ export default function MyEventClient({ events }: { events: MyEvent[] }) {
             ...prev,
             [selectedId]: arrivedAt,
           }));
+        }}
+      />
+      <QrScanModal
+        mode="checkin"
+        open={showCheckinModal}
+        onClose={() => setShowCheckinModal(false)}
+        postId={event.post_id}
+        memberScheduleId={event.member_schedule_id}
+        onVerified={(checkedInAt) => {
+          setShowCheckinModal(false);
+          setMovementOverride((prev) => ({ ...prev, [selectedId]: 'checked_in' }));
+          setCheckedInAtOverride((prev) => ({ ...prev, [selectedId]: checkedInAt }));
         }}
       />
     </>
