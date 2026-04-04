@@ -29,15 +29,26 @@ export type SupabasePost = {
   created_at: string;
   updated_at: string;
   work_slots?: Array<{
-    date: string;
+    // v3 WorkPart format fields
+    name?: string;
+    description?: string;
+    shifts?: Array<{
+      date: string;
+      date_end?: string;
+      start?: string;
+      end?: string;
+    }>;
+    // Legacy flat format fields
+    date?: string;
     start_time?: string;
     end_time?: string;
     start?: string;
     end?: string;
+    tax_withholding?: boolean;
+    // Common fields
     location?: string;
     pay_type?: 'hourly' | 'daily' | 'weekly' | 'monthly';
     pay_amount?: number;
-    tax_withholding?: boolean;
   }> | null;
   application_id?: string;
   applied_at?: string;

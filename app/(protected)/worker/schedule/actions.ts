@@ -74,7 +74,21 @@ type ExperienceItem = {
   postId?: number;
 };
 
-// work_slots 타입
+// work_slots 타입 (v3 WorkPart format)
+type WorkPart = {
+  name?: string;
+  location?: string;
+  pay_type?: string;
+  pay_amount?: number;
+  shifts?: Array<{
+    date: string;
+    date_end?: string;
+    start?: string;
+    end?: string;
+  }>;
+};
+
+// Legacy flat work_slots 타입
 type WorkSlot = {
   date: string;
   start_time?: string;
@@ -400,23 +414,27 @@ export async function importExperiencesAction(): Promise<ActionResult> {
         if (existingIds.has(expId)) continue;
 
         const rawWorkSlots = post.work_slots;
-        const workSlots: WorkSlot[] = Array.isArray(rawWorkSlots)
-          ? rawWorkSlots.filter(
-              (item): item is WorkSlot =>
-                typeof item === 'object' &&
-                item !== null &&
-                typeof (item as WorkSlot).date === 'string'
-            )
-          : [];
+        const allDates: string[] = [];
 
-        const dates =
-          workSlots.length > 0
-            ? workSlots
-                .map((slot) => slot.date)
-                .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-            : [];
-        const startDate = dates[0] || post.work_date;
-        const endDate = dates[dates.length - 1] || post.work_date;
+        if (Array.isArray(rawWorkSlots)) {
+          for (const item of rawWorkSlots) {
+            if (typeof item !== 'object' || item === null) continue;
+            const part = item as WorkPart;
+            if (Array.isArray(part.shifts)) {
+              // v3 WorkPart format
+              for (const shift of part.shifts) {
+                if (typeof shift.date === 'string') allDates.push(shift.date);
+              }
+            } else if (typeof (item as WorkSlot).date === 'string') {
+              // Legacy flat format
+              allDates.push((item as WorkSlot).date);
+            }
+          }
+        }
+
+        const sortedDates = allDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        const startDate = sortedDates[0] || post.work_date;
+        const endDate = sortedDates[sortedDates.length - 1] || post.work_date;
 
         // 날짜 표시 문자열
         const dateStr =

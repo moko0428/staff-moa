@@ -99,31 +99,87 @@ export function getPerDatePayItems(schedule: {
 }
 
 export function supabasePostToPost(supabasePost: SupabasePost): PostWithApplicationStatus {
-  const firstSlot =
-    Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0
-      ? supabasePost.work_slots[0]
-      : null;
+  const rawSlots = supabasePost.work_slots;
+  const isWorkPartFormat =
+    Array.isArray(rawSlots) && rawSlots.length > 0 && Array.isArray(rawSlots[0]?.shifts);
+
+  type FlatSlot = {
+    date: string;
+    start_time?: string;
+    end_time?: string;
+    start?: string;
+    end?: string;
+    location?: string;
+    pay_type?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+    pay_amount?: number;
+  };
+
+  let flatSlots: FlatSlot[] = [];
+  let allDates: string[] = [];
+  let firstSlotStart = '';
+  let firstSlotEnd = '';
+  let firstSlotLocation = '';
+  let firstSlotPayAmount = 0;
+  let firstSlotPayType: 'hourly' | 'daily' | 'weekly' | 'monthly' | undefined;
+
+  if (isWorkPartFormat && rawSlots) {
+    // v3 WorkPart format: flatten parts → shifts
+    for (const part of rawSlots) {
+      if (!Array.isArray(part.shifts)) continue;
+      for (const shift of part.shifts) {
+        if (!shift.date) continue;
+        flatSlots.push({
+          date: shift.date,
+          start: shift.start,
+          end: shift.end,
+          start_time: shift.start,
+          end_time: shift.end,
+          location: part.location,
+          pay_type: part.pay_type,
+          pay_amount: part.pay_amount,
+        });
+        allDates.push(shift.date);
+      }
+    }
+    const firstPart = rawSlots[0];
+    const firstShift = firstPart?.shifts?.[0];
+    firstSlotStart = firstShift?.start || '';
+    firstSlotEnd = firstShift?.end || '';
+    firstSlotLocation = firstPart?.location || '';
+    firstSlotPayAmount = firstPart?.pay_amount || 0;
+    firstSlotPayType = firstPart?.pay_type;
+  } else if (Array.isArray(rawSlots) && rawSlots.length > 0) {
+    // Legacy flat format
+    flatSlots = rawSlots.map((slot) => ({
+      date: slot.date || '',
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      start: slot.start_time || slot.start,
+      end: slot.end_time || slot.end,
+      location: slot.location,
+      pay_type: slot.pay_type,
+      pay_amount: slot.pay_amount,
+    }));
+    allDates = rawSlots.map((s) => s.date).filter((d): d is string => !!d);
+    const firstSlot = rawSlots[0];
+    firstSlotStart = firstSlot?.start_time || firstSlot?.start || '';
+    firstSlotEnd = firstSlot?.end_time || firstSlot?.end || '';
+    firstSlotLocation = firstSlot?.location || '';
+    firstSlotPayAmount = firstSlot?.pay_amount || 0;
+    firstSlotPayType = firstSlot?.pay_type;
+  }
 
   let dateStr = '';
-  if (Array.isArray(supabasePost.work_slots) && supabasePost.work_slots.length > 0) {
-    const dates = supabasePost.work_slots.map((slot) => slot.date).filter(Boolean);
-    if (dates.length === 1) {
-      dateStr = dates[0];
-    } else if (dates.length > 1) {
-      dateStr = `${dates[0]} ~ ${dates[dates.length - 1]}`;
-    }
+  if (allDates.length === 1) {
+    dateStr = allDates[0];
+  } else if (allDates.length > 1) {
+    dateStr = `${allDates[0]} ~ ${allDates[allDates.length - 1]}`;
   }
-  if (!dateStr) {
-    dateStr = supabasePost.work_date || '';
-  }
+  if (!dateStr) dateStr = supabasePost.work_date || '';
 
   let timeStr = '';
-  if (firstSlot) {
-    const start = firstSlot.start_time || firstSlot.start || '';
-    const end = firstSlot.end_time || firstSlot.end || '';
-    if (start && end) {
-      timeStr = `${start} - ${end}`;
-    }
+  if (firstSlotStart && firstSlotEnd) {
+    timeStr = `${firstSlotStart} - ${firstSlotEnd}`;
   }
   if (!timeStr) {
     timeStr = `${supabasePost.work_time_start} - ${supabasePost.work_time_end}`;
@@ -137,9 +193,9 @@ export function supabasePostToPost(supabasePost: SupabasePost): PostWithApplicat
     title: supabasePost.title,
     keywords: supabasePost.keywords || [],
     date: dateStr,
-    location: firstSlot?.location || supabasePost.location || '',
+    location: firstSlotLocation || supabasePost.location || '',
     time: timeStr,
-    salary: firstSlot?.pay_amount || Number(supabasePost.pay_amount) || 0,
+    salary: firstSlotPayAmount || Number(supabasePost.pay_amount) || 0,
     paymentDate: '',
     preparation: supabasePost.equipments || '',
     description: supabasePost.description,
@@ -157,16 +213,7 @@ export function supabasePostToPost(supabasePost: SupabasePost): PostWithApplicat
     updatedAt: supabasePost.updated_at,
     applicationStatus: supabasePost.application_status,
     applicationId: supabasePost.application_id,
-    payType: firstSlot?.pay_type || supabasePost.pay_type,
-    workSlots: supabasePost.work_slots?.map((slot) => ({
-      date: slot.date,
-      start_time: slot.start_time,
-      end_time: slot.end_time,
-      start: slot.start_time || slot.start,
-      end: slot.end_time || slot.end,
-      location: slot.location,
-      pay_type: slot.pay_type,
-      pay_amount: slot.pay_amount,
-    })),
+    payType: firstSlotPayType || supabasePost.pay_type,
+    workSlots: flatSlots.length > 0 ? flatSlots : undefined,
   };
 }
