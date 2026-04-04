@@ -1,5 +1,6 @@
 'use server';
 
+import { eachDayOfInterval, format, parseISO } from 'date-fns';
 import { createClient } from '@/utils/supabase/server';
 import { PENALTY_TYPES } from './constants';
 import type { PenaltyItem } from './constants';
@@ -47,11 +48,31 @@ async function calculateAttendanceScore(
       const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
       if (!post) continue;
 
-      const slots = post.work_slots as Array<{ date: string }> | null;
-      if (slots && Array.isArray(slots)) {
-        for (const slot of slots) {
-          if (slot.date >= cutoffStr) {
-            workDays.add(slot.date);
+      const rawSlots = post.work_slots;
+      if (rawSlots && Array.isArray(rawSlots)) {
+        for (const item of rawSlots) {
+          if (typeof item !== 'object' || item === null) continue;
+          const part = item as { shifts?: Array<{ date: string; date_end?: string }>; date?: string };
+          if (Array.isArray(part.shifts)) {
+            // v3 WorkPart format
+            for (const shift of part.shifts) {
+              if (shift.date_end && shift.date_end > shift.date) {
+                // 기간 근무: date ~ date_end 범위 내 모든 날짜 enumerate
+                const days = eachDayOfInterval({
+                  start: parseISO(shift.date),
+                  end: parseISO(shift.date_end),
+                });
+                for (const d of days) {
+                  const ds = format(d, 'yyyy-MM-dd');
+                  if (ds >= cutoffStr) workDays.add(ds);
+                }
+              } else if (shift.date >= cutoffStr) {
+                workDays.add(shift.date);
+              }
+            }
+          } else if (typeof part.date === 'string' && part.date >= cutoffStr) {
+            // Legacy flat format
+            workDays.add(part.date);
           }
         }
       } else if (post.work_date && post.work_date >= cutoffStr) {
@@ -137,18 +158,31 @@ export async function getManagerSchedulesAction(): Promise<
     // work_slots 기반으로 스케줄 상태 계산
     const now = new Date();
     const schedulesWithStatus = posts.map((post) => {
-      const workSlots = post.work_slots as Array<{
-        date: string;
-        start_time: string;
-        end_time: string;
-      }>;
+      const rawSlots = post.work_slots as Array<Record<string, unknown>> | null;
+      const allShiftDates: Date[] = [];
+
+      if (Array.isArray(rawSlots)) {
+        for (const item of rawSlots) {
+          if (typeof item !== 'object' || item === null) continue;
+          const part = item as { shifts?: Array<{ date: string; date_end?: string }>; date?: string };
+          if (Array.isArray(part.shifts)) {
+            // v3 WorkPart format
+            for (const shift of part.shifts) {
+              if (shift.date) allShiftDates.push(new Date(shift.date));
+              if (shift.date_end) allShiftDates.push(new Date(shift.date_end));
+            }
+          } else if (typeof part.date === 'string') {
+            // Legacy flat format
+            allShiftDates.push(new Date(part.date));
+          }
+        }
+      }
 
       let scheduleStatus: 'upcoming' | 'ongoing' | 'completed' = 'completed';
 
-      if (workSlots && workSlots.length > 0) {
-        const dates = workSlots.map((slot) => new Date(slot.date));
-        const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
-        const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+      if (allShiftDates.length > 0) {
+        const minDate = new Date(Math.min(...allShiftDates.map((d) => d.getTime())));
+        const maxDate = new Date(Math.max(...allShiftDates.map((d) => d.getTime())));
 
         // 오늘 날짜 기준으로 상태 계산
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -249,19 +283,32 @@ export async function getScheduleDetailAction(
     }
 
     // 스케줄 상태 계산
-    const workSlots = post.work_slots as Array<{
-      date: string;
-      start_time: string;
-      end_time: string;
-    }>;
+    const rawSlots = post.work_slots as Array<Record<string, unknown>> | null;
+    const allShiftDates: Date[] = [];
+
+    if (Array.isArray(rawSlots)) {
+      for (const item of rawSlots) {
+        if (typeof item !== 'object' || item === null) continue;
+        const part = item as { shifts?: Array<{ date: string; date_end?: string }>; date?: string };
+        if (Array.isArray(part.shifts)) {
+          // v3 WorkPart format
+          for (const shift of part.shifts) {
+            if (shift.date) allShiftDates.push(new Date(shift.date));
+            if (shift.date_end) allShiftDates.push(new Date(shift.date_end));
+          }
+        } else if (typeof part.date === 'string') {
+          // Legacy flat format
+          allShiftDates.push(new Date(part.date));
+        }
+      }
+    }
 
     let scheduleStatus: 'upcoming' | 'ongoing' | 'completed' = 'completed';
 
-    if (workSlots && workSlots.length > 0) {
+    if (allShiftDates.length > 0) {
       const now = new Date();
-      const dates = workSlots.map((slot) => new Date(slot.date));
-      const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
-      const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+      const minDate = new Date(Math.min(...allShiftDates.map((d) => d.getTime())));
+      const maxDate = new Date(Math.max(...allShiftDates.map((d) => d.getTime())));
 
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const minDateOnly = new Date(
