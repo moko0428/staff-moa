@@ -1,5 +1,6 @@
 export type WorkShift = {
   date: string;
+  date_end?: string;   // 기간 근무 종료일 (undefined = 당일 근무)
   start: string;
   end: string;
 };

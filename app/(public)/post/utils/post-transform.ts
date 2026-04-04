@@ -95,6 +95,43 @@ export const supabasePostToPostItem = (raw: SupabasePost): PostItem => {
   };
 };
 
+const computeDurationBadge = (
+  post: PostItem,
+): '당일' | '단기' | '장기' | undefined => {
+  const slots = post.work_slots as unknown as Array<Record<string, unknown>> | undefined;
+  const allDates: Date[] = [];
+
+  if (slots && slots.length > 0) {
+    for (const slot of slots) {
+      // 신규 포맷: WorkPart (shifts 배열 포함)
+      if (Array.isArray(slot.shifts)) {
+        for (const shift of slot.shifts as Array<Record<string, unknown>>) {
+          if (shift.date) allDates.push(new Date(shift.date as string));
+          if (shift.date_end) allDates.push(new Date(shift.date_end as string));
+        }
+      } else if (slot.date) {
+        // 구 포맷: { date, start_time, end_time }
+        allDates.push(new Date(slot.date as string));
+      }
+    }
+  }
+
+  if (allDates.length === 0 && post.date) {
+    allDates.push(new Date(post.date));
+  }
+
+  const valid = allDates.filter((d) => !isNaN(d.getTime()));
+  if (valid.length === 0) return undefined;
+
+  const min = Math.min(...valid.map((d) => d.getTime()));
+  const max = Math.max(...valid.map((d) => d.getTime()));
+  const spanDays = Math.round((max - min) / 86_400_000);
+
+  if (spanDays === 0) return '당일';
+  if (spanDays <= 14) return '단기';
+  return '장기';
+};
+
 const PAY_TYPE_KO: Record<string, string> = {
   hourly: '시급',
   daily: '일급',
@@ -106,6 +143,27 @@ const STATUS_MAP: Record<PostItem['status'], JobItem['status']> = {
   urgent: '급구',
   recruiting: '모집',
   completed: '모집완료',
+};
+
+const collectLocations = (post: PostItem): string[] => {
+  const slots = post.work_slots as unknown as Array<Record<string, unknown>> | undefined;
+  const seen = new Set<string>();
+
+  if (slots && slots.length > 0) {
+    for (const slot of slots) {
+      // 신규 포맷: WorkPart (location 필드)
+      if (typeof slot.location === 'string' && slot.location.trim()) {
+        seen.add(slot.location.trim());
+      }
+      // 구 포맷: { location? }
+      const loc = slot.location as string | undefined;
+      if (loc?.trim()) seen.add(loc.trim());
+    }
+  }
+
+  if (seen.size === 0 && post.location) seen.add(post.location);
+
+  return Array.from(seen);
 };
 
 export const postItemToJobItem = (post: PostItem): JobItem => {
@@ -136,5 +194,7 @@ export const postItemToJobItem = (post: PostItem): JobItem => {
     status: STATUS_MAP[post.status],
     createdAt: post.created_at,
     coverImage: post.authorCoverImage ?? undefined,
+    durationBadge: computeDurationBadge(post),
+    places: collectLocations(post),
   };
 };

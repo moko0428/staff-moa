@@ -127,11 +127,14 @@ const ApplyModal = ({
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {part.shifts
                                 .map((shift) => {
+                                  if (shift.date_end) {
+                                    const s = format(parseISO(shift.date), 'MM.dd', { locale: ko });
+                                    const e = format(parseISO(shift.date_end), 'MM.dd', { locale: ko });
+                                    return `${s}~${e} ${shift.start}~${shift.end}`;
+                                  }
                                   const dateStr = shift.date
-                                    ? format(parseISO(shift.date), 'MM.dd(E)', {
-                                        locale: ko,
-                                      })
-                                    : shift.date;
+                                    ? format(parseISO(shift.date), 'MM.dd(E)', { locale: ko })
+                                    : '';
                                   return `${dateStr} ${shift.start}~${shift.end}`;
                                 })
                                 .join(', ')}

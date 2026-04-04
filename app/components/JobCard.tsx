@@ -52,6 +52,8 @@ export interface JobItem {
   qualifications?: string[];
   status: '급구' | '모집' | '모집완료';
   createdAt?: string; // 정렬용
+  durationBadge?: '당일' | '단기' | '장기';
+  places?: string[];
 }
 
 interface JobCardProps {
@@ -377,15 +379,39 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
           {item.title}
         </h3>
 
+        {/* 기간 배지 + 키워드 배지 */}
+        {(item.durationBadge || item.categories.length > 0) && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {item.durationBadge && (
+              <span className={cn(
+                'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
+                item.durationBadge === '당일' && 'bg-blue-100 text-blue-700',
+                item.durationBadge === '단기' && 'bg-green-100 text-green-700',
+                item.durationBadge === '장기' && 'bg-orange-100 text-orange-700',
+              )}>
+                {item.durationBadge}
+              </span>
+            )}
+            {item.categories.slice(0, 3).map((cat) => (
+              <span
+                key={cat}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground"
+              >
+                {cat}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* 위치 + 급여 + 지원 버튼 */}
         <div className="mt-2 flex items-end justify-between gap-2">
           <div className="flex flex-col gap-1 min-w-0">
-            {item.place && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            {(item.places && item.places.length > 0 ? item.places : item.place ? [item.place] : []).map((p, i) => (
+              <p key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="size-3.5 shrink-0" />
-                <span className="truncate">{item.place}</span>
+                <span className="truncate">{p}</span>
               </p>
-            )}
+            ))}
             {item.pay && (
               <p className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-foreground">

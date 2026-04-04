@@ -13,18 +13,38 @@ const isPostPast = (post: Record<string, unknown>): boolean => {
 
   if (post.work_slots && Array.isArray(post.work_slots) && post.work_slots.length > 0) {
     const slots = post.work_slots as Array<Record<string, unknown>>;
-    const lastSlot = slots[slots.length - 1];
-    const lastDate = lastSlot?.date as string;
-    const lastEndTime = (lastSlot?.end_time || lastSlot?.end) as string;
 
-    if (lastDate && lastEndTime) {
-      try {
-        const [hours, minutes] = lastEndTime.split(':').map(Number);
-        const workDateTime = new Date(lastDate);
-        workDateTime.setHours(hours, minutes, 0, 0);
-        return workDateTime < now;
-      } catch {
-        // 파싱 실패 시 기본값 사용
+    // v3 WorkPart format: top-level items have a `shifts` array
+    if (Array.isArray(slots[0]?.shifts)) {
+      let latestDateTime: Date | null = null;
+      for (const part of slots) {
+        const shifts = part.shifts as Array<{ date: string; date_end?: string; end?: string }>;
+        if (!Array.isArray(shifts)) continue;
+        for (const shift of shifts) {
+          const dateStr = shift.date_end || shift.date;
+          const endTime = shift.end;
+          if (!dateStr || !endTime) continue;
+          try {
+            const [hours, minutes] = endTime.split(':').map(Number);
+            const dt = new Date(dateStr);
+            dt.setHours(hours, minutes, 0, 0);
+            if (!latestDateTime || dt > latestDateTime) latestDateTime = dt;
+          } catch { /* ignore */ }
+        }
+      }
+      if (latestDateTime) return latestDateTime < now;
+    } else {
+      // Legacy flat format: date field on top-level slot
+      const lastSlot = slots[slots.length - 1];
+      const lastDate = lastSlot?.date as string;
+      const lastEndTime = (lastSlot?.end_time || lastSlot?.end) as string;
+      if (lastDate && lastEndTime) {
+        try {
+          const [hours, minutes] = lastEndTime.split(':').map(Number);
+          const workDateTime = new Date(lastDate);
+          workDateTime.setHours(hours, minutes, 0, 0);
+          return workDateTime < now;
+        } catch { /* ignore */ }
       }
     }
   }
@@ -323,16 +343,31 @@ export const getMyAcceptedSchedulesAction = async (): Promise<
 
     const result = (schedules || []).map((s) => {
       const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
-      const workSlots = post?.work_slots as Array<{
-        date: string;
-        pay_amount?: number;
-      }> | null;
+      const rawSlots = post?.work_slots as Array<Record<string, unknown>> | null;
+
+      let date = post?.work_date || '';
+      let salary = Number(post?.pay_amount) || 0;
+
+      if (Array.isArray(rawSlots) && rawSlots.length > 0) {
+        const firstItem = rawSlots[0];
+        if (Array.isArray(firstItem?.shifts)) {
+          // v3 WorkPart format
+          const firstShift = (firstItem.shifts as Array<{ date: string }>)[0];
+          date = firstShift?.date || date;
+          salary = Number(firstItem.pay_amount) || salary;
+        } else {
+          // Legacy flat format
+          date = (firstItem.date as string) || date;
+          salary = Number(firstItem.pay_amount) || salary;
+        }
+      }
+
       return {
         id: s.member_schedule_id,
         postId: String(s.post_id),
         title: post?.title || '',
-        date: workSlots?.[0]?.date || post?.work_date || '',
-        salary: workSlots?.[0]?.pay_amount || Number(post?.pay_amount) || 0,
+        date,
+        salary,
         location: post?.location || '',
       };
     });
