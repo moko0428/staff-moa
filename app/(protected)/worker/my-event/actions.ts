@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { generateDailyCode } from '@/lib/arrivalCode';
+import { generateDailyCode, generateCheckinCode } from '@/lib/arrivalCode';
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -273,6 +273,58 @@ export async function verifyArrivalCodeAction(
     return { ok: true, message: '도착이 확인됐습니다.', data: { arrived_at: now } };
   } catch (err) {
     console.error('[verifyArrivalCodeAction]', err);
+    return { ok: false, message: '오류가 발생했습니다.' };
+  }
+}
+
+// ── 체크인 코드 검증 (TTL 30분) ───────────────────────────────────────
+
+export async function verifyCheckinCodeAction(
+  memberScheduleId: string,
+  postId: number,
+  inputCode: string,
+): Promise<ActionResult<{ checked_in_at: string }>> {
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      return { ok: false, message: '로그인이 필요합니다.' };
+    }
+
+    // 본인 스케줄 확인
+    const { data: schedule } = await supabase
+      .from('member_schedules')
+      .select('member_schedule_id, member_id')
+      .eq('member_schedule_id', memberScheduleId)
+      .eq('member_id', userData.user.id)
+      .eq('status', 'accepted')
+      .single();
+
+    if (!schedule) {
+      return { ok: false, message: '권한이 없습니다.' };
+    }
+
+    // 코드 검증 (30분 TTL)
+    const expectedCode = generateCheckinCode(postId);
+    if (inputCode.trim() !== expectedCode) {
+      return { ok: false, message: '체크인 코드가 올바르지 않습니다.' };
+    }
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('member_schedules')
+      .update({ movement_status: 'checked_in', checked_in_at: now })
+      .eq('member_schedule_id', memberScheduleId);
+
+    if (error) {
+      console.error('[verifyCheckinCodeAction]', error);
+      return { ok: false, message: '체크인에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '출근이 확인됐습니다.', data: { checked_in_at: now } };
+  } catch (err) {
+    console.error('[verifyCheckinCodeAction]', err);
     return { ok: false, message: '오류가 발생했습니다.' };
   }
 }

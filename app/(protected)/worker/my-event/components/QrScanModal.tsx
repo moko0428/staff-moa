@@ -9,14 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
-import { verifyArrivalCodeAction } from '../actions';
+import { verifyArrivalCodeAction, verifyCheckinCodeAction } from '../actions';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   postId: number;
   memberScheduleId: string;
-  onVerified: (arrivedAt: string) => void;
+  onVerified: (timestamp: string) => void;
+  mode?: 'arrival' | 'checkin';
 }
 
 type Tab = 'qr' | 'code';
@@ -35,6 +36,7 @@ export default function QrScanModal({
   postId,
   memberScheduleId,
   onVerified,
+  mode = 'arrival',
 }: Props) {
   const [tab, setTab] = useState<Tab>('qr');
   const [codeInput, setCodeInput] = useState('');
@@ -143,12 +145,19 @@ export default function QrScanModal({
 
   async function submitCode(code: string) {
     setSubmitting(true);
-    const result = await verifyArrivalCodeAction(memberScheduleId, postId, code);
+    const result =
+      mode === 'checkin'
+        ? await verifyCheckinCodeAction(memberScheduleId, postId, code)
+        : await verifyArrivalCodeAction(memberScheduleId, postId, code);
     setSubmitting(false);
 
     if (result.ok && result.data) {
-      toast.success('도착이 확인됐습니다!');
-      onVerified(result.data.arrived_at);
+      const timestamp =
+        mode === 'checkin'
+          ? (result.data as { checked_in_at: string }).checked_in_at
+          : (result.data as { arrived_at: string }).arrived_at;
+      toast.success(mode === 'checkin' ? '출근이 확인됐습니다!' : '도착이 확인됐습니다!');
+      onVerified(timestamp);
     } else {
       detectedRef.current = false;
       toast.error(result.message);
@@ -172,7 +181,9 @@ export default function QrScanModal({
       <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden" showCloseButton={false}>
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-base font-semibold">도착 인증</DialogTitle>
+            <DialogTitle className="text-base font-semibold">
+              {mode === 'checkin' ? '출근 체크인' : '도착 인증'}
+            </DialogTitle>
             <button
               type="button"
               onClick={onClose}
@@ -262,7 +273,9 @@ export default function QrScanModal({
           {tab === 'code' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                매니저가 알려주는 6자리 숫자를 입력해주세요.
+                {mode === 'checkin'
+                  ? '매니저가 알려주는 출근 체크인 코드 6자리를 입력해주세요.'
+                  : '매니저가 알려주는 6자리 숫자를 입력해주세요.'}
               </p>
               <input
                 type="text"
