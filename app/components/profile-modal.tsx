@@ -124,10 +124,10 @@ export default function ProfileModal({
             </Badge>
           </div>
 
-          {/* 이메일 */}
-          {user.email && (
+          {/* 이메일 - 비활성화 */}
+          {/* {user.email && (
             <p className="text-sm text-muted-foreground">{user.email}</p>
-          )}
+          )} */}
 
           {/* 스코어 (스탭인 경우) */}
           {user.role === 'member' && user.attendanceScore !== undefined && (
