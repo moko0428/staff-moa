@@ -257,9 +257,16 @@ const ApplyModal = ({
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            지원하려면 먼저 로그인해주세요.
-          </p>
+          <div className="mt-2 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              지원하려면 먼저 로그인해주세요.
+            </p>
+            <Button type="button" className="w-full" asChild>
+              <Link href="/auth/login" onClick={() => onOpenChange(false)}>
+                로그인
+              </Link>
+            </Button>
+          </div>
         )}
       </DialogContent>
     </Dialog>
