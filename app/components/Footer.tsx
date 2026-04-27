@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import TermsBottomSheet, { type TermsType } from './TermsBottomSheet';
 import Image from 'next/image';
+import { MessageCircle } from 'lucide-react';
 
 export default function Footer() {
   const [openTerms, setOpenTerms] = useState<TermsType | null>(null);
@@ -49,8 +50,30 @@ export default function Footer() {
           </div>
 
           {/* 회사 정보 */}
-          <div className="space-y-1 mb-6 text-xs text-muted-foreground">
-            <p>고인력 | ljun925@naver.com</p>
+          <div className="flex items-start justify-between mb-6">
+            {/* 좌측: 회사 정보 텍스트 */}
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>고인력 | ljun925@naver.com</p>
+              <p>사업자등록번호: 352-24-02564</p>
+            </div>
+
+            {/* 우측: 카카오 오픈채팅 아이콘 */}
+            <div className="flex gap-3">
+              <a href="https://open.kakao.com/o/seHtamsi" target="_blank" rel="noopener noreferrer"
+                 className="flex flex-col items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-muted">
+                  <MessageCircle className="w-5 h-5 text-muted-foreground" />
+                </span>
+                <span>문의</span>
+              </a>
+              <a href="https://open.kakao.com/o/gfnl6lsi" target="_blank" rel="noopener noreferrer"
+                 className="flex flex-col items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-muted">
+                  <MessageCircle className="w-5 h-5 text-muted-foreground" />
+                </span>
+                <span>채팅방</span>
+              </a>
+            </div>
           </div>
 
           {/* 구분선 */}
