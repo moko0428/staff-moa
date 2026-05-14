@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
 
   if (!authed && isProtectedPath) {
     const url = req.nextUrl.clone();
-    url.pathname = '/auth/login'; 
+    url.pathname = '/auth';
     const redirectResponse = NextResponse.redirect(url);
     for (const cookie of response.cookies.getAll()) {
       redirectResponse.cookies.set(cookie);
@@ -82,6 +82,5 @@ export const config = {
     '/worker/:path*',
     '/settings/:path*',
     '/profile/:path*',
-    '/auth/login',
   ],
 };
