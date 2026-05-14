@@ -5,8 +5,7 @@ import Footer from './Footer';
 
 const FOOTER_HIDDEN_PATHS = [
   '/notification',
-  '/my-post/create',
-  '/my-post/edit',
+  '/my-post',
   '/manager/worker',
   '/manager/schedule',
   '/manager/event',

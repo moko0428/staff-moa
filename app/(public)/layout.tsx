@@ -2,7 +2,7 @@ import HeaderNav from '@/app/components/HeaderNav';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '고인력 | 공고',
+  title: '공고',
   description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
 };
 

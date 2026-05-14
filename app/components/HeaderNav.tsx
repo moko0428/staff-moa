@@ -49,8 +49,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
   const isHome = pathname === '/';
   const isPostPage = pathname === '/post';
-  const isAuthPage =
-    pathname.startsWith('/auth/login') || pathname.startsWith('/auth/join');
+  const isAuthPage = pathname.startsWith('/auth');
   const isAdmin = role === 'admin';
   const isManager = role === 'manager';
   const isPendingManager = role === 'pending_manager';
@@ -195,7 +194,7 @@ export default function HeaderNav() {
               )}
 
               {/* 매니저 페이지 */}
-              {isManagerLike && (
+              {isManager && (
                 <>
                   <NavigationMenuItem>
                     <NavigationMenuLink href="/my-post" className={linkClass}>
@@ -218,17 +217,23 @@ export default function HeaderNav() {
                       스케줄 관리
                     </NavigationMenuLink>
                   </NavigationMenuItem>
-                  {isManager && (
-                    <NavigationMenuItem>
-                      <NavigationMenuLink
-                        href="/manager/event"
-                        className={linkClass}
-                      >
-                        현장 관리
-                      </NavigationMenuLink>
-                    </NavigationMenuItem>
-                  )}
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      href="/manager/event"
+                      className={linkClass}
+                    >
+                      현장 관리
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
                 </>
+              )}
+              {/* 승인 대기 매니저 안내 */}
+              {isPendingManager && (
+                <NavigationMenuItem>
+                  <span className={cn(linkClass, 'text-sm opacity-60 cursor-default')}>
+                    승인 대기 중
+                  </span>
+                </NavigationMenuItem>
               )}
 
               {/* 일반회원 페이지 */}
@@ -418,7 +423,7 @@ export default function HeaderNav() {
                     )}
 
                     {/* 매니저 페이지 */}
-                    {isManagerLike && (
+                    {isManager && (
                       <>
                         <DropdownMenuItem asChild>
                           <Link
@@ -451,20 +456,26 @@ export default function HeaderNav() {
                             </span>
                           </Link>
                         </DropdownMenuItem>
-                        {isManager && (
-                          <DropdownMenuItem asChild>
-                            <Link
-                              href="/manager/event"
-                              className="flex items-center gap-2"
-                            >
-                              <MapPin className="size-4" />
-                              <span className="text-sm font-medium">
-                                현장 관리
-                              </span>
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/manager/event"
+                            className="flex items-center gap-2"
+                          >
+                            <MapPin className="size-4" />
+                            <span className="text-sm font-medium">
+                              현장 관리
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
                       </>
+                    )}
+                    {/* 승인 대기 매니저 안내 */}
+                    {isPendingManager && (
+                      <DropdownMenuItem disabled>
+                        <span className="text-sm text-muted-foreground">
+                          매니저 승인 대기 중입니다
+                        </span>
+                      </DropdownMenuItem>
                     )}
 
                     {/* 일반회원 페이지 */}
@@ -521,7 +532,7 @@ export default function HeaderNav() {
                           </button>
                         ) : (
                           <Link
-                            href="/auth/login"
+                            href="/auth"
                             className="block w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-primary hover:bg-muted"
                           >
                             로그인

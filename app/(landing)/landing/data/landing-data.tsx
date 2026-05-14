@@ -13,13 +13,12 @@ import {
 export const steps = [
   {
     title: '스탭·매니저 가입',
-    desc: '스탭은 소셜 로그인, 매니저는 매니저 회원가입 버튼을 눌러주세요.',
+    desc: '회원가입 후 설정에서 매니저로 전환 신청할 수 있습니다.',
     icon: <Users className="size-6" />,
     iconName: 'Users',
     color: 'blue',
     link: [
-      { href: '/auth', label: '스탭으로 시작' },
-      { href: '/auth/join/manager-join', label: '매니저로 시작' },
+      { href: '/auth', label: '시작하기' },
     ],
   },
   {
@@ -29,8 +28,7 @@ export const steps = [
     iconName: 'User',
     color: 'blue',
     link: [
-      { href: '/auth', label: '스탭으로 시작' },
-      { href: '/auth/join/manager-join', label: '매니저로 시작' },
+      { href: '/auth', label: '시작하기' },
     ],
   },
   {

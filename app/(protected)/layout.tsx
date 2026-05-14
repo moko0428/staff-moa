@@ -1,9 +1,8 @@
-import HeaderNav from '@/app/components/HeaderNav';
+import ConditionalHeaderNav from '@/app/components/ConditionalHeaderNav';
 import ConditionalFooter from '@/app/components/ConditionalFooter';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '고인력',
   description: '스탭 구인은 고인력에서 시작됩니다.',
 };
 
@@ -14,7 +13,7 @@ export default function ProtectedLayout({
 }>) {
   return (
     <div className="min-h-screen flex flex-col bg-accent">
-      <HeaderNav />
+      <ConditionalHeaderNav />
       <main className="max-w-7xl w-full mx-auto">{children}</main>
       <ConditionalFooter />
     </div>

@@ -13,7 +13,7 @@ import Providers from './providers';
 export const metadata: Metadata = {
   title: {
     default: '고인력',
-    template: '%s',
+    template: '고인력 | %s',
   },
   description:
     '단기알바, 스탭, 일일알바, 행사·이벤트 구인구직 플랫폼. 고인력에서 빠르게 구인하고 지원하세요.',

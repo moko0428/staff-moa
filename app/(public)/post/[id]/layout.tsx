@@ -7,7 +7,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `고인력 | 공고 #${id}`,
+    title: `공고 #${id}`,
     description: '스탭, 단기알바, 일일알바, 행사, 이벤트 구인 웹사이트',
   };
 }

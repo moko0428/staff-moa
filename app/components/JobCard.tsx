@@ -67,6 +67,12 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const isMember = role === 'member';
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const firstDate = item.date ? new Date(`${item.date}T00:00:00`) : null;
+  const isExpired = firstDate !== null && firstDate < today;
+  const effectiveStatus: JobItem['status'] = isExpired ? '모집완료' : item.status;
+
   const [isFavorite, setIsFavorite] = useState(item.isFavorite ?? false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -140,7 +146,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
       if (!roleHydrated || !isMember) return;
       if (!currentUserId) return;
       if (typeof item.applied === 'boolean') return; // 이미 상위에서 주입됨
-      if (item.status === '모집완료') return;
+      if (effectiveStatus === '모집완료') return;
 
       const postId =
         typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
@@ -225,14 +231,14 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
     }
   };
   const statusClassName =
-    item.status === '급구'
+    effectiveStatus === '급구'
       ? 'border-primary'
-      : item.status === '모집완료'
+      : effectiveStatus === '모집완료'
         ? 'bg-muted'
         : '';
 
   const enabledHoverClasses =
-    item.status !== '모집완료'
+    effectiveStatus !== '모집완료'
       ? 'transition shadow-sm hover:shadow-md hover:-translate-y-0.5'
       : '';
 
@@ -250,7 +256,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
   const handleApplyClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (item.status === '모집완료') return;
+    if (effectiveStatus === '모집완료') return;
     if (isApplied) return;
     setApplyOpen(true);
   };
@@ -304,7 +310,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
       onClick={handleCardClick}
     >
       {/* 모집완료 오버레이 */}
-      {item.status === '모집완료' && (
+      {effectiveStatus === '모집완료' && (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted/10 backdrop-blur-sm z-10"
@@ -339,7 +345,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
         )}
 
         {/* 상태 배지 */}
-        {item.status === '급구' && (
+        {effectiveStatus === '급구' && (
           <span className="absolute top-2 left-2 z-10 inline-flex items-center border border-red-200/80 px-2 py-0.5 text-xs font-medium rounded-sm bg-red-100/80 text-red-700 backdrop-blur-sm">
             급구
           </span>
@@ -429,7 +435,7 @@ export function JobCard({ item, preloadedUser }: JobCardProps) {
               variant={isApplied ? 'secondary' : 'default'}
               size="sm"
               disabled={
-                item.status === '모집완료' || isApplied || isCheckingApplied
+                effectiveStatus === '모집완료' || isApplied || isCheckingApplied
               }
               className={cn(
                 'shrink-0 h-7 text-xs',

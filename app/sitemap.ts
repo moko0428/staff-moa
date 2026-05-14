@@ -18,13 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/auth/login`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${BASE_URL}/auth/join`,
+      url: `${BASE_URL}/auth`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.3,

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '고인력',
+  title: '내 공고',
   description: '스탭 구인은 고인력에서 시작됩니다.',
 };
 
