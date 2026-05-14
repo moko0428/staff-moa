@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '고인력',
+  title: '설정',
   description: '스탭 구인은 고인력에서 시작됩니다.',
 };
 
@@ -12,7 +12,7 @@ export default function SettingsLayout({
 }>) {
   return (
     <div className="bg-background">
-      <main className="max-w-7xl w-full mx-auto p-4">{children}</main>
+      <main className="max-w-2xl w-full mx-auto">{children}</main>
     </div>
   );
 }

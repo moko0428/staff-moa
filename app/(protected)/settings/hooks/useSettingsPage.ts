@@ -18,6 +18,7 @@ export type UserProfile = {
   avatar: string | null;
   email: string | null;
   loginMethod: string;
+  joinedAt: string | null;
 };
 
 export type ProfileData = {
@@ -126,11 +127,20 @@ export function useSettingsPage() {
                 : '소셜 로그인'
               : '이메일';
 
+          const createdAt = userData.user.created_at;
+          const joinedAt = createdAt
+            ? (() => {
+                const d = new Date(createdAt);
+                return `${d.getFullYear()}년 ${d.getMonth() + 1}월 가입`;
+              })()
+            : null;
+
           setUserProfile({
             name: profile?.name || userData.user.user_metadata?.name || '사용자',
             avatar: profile?.avatar || userData.user.user_metadata?.avatar || null,
             email: profile?.email || userData.user.email || null,
             loginMethod,
+            joinedAt,
           });
 
           setProfileData({
@@ -327,6 +337,11 @@ export function useSettingsPage() {
     setShowDeleteDialog(true);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/auth';
+  };
+
   const handleDeleteAccountConfirm = async () => {
     setIsDeletingAccount(true);
     try {
@@ -384,5 +399,6 @@ export function useSettingsPage() {
     handleDeleteAccount,
     handleDeleteAccountConfirm,
     handleRequestManagerRole,
+    handleSignOut,
   };
 }
