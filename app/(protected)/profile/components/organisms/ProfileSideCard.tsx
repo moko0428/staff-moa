@@ -1,15 +1,11 @@
 'use client';
 
-import { Button } from '@/app/components/ui/button';
-import { Badge } from '@/app/components/ui/badge';
-import { Input } from '@/app/components/ui/input';
-import { Textarea } from '@/app/components/ui/textarea';
 import UserAvatar from '@/app/common/components/UserAvatar';
 import { Card, CardContent } from '@/app/components/ui/card';
-import { Plus, X, Star } from 'lucide-react';
-import Image from 'next/image';
+import { ShieldCheck, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChangeEvent } from 'react';
+import Image from 'next/image';
 
 type EffectiveRole = 'member' | 'manager' | 'admin' | 'pending_manager' | null;
 
@@ -17,6 +13,46 @@ const roleLabelMap: Partial<Record<string, string>> = {
   member: '스탭',
   manager: '매니저',
   admin: '관리자',
+  pending_manager: '매니저(승인대기)',
+};
+
+const getScoreTrust = (score: number | null | undefined) => {
+  if (score == null) return { label: '점수 없음', color: 'text-muted-foreground' };
+  if (score >= 81) return { label: '신뢰점수 우수', color: 'text-emerald-600' };
+  if (score >= 61) return { label: '신뢰점수 양호', color: 'text-primary' };
+  if (score >= 41) return { label: '신뢰점수 보통', color: 'text-amber-600' };
+  return { label: '신뢰점수 주의', color: 'text-red-600' };
+};
+
+const ScoreCircle = ({ score }: { score: number }) => {
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(Math.max(score, 0), 100) / 100) * circ;
+  return (
+    <div className="relative shrink-0 w-[88px] h-[88px]">
+      <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
+        <circle
+          cx="44" cy="44" r={r}
+          fill="none"
+          style={{ stroke: 'var(--muted)' }}
+          strokeWidth="9"
+        />
+        <circle
+          cx="44" cy="44" r={r}
+          fill="none"
+          style={{ stroke: 'var(--primary)' }}
+          strokeWidth="9"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-bold leading-none">{score}</span>
+        <span className="text-[11px] text-muted-foreground leading-none mt-0.5">/100</span>
+      </div>
+    </div>
+  );
 };
 
 interface Props {
@@ -26,13 +62,11 @@ interface Props {
   attendanceScore?: number | null;
   introduction?: string | null;
   isMember: boolean;
-  isManagerType: boolean; // manager 또는 pending_manager
+  isManagerType: boolean;
   companyName?: string | null;
   coverImage?: string | null;
   isEditing: boolean;
   isUploadingPhoto: boolean;
-  isSaving: boolean;
-  onToggleEdit: () => void;
   onNameChange: (value: string) => void;
   onIntroductionChange: (value: string) => void;
   onProfileImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -51,183 +85,111 @@ export function ProfileSideCard({
   coverImage,
   isEditing,
   isUploadingPhoto,
-  onToggleEdit,
   onNameChange,
   onIntroductionChange,
   onProfileImageUpload,
   onRemoveProfileImage,
 }: Props) {
-  const avatarEditButtons = isEditing ? (
-    <div className="absolute bottom-0 right-0 flex gap-1.5">
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="rounded-full w-8 h-8 p-0 bg-background"
-        onClick={() => document.getElementById('profile-image-upload')?.click()}
-        disabled={isUploadingPhoto}
-      >
-        <Plus className="size-3.5" />
-      </Button>
-      {photo && (
-        <Button
-          type="button"
-          size="sm"
-          variant="destructive"
-          className="rounded-full w-8 h-8 p-0"
-          onClick={onRemoveProfileImage}
-          disabled={isUploadingPhoto}
-        >
-          <X className="size-3.5" />
-        </Button>
-      )}
-    </div>
-  ) : null;
+  const displayName = isManagerType ? (companyName || name) : name;
+  const roleLabel = roleLabelMap[effectiveRole ?? ''] ?? effectiveRole;
+  const { label: trustLabel, color: trustColor } = getScoreTrust(attendanceScore);
 
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-0">
+      {isManagerType && coverImage && (
+        <div className="relative h-28 w-full overflow-hidden">
+          <Image src={coverImage} alt="커버 이미지" fill className="object-cover" />
+        </div>
+      )}
 
-        {isManagerType ? (
-          <>
-            {/* ── DESKTOP (lg+): 커버이미지 배너 + 아바타 오버랩 ── */}
-            <div className="hidden lg:block">
-              {/* 배너 */}
-              <div className="relative h-36 w-full overflow-hidden">
-                {coverImage ? (
-                  <Image src={coverImage} alt="커버 이미지" fill className="object-cover" />
-                ) : (
-                  <div className="h-full bg-muted" />
+      <CardContent className="p-4">
+        {/* 상단: 아바타 + 정보 */}
+        <div className="flex gap-4 items-start">
+          <div className="relative shrink-0">
+            <UserAvatar
+              key={photo ?? 'no-photo'}
+              src={photo}
+              name={displayName}
+              className="w-[72px] h-[72px]"
+              fallbackClassName="text-2xl"
+            />
+            {isEditing && (
+              <div className="absolute -bottom-1 -right-1 flex gap-1">
+                <button
+                  type="button"
+                  className="w-6 h-6 rounded-full bg-background border border-border shadow flex items-center justify-center"
+                  onClick={() => document.getElementById('profile-image-upload')?.click()}
+                  disabled={isUploadingPhoto}
+                >
+                  <Plus className="size-3" />
+                </button>
+                {photo && (
+                  <button
+                    type="button"
+                    className="w-6 h-6 rounded-full bg-destructive shadow flex items-center justify-center"
+                    onClick={onRemoveProfileImage}
+                    disabled={isUploadingPhoto}
+                  >
+                    <X className="size-3 text-destructive-foreground" />
+                  </button>
                 )}
               </div>
-              {/* 아바타: 배너 아래로 절반 겹치게 */}
-              <div className="flex justify-center -mt-12 relative z-10">
-                <div className="relative">
-                  <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-24 h-24 border-4 border-background shadow-md" fallbackClassName="text-xl" />
-                  {avatarEditButtons}
-                </div>
-              </div>
-            </div>
+            )}
+            <input
+              id="profile-image-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onProfileImageUpload}
+            />
+          </div>
 
-            {/* ── MOBILE: 커버이미지와 아바타 같은 영역, 아바타 z-index 위 ── */}
-            <div className="relative lg:hidden h-32 w-full overflow-hidden">
-              {coverImage ? (
-                <Image src={coverImage} alt="커버 이미지" fill className="object-cover" />
-              ) : (
-                <div className="h-full bg-muted" />
-              )}
-              {/* 아바타: 커버이미지 위에 z-index */}
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="relative">
-                  <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-20 h-20 border-4 border-background shadow-md" fallbackClassName="text-xl" />
-                  {avatarEditButtons}
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <input
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                placeholder="이름"
+                className="text-xl font-bold w-full border-b border-border outline-none bg-transparent pb-0.5"
+              />
+            ) : (
+              <h2 className="text-xl font-bold truncate">{displayName}</h2>
+            )}
+            <p className="text-sm text-muted-foreground mt-1">{roleLabel}</p>
+            {isEditing ? (
+              <textarea
+                value={introduction ?? ''}
+                onChange={(e) => onIntroductionChange(e.target.value)}
+                placeholder="자신을 소개해주세요"
+                rows={2}
+                className="text-sm w-full border border-border rounded-md px-2 py-1 mt-2 resize-none outline-none bg-transparent text-foreground"
+              />
+            ) : (
+              introduction && (
+                <p className="text-sm text-muted-foreground mt-1.5 leading-snug">{introduction}</p>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* 신뢰점수 - 멤버 전용 */}
+        {isMember && (
+          <>
+            <div className="mt-4 mb-4 border-t border-border" />
+            <div className="flex gap-4 items-center">
+              <ScoreCircle score={attendanceScore ?? 0} />
+              <div className="flex-1 min-w-0">
+                <div className={cn('flex items-center gap-1.5 font-semibold text-sm', trustColor)}>
+                  <ShieldCheck className="size-4 shrink-0" />
+                  <span>{trustLabel}</span>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  별탈 없이 근무할수록 점수가 올라가요. 매니저 평가가 반영됩니다.
+                </p>
               </div>
             </div>
           </>
-        ) : null}
-
-        <div className={cn(
-          'flex flex-col items-center px-6 pb-6',
-          isManagerType ? 'pt-3 lg:pt-4' : 'pt-6',
-        )}>
-
-          {/* 멤버/관리자: 일반 아바타 */}
-          {!isManagerType && (
-            <div className="relative mb-4">
-              <UserAvatar key={photo ?? 'no-photo'} src={photo} name={name} className="w-32 h-32" fallbackClassName="text-2xl" />
-              {isEditing && (
-                <div className="absolute bottom-0 right-0 flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full w-10 h-10 p-0"
-                    onClick={() => document.getElementById('profile-image-upload')?.click()}
-                    disabled={isUploadingPhoto}
-                  >
-                    <Plus className="size-4" />
-                  </Button>
-                  {photo && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      className="rounded-full w-10 h-10 p-0"
-                      onClick={onRemoveProfileImage}
-                      disabled={isUploadingPhoto}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <input
-            id="profile-image-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onProfileImageUpload}
-          />
-
-          {/* 이름 표시 */}
-          {isManagerType ? (
-            /* 매니저: 회사명(메인) + 담당자명(서브) */
-            <div className="text-center mb-1">
-              <h2 className="text-xl font-bold leading-tight">
-                {companyName || name}
-              </h2>
-              {companyName && (
-                <p className="text-sm text-muted-foreground mt-0.5">{name}</p>
-              )}
-            </div>
-          ) : (
-            /* 멤버/관리자: 개인 이름 */
-            isEditing ? (
-              <Input
-                value={name ?? ''}
-                onChange={(e) => onNameChange(e.target.value)}
-                placeholder="이름"
-                className="text-2xl font-bold h-12 text-center mb-2"
-              />
-            ) : (
-              <h2 className="text-2xl font-bold mb-2">{name}</h2>
-            )
-          )}
-
-          <Badge variant="outline" className="mb-4">
-            {roleLabelMap[effectiveRole ?? ''] ?? effectiveRole}
-          </Badge>
-
-          {isMember && (
-            <>
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="size-5 text-yellow-500 fill-yellow-500" />
-                <span className="text-lg font-semibold">{attendanceScore}점</span>
-              </div>
-              <div className="w-full pb-4 flex items-center justify-center">
-                {isEditing ? (
-                  <Textarea
-                    value={introduction ?? ''}
-                    placeholder="자신을 어필해보세요!"
-                    rows={3}
-                    onChange={(e) => onIntroductionChange(e.target.value)}
-                    className="resize-none text-sm"
-                  />
-                ) : (
-                  <p className="text-sm leading-relaxed">{introduction || '-'}</p>
-                )}
-              </div>
-            </>
-          )}
-
-          <Button className="w-full" onClick={onToggleEdit}>
-            {isEditing ? '편집 취소' : '프로필 수정'}
-          </Button>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

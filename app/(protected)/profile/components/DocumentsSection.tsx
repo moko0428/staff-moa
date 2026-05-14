@@ -1,16 +1,11 @@
 'use client';
 
 import React from 'react';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from '@/app/components/ui/card';
+import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
-import { X } from 'lucide-react';
+import { FileText, Plus, X } from 'lucide-react';
 import { User } from '@/types/mockData';
 
 type Props = {
@@ -34,24 +29,37 @@ const DocumentsSection: React.FC<Props> = ({
   removeDocumentItem,
   isSaving,
 }) => {
+  const list = documents?.extraDocuments ?? [];
+
   return (
     <Card>
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle>서류</CardTitle>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => setShowDocumentInput((v) => !v)}
-        >
-          항목 추가
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-4">
+        {/* 섹션 헤더 */}
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+            <FileText className="size-4 text-red-500" />
+          </div>
+          <span className="font-bold flex-1">
+            서류
+            {list.length > 0 && (
+              <span className="text-muted-foreground font-normal text-sm ml-2">{list.length}건</span>
+            )}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => setShowDocumentInput((v) => !v)}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+
         {showDocumentInput && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-3">
             <Input
-              placeholder="예: 신분증 사본"
+              placeholder="예: 주민등록등본, 통장사본"
               value={newDocumentLabel}
               onChange={(e) => setNewDocumentLabel(e.target.value)}
             />
@@ -66,27 +74,29 @@ const DocumentsSection: React.FC<Props> = ({
           </div>
         )}
 
-        {documents?.extraDocuments?.length ? (
-          <div className="flex flex-wrap gap-2">
-            {documents.extraDocuments.map((item, idx) => (
-              <Badge
-                key={`extra-doc-${idx}`}
-                variant="secondary"
-                className="flex items-center gap-1"
+        {list.length > 0 ? (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {list.map((item, idx) => (
+              <span
+                key={`doc-${idx}`}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm"
               >
-                {item}
+                <span className="font-medium">{item}</span>
+                <Badge variant="secondary" className="text-xs">
+                  제출완료
+                </Badge>
                 <button
                   type="button"
                   onClick={() => removeDocumentItem(idx)}
-                  className="ml-1 hover:text-red-600"
+                  className="ml-0.5 text-muted-foreground hover:text-destructive"
                 >
                   <X className="size-3" />
                 </button>
-              </Badge>
+              </span>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">추가된 서류 항목이 없습니다.</p>
+          <p className="text-sm text-muted-foreground py-2">추가된 서류 항목이 없습니다.</p>
         )}
       </CardContent>
     </Card>

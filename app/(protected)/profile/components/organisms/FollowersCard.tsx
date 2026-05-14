@@ -1,9 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Badge } from '@/app/components/ui/badge';
-import { Input } from '@/app/components/ui/input';
-import { FollowUserRow } from '../molecules/FollowUserRow';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Users } from 'lucide-react';
+import UserAvatar from '@/app/common/components/UserAvatar';
 
 interface Props {
   followerCount: number;
@@ -19,46 +19,66 @@ export function FollowersCard({
   followerCount,
   followers,
   isLoading,
-  search,
-  onSearchChange,
   onOpenProfile,
   onRemove,
 }: Props) {
   return (
     <Card>
-      <CardHeader className="flex items-center justify-between flex-row">
-        <CardTitle>팔로워</CardTitle>
-        <Badge variant="secondary">{isLoading ? '...' : `${followerCount}명`}</Badge>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">불러오는 중...</p>
-        ) : followers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">아직 팔로워가 없습니다.</p>
-        ) : (
-          <div className="space-y-3">
-            <Input
-              placeholder="팔로워 이름 검색"
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-            {followers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
-            ) : (
-              <div className={followers.length >= 5 ? 'space-y-2 max-h-[360px] overflow-y-auto pr-1' : 'space-y-2'}>
-                {followers.map((f) => (
-                  <FollowUserRow
-                    key={f.userId}
-                    userId={f.userId}
-                    name={f.name}
-                    avatar={f.avatar}
-                    role={f.role}
-                    onOpen={onOpenProfile}
-                    onRemove={onRemove}
-                  />
-                ))}
-              </div>
+      <CardContent className="p-4">
+        {/* 섹션 헤더 */}
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+            <Users className="size-4 text-red-500" />
+          </div>
+          <span className="font-bold flex-1">
+            팔로워
+            {followerCount > 0 && (
+              <span className="text-muted-foreground font-normal text-sm ml-2">
+                {isLoading ? '...' : `${followerCount}명`}
+              </span>
             )}
+          </span>
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-2">불러오는 중...</p>
+        ) : followers.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">아직 팔로워가 없습니다.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {followers.map((f) => (
+              <div key={f.userId} className="flex items-center gap-3 py-3">
+                <button
+                  type="button"
+                  className="shrink-0"
+                  onClick={() => onOpenProfile(f.userId)}
+                >
+                  <UserAvatar
+                    src={f.avatar}
+                    name={f.name}
+                    className="w-10 h-10"
+                    fallbackClassName="text-base"
+                  />
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 min-w-0 text-left"
+                  onClick={() => onOpenProfile(f.userId)}
+                >
+                  <p className="text-sm font-semibold truncate">{f.name || '-'}</p>
+                  <p className="text-xs text-muted-foreground">스탭</p>
+                </button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="shrink-0 text-xs h-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => onRemove(f.userId)}
+                >
+                  삭제
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
