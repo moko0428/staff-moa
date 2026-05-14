@@ -1,4 +1,4 @@
-export type RoleOption = 'member' | 'pending_manager';
+export type RoleOption = 'member';
 
 export type ActionState = {
   ok: boolean;

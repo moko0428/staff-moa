@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useActionState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { signUpAction } from '../../action';
 import { ActionState, RoleOption } from '../../types';
@@ -13,12 +14,15 @@ import ActionStateMessage from '../molecules/ActionStateMessage';
 
 interface SignUpFormBaseProps {
   role: RoleOption;
+  onLoginClick?: () => void;
 }
 
 const initialState: ActionState = { ok: false, message: '' };
 
-const SignUpFormBase = ({ role }: SignUpFormBaseProps) => {
+const SignUpFormBase = ({ role, onLoginClick }: SignUpFormBaseProps) => {
+  const router = useRouter();
   const [state, formAction] = useActionState(signUpAction, initialState);
+  const [, startTransition] = useTransition();
   const [formValues, setFormValues] = useState({
     name: '',
     email: '',
@@ -35,9 +39,16 @@ const SignUpFormBase = ({ role }: SignUpFormBaseProps) => {
     (value: string) =>
       setFormValues((prev) => ({ ...prev, [field]: value }));
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    startTransition(() => {
+      formAction(new FormData(e.currentTarget));
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <form className="space-y-4" action={formAction}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <AuthFormField
           id="name"
           name="name"
@@ -97,13 +108,16 @@ const SignUpFormBase = ({ role }: SignUpFormBaseProps) => {
         <Button type="submit" className="w-full">
           회원가입
         </Button>
+
       </form>
-      <div className="text-sm text-muted-foreground mt-2 text-center">
-        <span>이미 계정이 있으신가요?</span>{' '}
-        <Link href="/auth/login" className="text-blue-500">
-          로그인
-        </Link>
-      </div>
+      {!onLoginClick && (
+        <div className="text-sm text-muted-foreground mt-2 text-center">
+          <span>이미 계정이 있으신가요?</span>{' '}
+          <Link href="/auth" className="text-blue-500">
+            로그인
+          </Link>
+        </div>
+      )}
     </div>
   );
 };

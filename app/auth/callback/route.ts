@@ -1,53 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-
-const ensureProfile = async (supabase: SupabaseClient) => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: existing } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (existing) return;
-
-    const meta = user.user_metadata ?? {};
-    const name =
-      meta.full_name ||
-      meta.name ||
-      meta.preferred_username ||
-      meta.user_name ||
-      '사용자';
-    const email = user.email || meta.email || '';
-    const avatar = meta.avatar_url || meta.picture || null;
-
-    const isKakao = user.app_metadata?.provider === 'kakao';
-    const kakao_id = isKakao && email ? email.split('@')[0] : null;
-
-    const { error } = await supabase.from('profiles').insert({
-      user_id: user.id,
-      email,
-      name,
-      avatar,
-      kakao_id,
-      role: 'member',
-      is_banned: false,
-      attendance_score: 50,
-    });
-
-    if (error) {
-      console.error('[ensureProfile] insert failed', error);
-    }
-  } catch (err) {
-    console.error('[ensureProfile] unexpected error', err);
-  }
-};
+import { ensureProfile } from '@/app/auth/utils/ensure-profile';
 
 export const GET = async (request: NextRequest) => {
   const { searchParams, origin } = new URL(request.url);
@@ -60,10 +14,20 @@ export const GET = async (request: NextRequest) => {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      await ensureProfile(supabase as unknown as SupabaseClient);
-      return NextResponse.redirect(`${origin}/post`);
+      const isNewUser = await ensureProfile(supabase as unknown as SupabaseClient);
+      const returnCookie = request.cookies.get('auth_return_url')?.value;
+      const safeReturn =
+        returnCookie &&
+        returnCookie.startsWith('/') &&
+        !returnCookie.includes('://')
+          ? decodeURIComponent(returnCookie)
+          : '/post';
+      const redirectUrl = isNewUser ? `${origin}/profile?welcome=1` : `${origin}${safeReturn}`;
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.delete('auth_return_url');
+      return res;
     }
-    return NextResponse.redirect(`${origin}/auth/login`);
+    return NextResponse.redirect(`${origin}/auth`);
   }
 
   if (token_hash) {
@@ -72,10 +36,11 @@ export const GET = async (request: NextRequest) => {
       token_hash,
     });
     if (!error) {
-      return NextResponse.redirect(`${origin}/post`);
+      const isNewUser = await ensureProfile(supabase as unknown as SupabaseClient);
+      return NextResponse.redirect(`${origin}${isNewUser ? '/profile?welcome=1' : '/post'}`);
     }
-    return NextResponse.redirect(`${origin}/auth/login`);
+    return NextResponse.redirect(`${origin}/auth`);
   }
 
-  return NextResponse.redirect(`${origin}/auth/login`);
+  return NextResponse.redirect(`${origin}/auth`);
 };

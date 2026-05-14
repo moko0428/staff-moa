@@ -3,20 +3,13 @@
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { errorMessages, successMessages } from './messages';
-import { notifyAdminsNewUserAction } from '@/app/(protected)/notification/actions';
+import { ensureProfile } from './utils/ensure-profile';
 
 type ActionResult = {
   ok: boolean;
   message: string;
   redirectTo?: string;
   fieldErrors?: Record<string, string>;
-  debug?: {
-    supabaseUrl?: string;
-    supabaseKeyPreview?: string;
-    supabaseErrorCode?: string;
-    supabaseErrorMessage?: string;
-    siteUrl?: string;
-  };
 };
 
 const envStatus = () => {
@@ -55,13 +48,8 @@ const signUpSchema = z
     password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
     passwordConfirm: z.string().min(8),
     name: z.string().min(2, '이름은 2자 이상 입력해주세요.'),
-    role: z
-      .string()
-      .refine(
-        (v) => v === 'member' || v === 'pending_manager',
-        '가입 유형을 선택해주세요.'
-      ) as z.ZodType<'member' | 'pending_manager'>,
-    termsAgree: z.literal(true),
+    role: z.literal('member'),
+    termsAgree: z.boolean().refine((v) => v === true, { message: '이용약관에 동의해주세요.' }),
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.passwordConfirm) {
@@ -102,11 +90,7 @@ export const signInAction = async (
 
   const env = envStatus();
   if (!env.ok) {
-    return {
-      ok: false,
-      message: '환경변수가 올바르지 않습니다.',
-      debug: env,
-    };
+    return { ok: false, message: '환경변수가 올바르지 않습니다.' };
   }
 
   try {
@@ -118,15 +102,31 @@ export const signInAction = async (
         error.code === 'email_not_confirmed' ||
         error.message.toLowerCase().includes('not confirmed')
       ) {
-        return { ok: false, message: errorMessages.emailNotConfirmed };
+        return {
+          ok: false,
+          message: errorMessages.emailNotConfirmed,
+          fieldErrors: { email: errorMessages.emailNotConfirmed },
+        };
       }
-      return { ok: false, message: errorMessages.invalidCredentials };
+      return {
+        ok: false,
+        message: errorMessages.invalidCredentials,
+        fieldErrors: { password: errorMessages.invalidCredentials },
+      };
     }
+
+    const returnUrl = formData.get('returnUrl');
+    const safeReturnUrl =
+      typeof returnUrl === 'string' &&
+      returnUrl.startsWith('/') &&
+      !returnUrl.includes('://')
+        ? returnUrl
+        : '/post';
 
     return {
       ok: true,
       message: successMessages.signIn,
-      redirectTo: '/post',
+      redirectTo: safeReturnUrl,
     };
   } catch {
     return { ok: false, message: errorMessages.unknown };
@@ -169,11 +169,7 @@ export const signUpAction = async (
 
   const env = envStatus();
   if (!env.ok) {
-    return {
-      ok: false,
-      message: '환경변수가 올바르지 않습니다.',
-      debug: env,
-    };
+    return { ok: false, message: '환경변수가 올바르지 않습니다.' };
   }
 
   try {
@@ -194,60 +190,80 @@ export const signUpAction = async (
     });
 
     if (error) {
-      return {
-        ok: false,
-        message: errorMessages.signUpFailed,
-        debug: {
-          supabaseErrorCode: error.code,
-          supabaseErrorMessage: error.message,
-        },
-      };
+      if (error.code === 'weak_password') {
+        return {
+          ok: false,
+          message: errorMessages.weakPassword,
+          fieldErrors: { password: errorMessages.weakPassword },
+        };
+      }
+      if (
+        error.code === 'over_email_send_rate_limit' ||
+        error.code === 'over_request_rate_limit'
+      ) {
+        return { ok: false, message: errorMessages.rateLimited };
+      }
+      if (
+        error.code === 'signup_disabled' ||
+        error.code === 'email_provider_disabled'
+      ) {
+        return { ok: false, message: errorMessages.signupDisabled };
+      }
+      return { ok: false, message: errorMessages.signUpFailed };
     }
 
-    /* 2️⃣ profiles 레코드 생성 또는 업데이트 (트리거 없이도 작동) */
-    const userId = data.user?.id;
-
-    if (userId) {
-      // UPSERT: 트리거가 이미 생성했다면 UPDATE, 없다면 INSERT
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: userId,
-          email: payload.email,
-          name: payload.name,
-          role: payload.role,
-          company_verify_status:
-            payload.role === 'pending_manager' ? 'pending' : null,
-          is_banned: false,
-          attendance_score: 50,
-        }, {
-          onConflict: 'user_id',
-        });
-
-      if (profileError) {
-        console.error(
-          '[signUpAction] profile upsert failed',
-          profileError
-        );
-        // 회원가입 자체는 성공 → throw 하지 않음
-      }
-
-      // 어드민에게 신규 가입 알림 발송 (fire-and-forget)
-      notifyAdminsNewUserAction({
-        userName: payload.name,
-        userRole: payload.role,
-      }).catch((err) => console.error('[signUpAction] Admin notification error', err));
+    /* 2️⃣ 중복 이메일 감지 (Supabase는 보안상 에러 대신 빈 identities 반환) */
+    if (data.user?.identities?.length === 0) {
+      return {
+        ok: false,
+        message: errorMessages.emailExists,
+        fieldErrors: { email: errorMessages.emailExists },
+      };
     }
 
     return {
       ok: true,
       message: successMessages.signUp,
-      redirectTo: '/auth/login',
+      redirectTo: `/auth/pending?email=${encodeURIComponent(payload.email)}`,
     };
   } catch {
     return { ok: false, message: errorMessages.signUpFailed };
   }
 }
+
+/* =========================
+   Verify Email OTP
+========================= */
+
+export const verifyEmailOtpAction = async (
+  email: string,
+  token: string
+): Promise<ActionResult> => {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+    if (error) return { ok: false, message: '인증 코드가 올바르지 않거나 만료되었습니다.' };
+    const isNewUser = await ensureProfile(supabase);
+    return { ok: true, message: '', redirectTo: isNewUser ? '/profile?welcome=1' : '/post' };
+  } catch {
+    return { ok: false, message: errorMessages.unknown };
+  }
+};
+
+/* =========================
+   Resend Verification Email
+========================= */
+
+export const resendVerificationAction = async (email: string): Promise<ActionResult> => {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) return { ok: false, message: '재전송에 실패했습니다.' };
+    return { ok: true, message: '인증 메일을 다시 보냈습니다.' };
+  } catch {
+    return { ok: false, message: errorMessages.unknown };
+  }
+};
 
 /* =========================
    Kakao OAuth

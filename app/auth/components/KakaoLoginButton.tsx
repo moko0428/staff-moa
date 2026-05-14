@@ -23,12 +23,15 @@ const KakaoIcon = () => (
   </svg>
 );
 
-export const KakaoLoginButton = () => {
+export const KakaoLoginButton = ({ label = '카카오 계정으로 계속하기', returnUrl }: { label?: string; returnUrl?: string }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
     setIsLoading(true);
+    if (returnUrl) {
+      document.cookie = `auth_return_url=${encodeURIComponent(returnUrl)}; path=/; max-age=300; SameSite=Lax`;
+    }
     try {
       const result = await signInWithKakaoAction();
       if (result.ok && result.redirectTo) {
@@ -53,7 +56,7 @@ export const KakaoLoginButton = () => {
       ) : (
         <>
           <KakaoIcon />
-          <span>카카오 계정으로 계속하기</span>
+          <span>{label}</span>
         </>
       )}
     </Button>

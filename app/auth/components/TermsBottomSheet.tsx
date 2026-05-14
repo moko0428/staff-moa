@@ -31,11 +31,12 @@ export const TermsAgreeSection = ({
             id="serviceAgree"
             checked={serviceChecked}
             onChange={(e) => onServiceChange(e.target.checked)}
-            className="size-4 rounded border-gray-300 accent-primary shrink-0"
+            className="size-4 rounded border-gray-300 accent-primary shrink-0 cursor-pointer"
           />
-          <label htmlFor="serviceAgree" className="text-sm leading-tight font-medium flex-1">
+          <label htmlFor="serviceAgree" className="text-sm leading-tight font-medium cursor-pointer">
             서비스 이용약관 동의 (필수)
           </label>
+          <div className="flex-1" />
           <button
             type="button"
             onClick={() => setOpenTerms('service')}
@@ -51,11 +52,12 @@ export const TermsAgreeSection = ({
             id="privacyAgree"
             checked={privacyChecked}
             onChange={(e) => onPrivacyChange(e.target.checked)}
-            className="size-4 rounded border-gray-300 accent-primary shrink-0"
+            className="size-4 rounded border-gray-300 accent-primary shrink-0 cursor-pointer"
           />
-          <label htmlFor="privacyAgree" className="text-sm leading-tight font-medium flex-1">
+          <label htmlFor="privacyAgree" className="text-sm leading-tight font-medium cursor-pointer">
             개인정보 처리방침 동의 (필수)
           </label>
+          <div className="flex-1" />
           <button
             type="button"
             onClick={() => setOpenTerms('privacy')}

@@ -7,12 +7,13 @@ import { Button } from '@/app/components/ui/button';
 import { signInAction } from '../../action';
 import { ActionState } from '../../types';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
+import { errorMessages } from '../../messages';
 import AuthFormField from '../molecules/AuthFormField';
 import ActionStateMessage from '../molecules/ActionStateMessage';
 
 const initialState: ActionState = { ok: false, message: '' };
 
-const EmailLoginForm = () => {
+const EmailLoginForm = ({ onJoinClick, returnUrl }: { onJoinClick?: () => void; returnUrl?: string }) => {
   const [state, formAction] = useActionState(signInAction, initialState);
   const [formValues, setFormValues] = useState({ email: '', password: '' });
 
@@ -24,6 +25,7 @@ const EmailLoginForm = () => {
   return (
     <div className="space-y-4">
       <form className="space-y-4" action={formAction}>
+        <input type="hidden" name="returnUrl" value={returnUrl ?? ''} />
         <AuthFormField
           id="email"
           name="email"
@@ -47,16 +49,26 @@ const EmailLoginForm = () => {
           error={state?.fieldErrors?.password}
         />
         <ActionStateMessage state={state} />
+        {state?.fieldErrors?.email === errorMessages.emailNotConfirmed && (
+          <Link
+            href={`/auth/pending?email=${encodeURIComponent(formValues.email)}`}
+            className="block text-center text-sm text-primary font-semibold underline underline-offset-2"
+          >
+            인증 메일 다시 받기 →
+          </Link>
+        )}
         <Button type="submit" className="w-full">
           로그인
         </Button>
       </form>
-      <div className="text-sm text-muted-foreground mt-3 text-center">
-        <span>계정이 없으신가요?</span>{' '}
-        <Link href="/auth/join" className="text-blue-500">
-          회원가입
-        </Link>
-      </div>
+      {!onJoinClick && (
+        <div className="text-sm text-muted-foreground mt-3 text-center">
+          <span>계정이 없으신가요?</span>{' '}
+          <Link href="/auth" className="text-blue-500">
+            회원가입
+          </Link>
+        </div>
+      )}
     </div>
   );
 };
