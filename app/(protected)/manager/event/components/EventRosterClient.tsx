@@ -95,24 +95,18 @@ export default function EventRosterClient({ rosters }: { rosters: PostRoster[] }
     return () => clearInterval(timer);
   }, [postId]);
 
-  if (rosters.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-        <Users className="size-10 mb-3 opacity-20" />
-        <p className="text-sm">등록된 공고가 없습니다</p>
-        <p className="text-xs mt-1 opacity-60">공고를 작성하면 여기에 표시됩니다</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="space-y-4">
         {/* ── 공고 선택 + 매니저 초대 + QR ─────────────────────────── */}
         <div className="flex items-center gap-2">
-          <Select value={roster.selectedPostId} onValueChange={handlePostChange}>
+          <Select
+            value={roster.selectedPostId}
+            onValueChange={handlePostChange}
+            disabled={rosters.length === 0}
+          >
             <SelectTrigger className="flex-1 max-w-sm bg-white dark:bg-zinc-900">
-              <SelectValue placeholder="공고를 선택하세요" />
+              <SelectValue placeholder={rosters.length === 0 ? '등록된 공고가 없습니다' : '공고를 선택하세요'} />
             </SelectTrigger>
             <SelectContent>
               {rosters.map((r) => {
@@ -499,6 +493,14 @@ export default function EventRosterClient({ rosters }: { rosters: PostRoster[] }
               </button>
             </div>
           </>
+        )}
+
+        {rosters.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Users className="size-10 mb-3 opacity-20" />
+            <p className="text-sm">등록된 공고가 없습니다</p>
+            <p className="text-xs mt-1 opacity-60">공고를 작성하면 여기에 표시됩니다</p>
+          </div>
         )}
       </div>
 

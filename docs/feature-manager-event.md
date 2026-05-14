@@ -155,5 +155,5 @@ updateStaffPositionAction(id, role).then(r => {   // 백그라운드 저장
 ## 미구현 (Phase 3)
 
 - **워커 자기 상태 변경**: 워커가 직접 `departing` / `arrived` 설정
-- **실시간 현황판**: Supabase Realtime + `member_schedules` postgres_changes 구독
+- ~~**실시간 현황판**: Supabase Realtime + `member_schedules` postgres_changes 구독~~ ✅ 완료
 - **워커 자기 체크인 코드**: TTL 기반 6자리 코드로 `checked_in` 자동 처리

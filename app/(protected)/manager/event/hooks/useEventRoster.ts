@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import type { CoManager, PostRoster, StaffEntry, StaffPosition } from '../types';
+import { createClient } from '@/utils/supabase/client';
+import type { CoManager, MovementStatus, PostRoster, StaffEntry, StaffPosition } from '../types';
 import {
   saveEventPositionsAction,
   saveManualStaffAction,
@@ -12,7 +13,7 @@ import {
   updateStaffMemoAction,
   updateStaffPositionAction,
 } from '../actions';
-import { fromManualStaffRecord, fromParticipant, nowHHmm, toManualStaffRecord } from '../utils';
+import { fromManualStaffRecord, fromParticipant, isoToHHmm, nowHHmm, toManualStaffRecord } from '../utils';
 
 export function useEventRoster(rosters: PostRoster[]) {
   const [selectedPostId, setSelectedPostId] = useState(
@@ -84,6 +85,61 @@ export function useEventRoster(rosters: PostRoster[]) {
   useEffect(() => {
     if (addingPosition) positionInputRef.current?.focus();
   }, [addingPosition]);
+
+  // Realtime: 선택된 공고의 member_schedules 변경 구독
+  useEffect(() => {
+    if (!selectedPostId) return;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`event-roster-${selectedPostId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'member_schedules',
+          filter: `post_id=eq.${selectedPostId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            member_schedule_id: string;
+            movement_status: string | null;
+            checked_in_at: string | null;
+            checked_out_at: string | null;
+            arrived_at: string | null;
+            checkin_status: string | null;
+          };
+
+          const movementStatus = row.movement_status as MovementStatus | null;
+          const checkedIn =
+            movementStatus === 'checked_in' ||
+            movementStatus === 'checked_out' ||
+            row.checkin_status === 'checked_in';
+
+          setStaffByPost((prev) => ({
+            ...prev,
+            [selectedPostId]: (prev[selectedPostId] ?? []).map((s) =>
+              s.id === row.member_schedule_id
+                ? {
+                    ...s,
+                    movementStatus,
+                    checkedIn,
+                    checkedInAt: isoToHHmm(row.checked_in_at),
+                    checkedOutAt: isoToHHmm(row.checked_out_at),
+                    arrivedAt: isoToHHmm(row.arrived_at),
+                  }
+                : s,
+            ),
+          }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedPostId]);
 
   const currentStaff = staffByPost[selectedPostId] ?? [];
   const currentPositions = positionsByPost[selectedPostId] ?? [];
