@@ -2,6 +2,14 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { generateDailyCode, generateCheckinCode } from '@/lib/arrivalCode';
+import type { WorkPart } from '@/app/(protected)/my-post/types';
+
+function parseWorkSlots(work_slots: unknown): { sorted: Array<{ date: string; start: string; end: string }>; slot_dates: string[] } {
+  const parts = (work_slots as WorkPart[] | null) ?? [];
+  const allShifts = parts.flatMap((p) => p.shifts ?? []);
+  const sorted = [...allShifts].sort((a, b) => a.date.localeCompare(b.date));
+  return { sorted, slot_dates: sorted.map((s) => s.date) };
+}
 
 type ActionResult<T = void> = {
   ok: boolean;
@@ -89,23 +97,22 @@ export async function getMyEventsAction(): Promise<ActionResult<MyEvent[]>> {
         const events: MyEvent[] = fallback.map((s) => {
           const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
           const p = post as { post_id: number; title: string; location: string | null; work_slots: unknown } | null;
-          const slots = (p?.work_slots as Array<{ date: string; start_time: string; end_time: string }>) ?? [];
-          const sorted = [...slots].sort((a, b) => a.date.localeCompare(b.date));
+          const { sorted, slot_dates } = parseWorkSlots(p?.work_slots);
           return {
             member_schedule_id: s.member_schedule_id,
             post_id: s.post_id,
             title: p?.title ?? '',
             location: p?.location ?? null,
             work_date: sorted[0]?.date ?? null,
-            work_time_start: sorted[0]?.start_time ?? null,
-            work_time_end: sorted[sorted.length - 1]?.end_time ?? null,
+            work_time_start: sorted[0]?.start ?? null,
+            work_time_end: sorted[sorted.length - 1]?.end ?? null,
             assigned_role: null,
             position_status: 'waiting',
             movement_status: null,
             checked_in_at: null,
             checked_out_at: null,
             arrived_at: null,
-            slot_dates: sorted.map((s) => s.date),
+            slot_dates,
           };
         });
 
@@ -116,8 +123,7 @@ export async function getMyEventsAction(): Promise<ActionResult<MyEvent[]>> {
         const row = s as Record<string, unknown>;
         const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
         const p = post as { post_id: number; title: string; location: string | null; work_slots: unknown } | null;
-        const slots = (p?.work_slots as Array<{ date: string; start_time: string; end_time: string }>) ?? [];
-        const sorted = [...slots].sort((a, b) => a.date.localeCompare(b.date));
+        const { sorted, slot_dates } = parseWorkSlots(p?.work_slots);
 
         const rawStaffStatus = (row.staff_status as string) ?? 'waiting';
         const positionStatus: 'waiting' | 'assigned' = rawStaffStatus === 'assigned' ? 'assigned' : 'waiting';
@@ -128,15 +134,15 @@ export async function getMyEventsAction(): Promise<ActionResult<MyEvent[]>> {
           title: p?.title ?? '',
           location: p?.location ?? null,
           work_date: sorted[0]?.date ?? null,
-          work_time_start: sorted[0]?.start_time ?? null,
-          work_time_end: sorted[sorted.length - 1]?.end_time ?? null,
+          work_time_start: sorted[0]?.start ?? null,
+          work_time_end: sorted[sorted.length - 1]?.end ?? null,
           assigned_role: (row.assigned_role as string) ?? null,
           position_status: positionStatus,
           movement_status: null,
           checked_in_at: (row.checked_in_at as string) ?? null,
           checked_out_at: null,
           arrived_at: (row.arrived_at as string) ?? null,
-          slot_dates: sorted.map((s) => s.date),
+          slot_dates,
         };
       });
 
@@ -147,8 +153,7 @@ export async function getMyEventsAction(): Promise<ActionResult<MyEvent[]>> {
       const row = s as Record<string, unknown>;
       const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
       const p = post as { post_id: number; title: string; location: string | null; work_slots: unknown } | null;
-      const slots = (p?.work_slots as Array<{ date: string; start_time: string; end_time: string }>) ?? [];
-      const sorted = [...slots].sort((a, b) => a.date.localeCompare(b.date));
+      const { sorted, slot_dates } = parseWorkSlots(p?.work_slots);
 
       const rawStaffStatus = (row.staff_status as string) ?? 'waiting';
       const positionStatus: 'waiting' | 'assigned' = rawStaffStatus === 'assigned' ? 'assigned' : 'waiting';
@@ -159,15 +164,15 @@ export async function getMyEventsAction(): Promise<ActionResult<MyEvent[]>> {
         title: p?.title ?? '',
         location: p?.location ?? null,
         work_date: sorted[0]?.date ?? null,
-        work_time_start: sorted[0]?.start_time ?? null,
-        work_time_end: sorted[sorted.length - 1]?.end_time ?? null,
+        work_time_start: sorted[0]?.start ?? null,
+        work_time_end: sorted[sorted.length - 1]?.end ?? null,
         assigned_role: (row.assigned_role as string) ?? null,
         position_status: positionStatus,
         movement_status: (row.movement_status as MyEventMovementStatus) ?? null,
         checked_in_at: (row.checked_in_at as string) ?? null,
         checked_out_at: (row.checked_out_at as string) ?? null,
         arrived_at: (row.arrived_at as string) ?? null,
-        slot_dates: sorted.map((s) => s.date),
+        slot_dates,
       };
     });
 

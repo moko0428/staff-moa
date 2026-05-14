@@ -3,10 +3,13 @@ import type { WorkPart, WorkType } from '../types';
 export const inferWorkType = (parts: WorkPart[]): WorkType => {
   if (!parts || parts.length === 0) return 'single';
 
+  const allShifts = parts.flatMap((p) => p.shifts ?? []);
+
+  // date_end가 있는 shift가 하나라도 있으면 기간 근무 → range
+  if (allShifts.some((s) => s.date_end !== undefined)) return 'range';
+
   // 모든 파트의 모든 shift 날짜 수집
-  const allDates = parts
-    .flatMap((p) => p.shifts.map((s) => s.date))
-    .filter(Boolean);
+  const allDates = allShifts.map((s) => s.date).filter(Boolean);
 
   const uniqueDates = Array.from(new Set(allDates));
 

@@ -37,6 +37,7 @@ export async function workerCheckinAction(postId: number): Promise<ActionResult>
       .from('member_schedules')
       .update({
         checkin_status: 'checked_in',
+        movement_status: 'checked_in',
         checked_in_at: new Date().toISOString(),
       })
       .eq('member_schedule_id', schedule.member_schedule_id);

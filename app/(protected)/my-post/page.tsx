@@ -157,7 +157,16 @@ export default function MyPostPage() {
                     requirements: (post.qualifications as string) || undefined,
                     preferences: (post.preferences as string) || undefined,
                     workType: inferWorkType(post.work_slots || []),
-                    workDatesCount: (post.work_slots || []).reduce((acc, p) => acc + (p.shifts?.length || 1), 0),
+                    workDatesCount: (post.work_slots || []).reduce((acc, part) =>
+                      acc + (part.shifts || []).reduce((shiftAcc, shift) => {
+                        if (shift.date_end && shift.date_end !== '') {
+                          const start = new Date(`${shift.date}T00:00:00`);
+                          const end = new Date(`${shift.date_end}T00:00:00`);
+                          const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+                          return shiftAcc + (days > 0 ? days : 1);
+                        }
+                        return shiftAcc + 1;
+                      }, 0), 0),
                     workSlots: (post.work_slots || []).flatMap((part) =>
                       (part.shifts || []).map((shift) => ({
                         date: shift.date,

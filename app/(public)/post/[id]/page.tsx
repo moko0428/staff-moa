@@ -101,6 +101,7 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         workSlots={post.work_slots}
         selectedPart={selectedPart}
         onPartSelect={setSelectedPart}
+        returnUrl={`/post/${id}`}
       />
 
       {/* 신고하기 모달 */}
@@ -125,7 +126,7 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         open={loginPromptOpen}
         onOpenChange={setLoginPromptOpen}
         currentUserId={currentUserId}
-        onLogin={() => router.push('/auth')}
+        onLogin={() => router.push(`/auth?returnUrl=/post/${id}`)}
       />
 
       {!isManager && (

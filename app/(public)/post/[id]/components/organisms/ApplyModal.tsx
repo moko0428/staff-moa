@@ -31,6 +31,7 @@ interface ApplyModalProps {
   workSlots?: Array<WorkPart | LegacySlot>;
   selectedPart?: string;
   onPartSelect?: (partName: string) => void;
+  returnUrl?: string;
 }
 
 const ApplyModal = ({
@@ -44,6 +45,7 @@ const ApplyModal = ({
   workSlots,
   selectedPart,
   onPartSelect,
+  returnUrl,
 }: ApplyModalProps) => {
   // v3 파트 기반 선택
   const newParts = workSlots?.filter(isNewPart) as WorkPart[] | undefined;
@@ -262,7 +264,10 @@ const ApplyModal = ({
               지원하려면 먼저 로그인해주세요.
             </p>
             <Button type="button" className="w-full" asChild>
-              <Link href="/auth/login" onClick={() => onOpenChange(false)}>
+              <Link
+                href={returnUrl ? `/auth?returnUrl=${encodeURIComponent(returnUrl)}` : '/auth'}
+                onClick={() => onOpenChange(false)}
+              >
                 로그인
               </Link>
             </Button>
