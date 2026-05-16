@@ -4,8 +4,9 @@ import UserAvatar from '@/app/common/components/UserAvatar';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { ShieldCheck, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import Image from 'next/image';
+import { TRUST_SCORE_LABEL } from '@/lib/trust-score';
 
 type EffectiveRole = 'member' | 'manager' | 'admin' | 'pending_manager' | null;
 
@@ -18,16 +19,43 @@ const roleLabelMap: Partial<Record<string, string>> = {
 
 const getScoreTrust = (score: number | null | undefined) => {
   if (score == null) return { label: '점수 없음', color: 'text-muted-foreground' };
-  if (score >= 81) return { label: '신뢰점수 우수', color: 'text-emerald-600' };
-  if (score >= 61) return { label: '신뢰점수 양호', color: 'text-primary' };
-  if (score >= 41) return { label: '신뢰점수 보통', color: 'text-amber-600' };
-  return { label: '신뢰점수 주의', color: 'text-red-600' };
+  if (score >= 81) return { label: `${TRUST_SCORE_LABEL} 우수`, color: 'text-emerald-600' };
+  if (score >= 61) return { label: `${TRUST_SCORE_LABEL} 양호`, color: 'text-primary' };
+  if (score >= 41) return { label: `${TRUST_SCORE_LABEL} 보통`, color: 'text-amber-600' };
+  return { label: `${TRUST_SCORE_LABEL} 주의`, color: 'text-red-600' };
 };
 
 const ScoreCircle = ({ score }: { score: number }) => {
   const r = 36;
   const circ = 2 * Math.PI * r;
-  const offset = circ - (Math.min(Math.max(score, 0), 100) / 100) * circ;
+  const targetOffset = circ - (Math.min(Math.max(score, 0), 100) / 100) * circ;
+
+  // 스트로크: 초기엔 빈 원(circ)에서 시작 → rAF 이후 CSS transition으로 부드럽게 채움
+  const [strokeOffset, setStrokeOffset] = useState(circ);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setStrokeOffset(targetOffset));
+    return () => cancelAnimationFrame(raf);
+  }, [targetOffset]);
+
+  // 숫자 카운터: 항상 0에서 score까지 easeOut 애니메이션
+  const [displayScore, setDisplayScore] = useState(0);
+  useEffect(() => {
+    setDisplayScore(0);
+    if (score === 0) return;
+
+    const duration = 800;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      setDisplayScore(Math.round(score * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [score]);
+
   return (
     <div className="relative shrink-0 w-[88px] h-[88px]">
       <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
@@ -40,15 +68,18 @@ const ScoreCircle = ({ score }: { score: number }) => {
         <circle
           cx="44" cy="44" r={r}
           fill="none"
-          style={{ stroke: 'var(--primary)' }}
+          style={{
+            stroke: 'var(--primary)',
+            transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
           strokeWidth="9"
           strokeDasharray={circ}
-          strokeDashoffset={offset}
+          strokeDashoffset={strokeOffset}
           strokeLinecap="round"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold leading-none">{score}</span>
+        <span className="text-xl font-bold leading-none">{displayScore}</span>
         <span className="text-[11px] text-muted-foreground leading-none mt-0.5">/100</span>
       </div>
     </div>
@@ -184,7 +215,9 @@ export function ProfileSideCard({
                   <span>{trustLabel}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                  별탈 없이 근무할수록 점수가 올라가요. 매니저 평가가 반영됩니다.
+                  {(attendanceScore ?? 0) < 41
+                    ? '프로필 정보를 누락없이 입력하면 점수가 부여됩니다.'
+                    : '별탈 없이 근무할수록 점수가 올라가요. 매니저 평가가 반영됩니다.'}
                 </p>
               </div>
             </div>
