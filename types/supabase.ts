@@ -704,6 +704,7 @@ export type Database = {
           recent_photos: Json | null
           role: Database["public"]["Enums"]["user_role"]
           stats: Json | null
+          trust_activity_score: number
           updated_at: string
           user_id: string
           views: Json | null
@@ -744,6 +745,7 @@ export type Database = {
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           stats?: Json | null
+          trust_activity_score?: number
           updated_at?: string
           user_id: string
           views?: Json | null
@@ -784,6 +786,7 @@ export type Database = {
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           stats?: Json | null
+          trust_activity_score?: number
           updated_at?: string
           user_id?: string
           views?: Json | null

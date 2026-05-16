@@ -148,6 +148,20 @@
       "when": 1775129939073,
       "tag": "0020_wooden_celestials",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778816703613,
+      "tag": "0021_windy_cobalt_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1779075903613,
+      "tag": "0022_backfill_trust_score",
+      "breakpoints": true
     }
   ]
 }
