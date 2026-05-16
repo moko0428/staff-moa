@@ -106,7 +106,7 @@ export default function PendingVerificationContent({
         {[
           '받은 메일함을 확인해주세요',
           '고인력에서 보낸 인증 메일을 열어주세요',
-          '메일의 6자리 코드를 아래에 입력해주세요',
+          '메일의 8자리 코드를 아래에 입력해주세요',
         ].map((step, i) => (
           <div key={i} className="flex items-center gap-3">
             <span className="size-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">
@@ -128,7 +128,7 @@ export default function PendingVerificationContent({
             setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8));
             setOtpError('');
           }}
-          placeholder="000000"
+          placeholder="00000000"
           className="w-full text-center text-2xl font-bold tracking-[0.4em] border rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {otpError && (
