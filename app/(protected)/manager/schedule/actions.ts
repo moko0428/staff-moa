@@ -1,110 +1,20 @@
 'use server';
 
-import { eachDayOfInterval, format, parseISO } from 'date-fns';
 import { createClient } from '@/utils/supabase/server';
 import { PENALTY_TYPES } from './constants';
 import type { PenaltyItem } from './constants';
+import {
+  calcReviewDelta,
+  calculateProfileScore,
+  computeTrustScore,
+  TRUST_SCORE_ACTIVITY_MAX,
+} from '@/lib/trust-score';
 
 type ActionResult<T = void> = {
   ok: boolean;
   message: string;
   data?: T;
 };
-
-/**
- * 근태 점수 계산 (0~100)
- * = 참여점수(0~50) + 태도점수(0~50)
- *
- * 참여점수: 최근 180일 내 승인된 스케줄의 근무일 수 / 180 × 50
- * 태도점수: 매니저 평가 평균(20~100) / 100 × 50
- */
-async function calculateAttendanceScore(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  memberId: string
-): Promise<number> {
-  const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - 180);
-  const cutoffStr = cutoff.toISOString().split('T')[0]; // yyyy-MM-dd
-
-  // 참여점수 + 태도점수 병렬 조회
-  const [schedulesResult, reviewsResult] = await Promise.all([
-    supabase
-      .from('member_schedules')
-      .select('post_id, posts (work_slots, work_date)')
-      .eq('member_id', memberId)
-      .eq('status', 'accepted'),
-    supabase
-      .from('attendance_reviews')
-      .select('score, penalty_items')
-      .eq('member_id', memberId),
-  ]);
-
-  // 1. 참여점수: 180일 내 승인된 스케줄의 work_slots 근무일 수
-  const schedules = schedulesResult.data;
-  const workDays = new Set<string>();
-  if (schedules) {
-    for (const s of schedules) {
-      const post = Array.isArray(s.posts) ? s.posts[0] : s.posts;
-      if (!post) continue;
-
-      const rawSlots = post.work_slots;
-      if (rawSlots && Array.isArray(rawSlots)) {
-        for (const item of rawSlots) {
-          if (typeof item !== 'object' || item === null) continue;
-          const part = item as { shifts?: Array<{ date: string; date_end?: string }>; date?: string };
-          if (Array.isArray(part.shifts)) {
-            // v3 WorkPart format
-            for (const shift of part.shifts) {
-              if (shift.date_end && shift.date_end > shift.date) {
-                // 기간 근무: date ~ date_end 범위 내 모든 날짜 enumerate
-                const days = eachDayOfInterval({
-                  start: parseISO(shift.date),
-                  end: parseISO(shift.date_end),
-                });
-                for (const d of days) {
-                  const ds = format(d, 'yyyy-MM-dd');
-                  if (ds >= cutoffStr) workDays.add(ds);
-                }
-              } else if (shift.date >= cutoffStr) {
-                workDays.add(shift.date);
-              }
-            }
-          } else if (typeof part.date === 'string' && part.date >= cutoffStr) {
-            // Legacy flat format
-            workDays.add(part.date);
-          }
-        }
-      } else if (post.work_date && post.work_date >= cutoffStr) {
-        workDays.add(post.work_date);
-      }
-    }
-  }
-
-  const participationRate = Math.min(workDays.size / 180, 1);
-  const participationScore = participationRate * 50;
-
-  // 2. 태도점수: 매니저 평가 평균 (score: 20~100) → 0~50 환산
-  const reviews = reviewsResult.data;
-
-  let attitudeScore = 25; // 평가 없으면 중간값 (초기 50점의 절반)
-  let totalPenalty = 0;
-  if (reviews && reviews.length > 0) {
-    const avgReviewScore =
-      reviews.reduce((sum, r) => sum + r.score, 0) / reviews.length;
-    attitudeScore = (avgReviewScore / 100) * 50;
-
-    // 감점 합산
-    for (const r of reviews) {
-      const items = r.penalty_items as PenaltyItem[] | null;
-      if (items && Array.isArray(items)) {
-        totalPenalty += items.reduce((sum, item) => sum + item.deduction, 0);
-      }
-    }
-  }
-
-  return Math.max(0, Math.round(participationScore + attitudeScore - totalPenalty));
-}
 
 // Manager의 스케줄 조회 (본인이 작성한 posts)
 export async function getManagerSchedulesAction(): Promise<
@@ -423,11 +333,29 @@ export async function submitAttendanceReviewAction(
       return { ok: false, message: '평가 저장에 실패했습니다.' };
     }
 
-    // 워커의 attendance_score 재계산 (참여점수 + 태도점수)
-    const newScore = await calculateAttendanceScore(supabase, memberId);
+    // 워커의 점수 누적 갱신
+    const penaltySum = penaltyItems.reduce((s, item) => s + item.deduction, 0);
+    const scoreDelta = calcReviewDelta(score, penaltySum);
+
+    const { data: current } = await supabase
+      .from('profiles')
+      .select('trust_activity_score, name, phone, kakao_id, birth_date, gender, bio, avatar')
+      .eq('user_id', memberId)
+      .single();
+
+    const newActivityScore = Math.max(
+      0,
+      Math.min(
+        TRUST_SCORE_ACTIVITY_MAX,
+        (current?.trust_activity_score ?? 0) + scoreDelta
+      )
+    );
+    const profileScore = calculateProfileScore(current ?? {});
+    const newScore = computeTrustScore(profileScore, newActivityScore);
+
     await supabase
       .from('profiles')
-      .update({ attendance_score: newScore })
+      .update({ trust_activity_score: newActivityScore, attendance_score: newScore })
       .eq('user_id', memberId);
 
     return {

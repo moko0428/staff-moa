@@ -44,7 +44,7 @@ export const ensureProfile = async (supabase: SupabaseClient): Promise<boolean> 
       kakao_id,
       role,
       is_banned: false,
-      attendance_score: 50,
+      attendance_score: 0,
     });
 
     if (error) {

@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { importExperiencesAction } from '@/app/(protected)/worker/schedule/actions';
 import { reRequestManagerApprovalAction } from '@/app/(protected)/profile/actions';
 import { toast } from 'sonner';
+import { calculateProfileScore, computeTrustScore } from '@/lib/trust-score';
 
 type ExperienceItem = User['experiences'] extends Array<infer E> ? E : never;
 
@@ -32,6 +33,7 @@ export const useProfile = () => {
   const [showDocumentInput, setShowDocumentInput] = useState(false);
   const [showExperienceInput, setShowExperienceInput] = useState(false);
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
+  const [activityScore, setActivityScore] = useState(0);
 
   const supabase = useMemo(() => createClient(), []);
   const { uploadProfileImage, uploadCoverImage, removeProfileImage } = useUpload();
@@ -102,6 +104,8 @@ export const useProfile = () => {
           return typed.length ? typed : undefined;
         };
 
+        setActivityScore(profileRow?.trust_activity_score ?? 0);
+
         const profileExperiences = normalizeExperiences(
           profileRow?.experiences as unknown
         );
@@ -118,8 +122,7 @@ export const useProfile = () => {
             (meta.role as User['role'] | undefined) ??
             'member',
           photo: profileRow?.avatar ?? meta.photo,
-          attendanceScore:
-            profileRow?.attendance_score ?? meta.attendanceScore ?? 50,
+          attendanceScore: profileRow?.attendance_score ?? 0,
           createdAt: data.user.created_at ?? new Date().toISOString(),
           introduction: profileRow?.bio ?? meta.introduction,
           phone: profileRow?.phone ?? meta.phone,
@@ -191,6 +194,35 @@ export const useProfile = () => {
         }
       });
 
+      // 신뢰점수 재계산 (자동저장 시에도 항상 갱신)
+      // 이번에 업데이트되는 값은 data에서, 나머지는 currentUser에서 읽기 (closure 이슈 방지)
+      const effectiveAvatar =
+        data.photo !== undefined ? (data.photo as string | null) : (currentUser.photo ?? null);
+      const effectiveName =
+        data.name !== undefined ? String(data.name) : currentUser.name;
+      const effectivePhone =
+        data.phone !== undefined ? (data.phone as string | null) : (currentUser.phone ?? null);
+      const effectiveKakaoId =
+        data.kakaoId !== undefined ? (data.kakaoId as string | null) : (currentUser.kakaoId ?? null);
+      const effectiveBirthDate =
+        data.birthDate !== undefined ? (data.birthDate as string | null) : (currentUser.birthDate ?? null);
+      const effectiveGender =
+        data.gender !== undefined ? (data.gender as string | null) : (currentUser.gender ?? null);
+      const effectiveBio =
+        data.introduction !== undefined ? (data.introduction as string | null) : (currentUser.introduction ?? null);
+
+      const partialProfileScore = calculateProfileScore({
+        name: effectiveName,
+        phone: effectivePhone,
+        kakao_id: effectiveKakaoId,
+        birth_date: effectiveBirthDate,
+        gender: effectiveGender,
+        bio: effectiveBio,
+        avatar: effectiveAvatar,
+      });
+      const partialNewScore = computeTrustScore(partialProfileScore, activityScore);
+      profileData.attendance_score = partialNewScore;
+
       // profiles 테이블 업데이트
       if (Object.keys(profileData).length > 0) {
         const { error: profileError } = await supabase
@@ -203,6 +235,10 @@ export const useProfile = () => {
           toast.error('저장에 실패했습니다.');
           return false;
         }
+
+        setCurrentUser((prev) =>
+          prev ? { ...prev, attendanceScore: partialNewScore } : prev
+        );
       }
 
       // user_metadata도 동기화 (best-effort)
@@ -248,6 +284,18 @@ export const useProfile = () => {
     if (!currentUser) return;
     setIsSaving(true);
     try {
+      // 신뢰점수 재계산 (프로필 완성 점수 + 누적 활동 점수)
+      const profileScore = calculateProfileScore({
+        name: currentUser.name,
+        phone: currentUser.phone ?? null,
+        kakao_id: currentUser.kakaoId ?? null,
+        birth_date: currentUser.birthDate ?? null,
+        gender: currentUser.gender ?? null,
+        bio: currentUser.introduction ?? null,
+        avatar: currentUser.photo ?? null,
+      });
+      const newScore = computeTrustScore(profileScore, activityScore);
+
       // profiles 테이블에 저장 (single source of truth)
       const { error: profileError } = await supabase
         .from('profiles')
@@ -270,6 +318,7 @@ export const useProfile = () => {
           features: currentUser.features ?? null,
           documents: currentUser.documents ?? {},
           experiences: currentUser.experiences ?? [],
+          attendance_score: newScore,
         })
         .eq('user_id', currentUser.id);
 
@@ -296,7 +345,7 @@ export const useProfile = () => {
         companyCertificate: currentUser.companyCertificate ?? '',
         companyVerifyStatus: currentUser.companyVerifyStatus ?? 'pending',
         role: currentUser.role,
-        attendanceScore: currentUser.attendanceScore ?? 50,
+        attendanceScore: newScore,
         photo: currentUser.photo ?? '',
         personality: currentUser.personality ?? '',
         features: currentUser.features ?? '',
@@ -308,6 +357,7 @@ export const useProfile = () => {
         data: metadataPayload,
       });
 
+      setCurrentUser({ ...currentUser, attendanceScore: newScore });
       toast.success('프로필이 저장되었습니다.');
       setIsEditing(false);
     } catch (err) {
