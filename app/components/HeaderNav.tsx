@@ -128,6 +128,26 @@ export default function HeaderNav() {
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
 
+  // 승인 대기 중인 경우: 탭 포커스 시 즉시 + 30초마다 role 재확인
+  useEffect(() => {
+    if (!isPendingManager) return;
+
+    const checkApproval = async () => {
+      const newRole = await roleGetter();
+      if (newRole && newRole !== role) {
+        setRole(newRole);
+      }
+    };
+
+    window.addEventListener('focus', checkApproval);
+    const interval = setInterval(checkApproval, 30000);
+
+    return () => {
+      window.removeEventListener('focus', checkApproval);
+      clearInterval(interval);
+    };
+  }, [isPendingManager, roleGetter, role, setRole]);
+
   // 알림 페이지에서 읽음 처리 시 실시간 업데이트
   useEffect(() => {
     const handleNotificationUpdate = () => {
