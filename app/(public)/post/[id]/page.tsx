@@ -13,7 +13,6 @@ import PostSidebar from './components/organisms/PostSidebar';
 import PostDetailSkeleton from './components/organisms/PostDetailSkeleton';
 
 const ReportModal = dynamic(() => import('@/app/components/ReportModal'));
-const ProfileModal = dynamic(() => import('@/app/components/profile-modal'));
 const ApplyModal = dynamic(() => import('./components/organisms/ApplyModal'));
 const LoginPromptModal = dynamic(() => import('./components/organisms/LoginPromptModal'));
 import { usePostDetail } from './hooks/usePostDetail';
@@ -39,11 +38,8 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     setReportOpen,
     hasReported,
     markAsReported,
-    profileModalOpen,
-    setProfileModalOpen,
     loginPromptOpen,
     setLoginPromptOpen,
-    profileModalUser,
     isMember,
     isManager,
     roleHydrated,
@@ -112,15 +108,6 @@ const PostDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         postTitle={post.title}
         onReported={markAsReported}
       />
-
-      {profileModalUser && (
-        <ProfileModal
-          isOpen={profileModalOpen}
-          onClose={() => setProfileModalOpen(false)}
-          user={profileModalUser}
-          currentUserId={currentUserId ?? undefined}
-        />
-      )}
 
       <LoginPromptModal
         open={loginPromptOpen}

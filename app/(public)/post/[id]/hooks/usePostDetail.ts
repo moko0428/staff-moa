@@ -9,7 +9,6 @@ import { getPublicPostByIdAction } from '../../actions';
 import {
   addFavoriteAction,
   removeFavoriteAction,
-  getProfileForModalAction,
 } from '@/app/(protected)/worker/favorit/actions';
 import { applyToPostAction } from '@/app/(protected)/worker/schedule/actions';
 import { getUserPostInteractionAction } from '../actions';
@@ -17,19 +16,6 @@ import { deletePostAction } from '@/app/(protected)/my-post/actions';
 import { PostData } from '../types';
 import { User } from '@/types/mockData';
 
-export type ProfileModalUser = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  photo?: string | null;
-  role: string;
-  introduction?: string | null;
-  attendanceScore?: number | null;
-  followerCount?: number;
-  companyName?: string | null;
-  companyVerifyStatus?: string | null;
-  coverImage?: string | null;
-};
 
 export const usePostDetail = (id: string) => {
   const router = useRouter();
@@ -47,9 +33,7 @@ export const usePostDetail = (id: string) => {
   const [selectedPart, setSelectedPart] = useState<string | undefined>(undefined);
   const [reportOpen, setReportOpen] = useState(false);
   const [hasReported, setHasReported] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
-  const [profileModalUser, setProfileModalUser] = useState<ProfileModalUser | null>(null);
 
   // 공고 데이터 로드 (React Query 캐싱)
   const { data: post = null, isLoading } = useQuery({
@@ -217,53 +201,13 @@ export const usePostDetail = (id: string) => {
     }
   };
 
-  const openAuthorProfileModal = async () => {
+  const handleAuthorProfileClick = () => {
     if (!post?.author_id) return;
-    setProfileModalUser({
-      id: post.author_id,
-      name: post.author_name || post.manager_name || null,
-      email: null,
-      photo: post.author_avatar || null,
-      role: 'manager',
-      introduction: null,
-      attendanceScore: null,
-      followerCount: 0,
-      companyName: post.company_name || null,
-      companyVerifyStatus: null,
-    });
-    setProfileModalOpen(true);
-    try {
-      const result = await getProfileForModalAction(post.author_id);
-      if (!result.ok || !result.data) return;
-      const profileData = result.data;
-      setProfileModalUser((prev) => {
-        if (!prev || prev.id !== post.author_id) return prev;
-        return {
-          ...prev,
-          id: profileData.id,
-          name: profileData.name ?? prev.name ?? null,
-          email: profileData.email ?? null,
-          photo: profileData.photo ?? prev.photo ?? null,
-          role: profileData.role ?? prev.role,
-          introduction: profileData.introduction ?? null,
-          attendanceScore: profileData.attendanceScore ?? null,
-          followerCount: profileData.followerCount,
-          companyName: profileData.companyName ?? prev.companyName ?? null,
-          companyVerifyStatus: profileData.companyVerifyStatus ?? prev.companyVerifyStatus ?? null,
-          coverImage: profileData.coverImage ?? null,
-        };
-      });
-    } catch (error) {
-      console.error('Failed to fetch author profile:', error);
-    }
-  };
-
-  const handleAuthorProfileClick = async () => {
     if (!currentUserId) {
       setLoginPromptOpen(true);
       return;
     }
-    await openAuthorProfileModal();
+    router.push(`/post/author/${post.author_id}`);
   };
 
   const markAsReported = () => setHasReported(true);
@@ -285,11 +229,8 @@ export const usePostDetail = (id: string) => {
     setReportOpen,
     hasReported,
     markAsReported,
-    profileModalOpen,
-    setProfileModalOpen,
     loginPromptOpen,
     setLoginPromptOpen,
-    profileModalUser,
     isMember,
     isManager,
     roleHydrated,

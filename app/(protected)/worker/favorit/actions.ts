@@ -641,6 +641,17 @@ export async function getProfileForModalAction(
     companyName: string | null;
     companyVerifyStatus: string | null;
     coverImage: string | null;
+    // 매니저 확장 필드
+    phone: string | null;
+    kakaoId: string | null;
+    position: string | null;
+    managerType: string | null;
+    address: string | null;
+    website: string | null;
+    foundedYear: string | null;
+    specialties: string[];
+    activityRegions: string[];
+    profileVisibility: { email: boolean; phone: boolean; kakaoId: boolean };
   }>
 > {
   try {
@@ -654,7 +665,7 @@ export async function getProfileForModalAction(
     const [profileResult, followerResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('user_id, name, email, avatar, role, bio, attendance_score, company_name, company_verify_status, cover_image')
+        .select('user_id, name, email, phone, kakao_id, avatar, role, bio, attendance_score, company_name, company_verify_status, cover_image, position, manager_type, address, website, founded_year, specialties, activity_regions, profile_visibility')
         .eq('user_id', userId)
         .single(),
       supabase
@@ -674,6 +685,7 @@ export async function getProfileForModalAction(
 
     const data = profileResult.data;
     const followerCount = followerResult.count;
+    const rawVis = data.profile_visibility as Record<string, unknown> | null | undefined;
 
     return {
       ok: true,
@@ -690,6 +702,20 @@ export async function getProfileForModalAction(
         companyName: (data.company_name as string | null) ?? null,
         companyVerifyStatus: (data.company_verify_status as string | null) ?? null,
         coverImage: (data.cover_image as string | null) ?? null,
+        phone: (data.phone as string | null) ?? null,
+        kakaoId: (data.kakao_id as string | null) ?? null,
+        position: (data.position as string | null) ?? null,
+        managerType: (data.manager_type as string | null) ?? null,
+        address: (data.address as string | null) ?? null,
+        website: (data.website as string | null) ?? null,
+        foundedYear: (data.founded_year as string | null) ?? null,
+        specialties: (data.specialties as string[] | null) ?? [],
+        activityRegions: (data.activity_regions as string[] | null) ?? [],
+        profileVisibility: {
+          email: rawVis?.email !== false,
+          phone: rawVis?.phone !== false,
+          kakaoId: rawVis?.kakaoId !== false,
+        },
       },
     };
   } catch (err) {
