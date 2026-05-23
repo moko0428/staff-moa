@@ -225,6 +225,7 @@ export default function SettingsPage() {
     userProfile,
     profileVisibility,
     isMember,
+    isManager,
     isReviewModalOpen,
     setIsReviewModalOpen,
     reviewRating,
@@ -240,6 +241,9 @@ export default function SettingsPage() {
     showManagerRequestDialog,
     setShowManagerRequestDialog,
     isRequestingManagerRole,
+    showRevertToMemberDialog,
+    setShowRevertToMemberDialog,
+    isRevertingToMember,
     handlePushToggle,
     handleProfileVisibilityToggle,
     getFieldPreview,
@@ -247,6 +251,7 @@ export default function SettingsPage() {
     handleDeleteAccount,
     handleDeleteAccountConfirm,
     handleRequestManagerRole,
+    handleRevertToMember,
     handleSignOut,
   } = useSettingsPage();
 
@@ -362,6 +367,14 @@ export default function SettingsPage() {
             onClick={() => setShowManagerRequestDialog(true)}
           />
         )}
+        {isManager && (
+          <NavRow
+            icon={Users}
+            label="스탭 계정으로 전환"
+            description="매니저 권한을 반납하고 스탭으로 돌아가요."
+            onClick={() => setShowRevertToMemberDialog(true)}
+          />
+        )}
         <NavRow
           icon={Trash2}
           label="계정 탈퇴"
@@ -460,7 +473,7 @@ export default function SettingsPage() {
                 승인 전까지{' '}
                 <strong className="text-foreground">승인 대기</strong> 상태가 유지됩니다
               </li>
-              <li>승인 후 프로필에서 회사 정보를 등록해야 합니다</li>
+              <li>프로필에서 회사 정보를 입력한 뒤 승인을 요청할 수 있습니다</li>
             </ul>
             <div className="flex gap-2 justify-end pt-2">
               <Button
@@ -472,6 +485,46 @@ export default function SettingsPage() {
               </Button>
               <Button onClick={handleRequestManagerRole} disabled={isRequestingManagerRole}>
                 {isRequestingManagerRole ? '처리중...' : '신청하기'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 스탭 계정으로 전환 */}
+      <Dialog
+        open={showRevertToMemberDialog}
+        onOpenChange={(open) => {
+          if (!isRevertingToMember) setShowRevertToMemberDialog(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>스탭 계정으로 전환</DialogTitle>
+            <DialogDescription>
+              매니저 권한을 반납하고 스탭으로 전환합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>공고 등록 및 스탭 모집 기능을 더 이상 사용할 수 없습니다</li>
+              <li>등록된 공고는 유지되지만 새 공고를 올릴 수 없습니다</li>
+              <li>다시 매니저로 전환하려면 재신청 후 관리자 승인이 필요합니다</li>
+            </ul>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowRevertToMemberDialog(false)}
+                disabled={isRevertingToMember}
+              >
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleRevertToMember}
+                disabled={isRevertingToMember}
+              >
+                {isRevertingToMember ? '처리중...' : '전환하기'}
               </Button>
             </div>
           </div>

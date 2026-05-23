@@ -373,8 +373,8 @@ export async function reRequestManagerApprovalAction(): Promise<ActionResult> {
       return { ok: false, message: '승인 요청 권한이 없습니다.' };
     }
 
-    if (profile?.company_verify_status !== 'rejected') {
-      return { ok: false, message: '거절된 경우에만 재요청이 가능합니다.' };
+    if (profile?.company_verify_status !== 'rejected' && profile?.company_verify_status !== null) {
+      return { ok: false, message: '이미 검토 중이거나 승인된 상태입니다.' };
     }
 
     const { error } = await supabase
@@ -387,17 +387,24 @@ export async function reRequestManagerApprovalAction(): Promise<ActionResult> {
       return { ok: false, message: '재요청에 실패했습니다.' };
     }
 
+    const isFirstRequest = profile?.company_verify_status === null;
     // 어드민에게 알림 발송 (fire-and-forget)
     const managerName = (profile?.name as string | null) || '매니저';
     notifyAdminsAction({
-      title: '매니저 승인 재요청이 있습니다',
-      message: `${managerName}님이 매니저 승인을 재요청하였습니다. 지금 바로 확인해보세요.`,
+      title: isFirstRequest ? '매니저 승인 요청이 있습니다' : '매니저 승인 재요청이 있습니다',
+      message: isFirstRequest
+        ? `${managerName}님이 매니저 승인을 요청하였습니다. 지금 바로 확인해보세요.`
+        : `${managerName}님이 매니저 승인을 재요청하였습니다. 지금 바로 확인해보세요.`,
       link: '/admin',
     }).catch((err) =>
       console.error('[reRequestManagerApprovalAction] Notification error', err),
     );
-
-    return { ok: true, message: '재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.' };
+    return {
+      ok: true,
+      message: isFirstRequest
+        ? '승인 요청이 접수되었습니다. 관리자 검토 후 승인됩니다.'
+        : '재요청이 접수되었습니다. 승인 대기 목록에 반영됩니다.',
+    };
   } catch (err) {
     console.error('[reRequestManagerApprovalAction] Unexpected error', err);
     return { ok: false, message: '재요청 중 오류가 발생했습니다.' };

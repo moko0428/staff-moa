@@ -34,9 +34,9 @@ export async function fetchPendingManagersAction(): Promise<PendingManager[]> {
     .select(
       'user_id, name, email, avatar, phone, kakao_id, company_name, business_number, company_certificate, company_verify_status, created_at, updated_at, role'
     )
-    // 승인 대기만 노출: pending_manager이며 status가 null 또는 pending
+    // 승인 요청이 접수된 건만 노출: pending_manager이며 status가 pending (null=정보입력중, 제외)
     .eq('role', 'pending_manager')
-    .or('company_verify_status.is.null,company_verify_status.eq.pending')
+    .eq('company_verify_status', 'pending')
     .order('updated_at', { ascending: false });
 
   if (error) {

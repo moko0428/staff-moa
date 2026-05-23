@@ -30,7 +30,7 @@ export async function requestManagerRoleAction(): Promise<{
       .from('profiles')
       .update({
         role: 'pending_manager',
-        company_verify_status: 'pending',
+        company_verify_status: null,
       })
       .eq('user_id', user.id);
 
@@ -39,9 +39,52 @@ export async function requestManagerRoleAction(): Promise<{
       return { ok: false, message: '매니저 전환 신청에 실패했습니다.' };
     }
 
-    return { ok: true, message: '매니저 전환 신청이 완료되었습니다. 관리자 승인 후 매니저로 전환됩니다.' };
+    return { ok: true, message: '매니저 전환 신청이 완료되었습니다. 프로필에서 회사 정보를 입력 후 승인을 요청해주세요.' };
   } catch (error) {
     console.error('[requestManagerRoleAction] unexpected error:', error);
+    return { ok: false, message: '오류가 발생했습니다.' };
+  }
+}
+
+export async function revertToMemberAction(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, message: '로그인이 필요합니다.' };
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return { ok: false, message: '프로필 정보를 불러오는데 실패했습니다.' };
+    }
+
+    if (profile.role !== 'manager' && profile.role !== 'pending_manager') {
+      return { ok: false, message: '매니저 계정만 스탭으로 전환할 수 있습니다.' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        role: 'member',
+        company_verify_status: null,
+      })
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('[revertToMemberAction] update error:', error);
+      return { ok: false, message: '스탭 전환에 실패했습니다.' };
+    }
+
+    return { ok: true, message: '스탭 계정으로 전환되었습니다.' };
+  } catch (error) {
+    console.error('[revertToMemberAction] unexpected error:', error);
     return { ok: false, message: '오류가 발생했습니다.' };
   }
 }

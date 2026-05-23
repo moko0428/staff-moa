@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/useUserStore';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
@@ -10,6 +11,7 @@ import {
   deleteAccountAction,
   updateProfileVisibilityAction,
   requestManagerRoleAction,
+  revertToMemberAction,
 } from '../actions';
 import type { ProfileVisibility } from '../actions';
 
@@ -41,6 +43,7 @@ export function useSettingsPage() {
   const role = useUserStore((state) => state.role);
   const roleHydrated = useUserStore((state) => state.roleHydrated);
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -76,6 +79,8 @@ export function useSettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showManagerRequestDialog, setShowManagerRequestDialog] = useState(false);
   const [isRequestingManagerRole, setIsRequestingManagerRole] = useState(false);
+  const [showRevertToMemberDialog, setShowRevertToMemberDialog] = useState(false);
+  const [isRevertingToMember, setIsRevertingToMember] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -322,6 +327,7 @@ export function useSettingsPage() {
         toast.success(result.message);
         setShowManagerRequestDialog(false);
         useUserStore.getState().setRole('pending_manager');
+        router.push('/profile');
       } else {
         toast.error(result.message);
       }
@@ -329,6 +335,25 @@ export function useSettingsPage() {
       toast.error('매니저 전환 신청 중 오류가 발생했습니다.');
     } finally {
       setIsRequestingManagerRole(false);
+    }
+  };
+
+  const handleRevertToMember = async () => {
+    setIsRevertingToMember(true);
+    try {
+      const result = await revertToMemberAction();
+      if (result.ok) {
+        toast.success(result.message);
+        setShowRevertToMemberDialog(false);
+        useUserStore.getState().setRole('member');
+        router.push('/profile');
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('스탭 전환 중 오류가 발생했습니다.');
+    } finally {
+      setIsRevertingToMember(false);
     }
   };
 
@@ -391,6 +416,9 @@ export function useSettingsPage() {
     showManagerRequestDialog,
     setShowManagerRequestDialog,
     isRequestingManagerRole,
+    showRevertToMemberDialog,
+    setShowRevertToMemberDialog,
+    isRevertingToMember,
     handlePushToggle,
     handleNotificationToggle,
     handleProfileVisibilityToggle,
@@ -399,6 +427,7 @@ export function useSettingsPage() {
     handleDeleteAccount,
     handleDeleteAccountConfirm,
     handleRequestManagerRole,
+    handleRevertToMember,
     handleSignOut,
   };
 }
