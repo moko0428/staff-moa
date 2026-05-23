@@ -44,8 +44,15 @@ export interface User {
   companyName?: string;
   businessNumber?: string;
   companyCertificate?: string;
-  companyVerifyStatus?: 'pending' | 'approved' | 'rejected';
+  companyVerifyStatus?: 'pending' | 'approved' | 'rejected' | null;
   coverImage?: string | null;
+  position?: string;
+  managerType?: 'company' | 'personal';
+  address?: string;
+  website?: string;
+  foundedYear?: string;
+  specialties?: string[];
+  activityRegions?: string[];
 
   attendanceScore: number;
   createdAt: string;

@@ -670,6 +670,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          activity_regions: Json | null
+          address: string | null
           attendance_score: number
           avatar: string | null
           banned_at: string | null
@@ -691,26 +693,33 @@ export type Database = {
           experiences: Json | null
           favorites: Json | null
           features: string | null
+          founded_year: string | null
           gender: Database["public"]["Enums"]["gender"] | null
           height: number | null
           is_banned: boolean
           kakao_id: string | null
           last_ban_update_at: string | null
+          manager_type: string | null
           mbti: string | null
           name: string | null
           personality: string | null
           phone: string | null
+          position: string | null
           profile_visibility: Json | null
           recent_photos: Json | null
           role: Database["public"]["Enums"]["user_role"]
+          specialties: Json | null
           stats: Json | null
           trust_activity_score: number
           updated_at: string
           user_id: string
           views: Json | null
+          website: string | null
           weight: number | null
         }
         Insert: {
+          activity_regions?: Json | null
+          address?: string | null
           attendance_score?: number
           avatar?: string | null
           banned_at?: string | null
@@ -732,26 +741,33 @@ export type Database = {
           experiences?: Json | null
           favorites?: Json | null
           features?: string | null
+          founded_year?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           height?: number | null
           is_banned?: boolean
           kakao_id?: string | null
           last_ban_update_at?: string | null
+          manager_type?: string | null
           mbti?: string | null
           name?: string | null
           personality?: string | null
           phone?: string | null
+          position?: string | null
           profile_visibility?: Json | null
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
+          specialties?: Json | null
           stats?: Json | null
           trust_activity_score?: number
           updated_at?: string
           user_id: string
           views?: Json | null
+          website?: string | null
           weight?: number | null
         }
         Update: {
+          activity_regions?: Json | null
+          address?: string | null
           attendance_score?: number
           avatar?: string | null
           banned_at?: string | null
@@ -773,23 +789,28 @@ export type Database = {
           experiences?: Json | null
           favorites?: Json | null
           features?: string | null
+          founded_year?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           height?: number | null
           is_banned?: boolean
           kakao_id?: string | null
           last_ban_update_at?: string | null
+          manager_type?: string | null
           mbti?: string | null
           name?: string | null
           personality?: string | null
           phone?: string | null
+          position?: string | null
           profile_visibility?: Json | null
           recent_photos?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
+          specialties?: Json | null
           stats?: Json | null
           trust_activity_score?: number
           updated_at?: string
           user_id?: string
           views?: Json | null
+          website?: string | null
           weight?: number | null
         }
         Relationships: []
