@@ -5,10 +5,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/app/components/ui/card';
 import Link from 'next/link';
-import { PenLine, Check } from 'lucide-react';
+import { PenLine, Check, Clock } from 'lucide-react';
 import PageHeader from '@/app/components/PageHeader';
 import { useUserStore } from '@/store/useUserStore';
 import { useProfile } from './hook/useProfile';
+import { ManagerProfileView } from './components/organisms/ManagerProfileView';
 import { useFollows } from './hooks/useFollows';
 import { getProfileForModalAction } from './actions';
 import {
@@ -84,6 +85,21 @@ export default function ProfilePage() {
     handleCoverImageUpload,
     handleRemoveCoverImage,
     handleReRequestManagerApproval,
+    handleSubmitManagerApproval,
+    newSpecialty,
+    setNewSpecialty,
+    newRegion,
+    setNewRegion,
+    showSpecialtyInput,
+    setShowSpecialtyInput,
+    showRegionInput,
+    setShowRegionInput,
+    addSpecialty,
+    removeSpecialty,
+    addRegion,
+    removeRegion,
+    profileVisibility,
+    handleManagerVisibilityToggle,
   } = useProfile();
 
   const roleFromStore = useUserStore((state) => state.role);
@@ -156,10 +172,11 @@ export default function ProfilePage() {
     );
   }
 
-  const companyStatusRaw = (currentUser.companyVerifyStatus ?? 'pending') as
+  const companyStatusRaw = (currentUser.companyVerifyStatus ?? null) as
     | 'pending'
     | 'approved'
-    | 'rejected';
+    | 'rejected'
+    | null;
   const companyInfoFilled = getCompanyInfoFilled({
     companyName: currentUser.companyName,
     businessNumber: currentUser.businessNumber,
@@ -176,6 +193,77 @@ export default function ProfilePage() {
     businessNumber: currentUser.businessNumber,
     companyCertificate: currentUser.companyCertificate,
   });
+
+  // ── 매니저 전용 신규 UI ──
+  if (isManager || isPendingManager) {
+    return (
+      <div>
+        <Suspense>
+          <WelcomeToast />
+        </Suspense>
+        <PageHeader
+          title="매니저 프로필 관리"
+          right={
+            isEditing ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="text-sm px-2 h-8 rounded-md hover:bg-accent transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  className="flex items-center gap-1 bg-primary text-primary-foreground text-sm font-semibold px-3 h-8 rounded-md disabled:opacity-50"
+                >
+                  <Check className="size-3.5" />
+                  {isSaving ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 text-sm font-medium border border-border rounded-md px-3 h-8 hover:bg-accent transition-colors"
+              >
+                <PenLine className="size-3.5" />
+                수정
+              </button>
+            )
+          }
+        />
+        <ManagerProfileView
+          currentUser={currentUser}
+          isEditing={isEditing}
+          isSaving={isSaving}
+          isUploadingPhoto={isUploadingPhoto}
+          isUploadingCover={isUploadingCover}
+          isReRequesting={isReRequesting}
+          newSpecialty={newSpecialty}
+          setNewSpecialty={setNewSpecialty}
+          showSpecialtyInput={showSpecialtyInput}
+          setShowSpecialtyInput={setShowSpecialtyInput}
+          addSpecialty={addSpecialty}
+          removeSpecialty={removeSpecialty}
+          newRegion={newRegion}
+          setNewRegion={setNewRegion}
+          showRegionInput={showRegionInput}
+          setShowRegionInput={setShowRegionInput}
+          addRegion={addRegion}
+          removeRegion={removeRegion}
+          profileVisibility={profileVisibility}
+          onVisibilityToggle={handleManagerVisibilityToggle}
+          onInputChange={handleInputChange}
+          onProfileImageUpload={handleProfileImageUpload}
+          onCoverImageUpload={handleCoverImageUpload}
+          onSubmitApproval={handleSubmitManagerApproval}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -216,15 +304,28 @@ export default function ProfilePage() {
 
       {/* 컨텐츠 영역 */}
       <div className="p-4 pb-8 space-y-4">
-        {/* 미입력 필드 알림 */}
-        {!isAdmin && missingFields.length > 0 && (
+        {/* 관리자 검토 중 안내 */}
+        {isPendingManager && companyStatusRaw === 'pending' && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-start gap-2 text-sm text-blue-700">
+                <Clock className="size-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">관리자 검토 중입니다.</p>
+                  <p className="text-xs mt-0.5">검토가 완료될 때까지 회사 정보는 수정할 수 없습니다.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 미입력 필드 알림 - 멤버 전용 */}
+        {!isAdmin && isMember && missingFields.length > 0 && (
           <Card className="mb-4 border-amber-200 bg-amber-50">
             <CardContent className="py-3 px-4">
               <div className="flex flex-col gap-1 text-sm text-amber-900">
                 <p className="font-semibold">
-                  {isMember
-                    ? '프로필을 모두 채우면 지원 성공 확률이 올라가요.'
-                    : '프로필을 모두 채우면 회사 인증을 승인 받을 수 있어요.'}
+                  프로필을 모두 채우면 지원 성공 확률이 올라가요.
                 </p>
                 <p className="text-xs">
                   아직 입력되지 않은 항목: {missingFields.join(', ')}
@@ -294,7 +395,6 @@ export default function ProfilePage() {
           gender={currentUser.gender}
           isEditing={isEditing}
           isMember={isMember}
-          isManagerOrPending={isManager || isPendingManager}
           onEmailChange={(v) => handleInputChange('email', v)}
           onPhoneChange={(v) => handleInputChange('phone', v)}
           onKakaoIdChange={(v) => handleInputChange('kakaoId', v)}
@@ -316,9 +416,10 @@ export default function ProfilePage() {
             isAdmin={isAdmin}
             isSaving={isSaving}
             isReRequesting={isReRequesting}
-            isPendingManagerRejected={
-              isPendingManager && companyStatusRaw === 'rejected'
-            }
+            isSubmittingApproval={isReRequesting}
+            isPendingManagerDraft={isPendingManager && companyStatusRaw === null}
+            isPendingManagerReviewing={isPendingManager && companyStatusRaw === 'pending'}
+            isPendingManagerRejected={isPendingManager && companyStatusRaw === 'rejected'}
             coverImage={currentUser.coverImage}
             isUploadingCover={isUploadingCover}
             onCompanyNameChange={(v) => handleInputChange('companyName', v)}
@@ -332,6 +433,7 @@ export default function ProfilePage() {
             onSave={handleSaveProfile}
             onCancelEdit={() => setIsEditing(false)}
             onReRequest={handleReRequestManagerApproval}
+            onSubmitApproval={handleSubmitManagerApproval}
             onCoverImageUpload={handleCoverImageUpload}
             onRemoveCoverImage={handleRemoveCoverImage}
           />

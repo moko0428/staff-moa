@@ -34,6 +34,15 @@ export const useProfile = () => {
   const [showExperienceInput, setShowExperienceInput] = useState(false);
   const [isLoadingExperiences, setIsLoadingExperiences] = useState(false);
   const [activityScore, setActivityScore] = useState(0);
+  const [newSpecialty, setNewSpecialty] = useState('');
+  const [newRegion, setNewRegion] = useState('');
+  const [showSpecialtyInput, setShowSpecialtyInput] = useState(false);
+  const [showRegionInput, setShowRegionInput] = useState(false);
+  const [profileVisibility, setProfileVisibility] = useState<{
+    email: boolean;
+    phone: boolean;
+    kakaoId: boolean;
+  }>({ email: true, phone: true, kakaoId: true });
 
   const supabase = useMemo(() => createClient(), []);
   const { uploadProfileImage, uploadCoverImage, removeProfileImage } = useUpload();
@@ -145,13 +154,28 @@ export const useProfile = () => {
           companyVerifyStatus:
             (profileRow?.company_verify_status as User['companyVerifyStatus']) ??
             meta.companyVerifyStatus ??
-            'pending',
+            null,
           documents:
             (profileRow?.documents as User['documents']) ??
             meta.documents ??
             {},
           coverImage: (profileRow?.cover_image as string | null | undefined) ?? null,
+          position: profileRow?.position ?? meta.position,
+          managerType: (profileRow?.manager_type as User['managerType']) ?? meta.managerType,
+          address: profileRow?.address ?? meta.address,
+          website: profileRow?.website ?? meta.website,
+          foundedYear: profileRow?.founded_year ?? meta.foundedYear,
+          specialties: (profileRow?.specialties as string[] | undefined) ?? meta.specialties ?? [],
+          activityRegions: (profileRow?.activity_regions as string[] | undefined) ?? meta.activityRegions ?? [],
         };
+
+        // profile_visibility 로드
+        const rawVis = profileRow?.profile_visibility as Record<string, unknown> | null | undefined;
+        setProfileVisibility({
+          email: rawVis?.email !== false,
+          phone: rawVis?.phone !== false,
+          kakaoId: rawVis?.kakaoId !== false,
+        });
 
         setCurrentUser(profile);
         setRole(profile.role);
@@ -186,8 +210,12 @@ export const useProfile = () => {
       if (data.companyCertificate !== undefined) profileData.company_certificate = data.companyCertificate;
       if (data.companyVerifyStatus !== undefined) profileData.company_verify_status = data.companyVerifyStatus;
 
+      if (data.managerType !== undefined) profileData.manager_type = data.managerType;
+      if (data.foundedYear !== undefined) profileData.founded_year = data.foundedYear;
+      if (data.activityRegions !== undefined) profileData.activity_regions = data.activityRegions;
+
       // 직접 매핑되는 필드들
-      const directFields = ['name', 'email', 'phone', 'mbti', 'gender', 'height', 'weight', 'personality', 'features', 'documents', 'experiences', 'cover_image'];
+      const directFields = ['name', 'email', 'phone', 'mbti', 'gender', 'height', 'weight', 'personality', 'features', 'documents', 'experiences', 'cover_image', 'position', 'address', 'website', 'specialties'];
       directFields.forEach(field => {
         if (data[field] !== undefined) {
           profileData[field] = data[field];
@@ -313,7 +341,13 @@ export const useProfile = () => {
           company_name: currentUser.companyName ?? null,
           business_number: currentUser.businessNumber ?? null,
           company_certificate: currentUser.companyCertificate ?? null,
-          company_verify_status: currentUser.companyVerifyStatus ?? 'pending',
+          position: currentUser.position ?? null,
+          manager_type: currentUser.managerType ?? null,
+          address: currentUser.address ?? null,
+          website: currentUser.website ?? null,
+          founded_year: currentUser.foundedYear ?? null,
+          specialties: currentUser.specialties ?? [],
+          activity_regions: currentUser.activityRegions ?? [],
           personality: currentUser.personality ?? null,
           features: currentUser.features ?? null,
           documents: currentUser.documents ?? {},
@@ -343,7 +377,6 @@ export const useProfile = () => {
         companyName: currentUser.companyName ?? '',
         businessNumber: currentUser.businessNumber ?? '',
         companyCertificate: currentUser.companyCertificate ?? '',
-        companyVerifyStatus: currentUser.companyVerifyStatus ?? 'pending',
         role: currentUser.role,
         attendanceScore: newScore,
         photo: currentUser.photo ?? '',
@@ -666,7 +699,40 @@ export const useProfile = () => {
     }
   };
 
-  const handleReRequestManagerApproval = async () => {
+  const addSpecialty = async () => {
+    if (!newSpecialty.trim() || !currentUser) return;
+    const updated = [...(currentUser.specialties ?? []), newSpecialty.trim()];
+    setCurrentUser({ ...currentUser, specialties: updated });
+    setNewSpecialty('');
+    setShowSpecialtyInput(false);
+    await savePartialData({ specialties: updated });
+  };
+
+  const removeSpecialty = async (index: number) => {
+    if (!currentUser) return;
+    const updated = (currentUser.specialties ?? []).filter((_, i) => i !== index);
+    setCurrentUser({ ...currentUser, specialties: updated });
+    await savePartialData({ specialties: updated });
+  };
+
+  const addRegion = async () => {
+    if (!newRegion.trim() || !currentUser) return;
+    const updated = [...(currentUser.activityRegions ?? []), newRegion.trim()];
+    setCurrentUser({ ...currentUser, activityRegions: updated });
+    setNewRegion('');
+    setShowRegionInput(false);
+    await savePartialData({ activityRegions: updated });
+  };
+
+  const removeRegion = async (index: number) => {
+    if (!currentUser) return;
+    const updated = (currentUser.activityRegions ?? []).filter((_, i) => i !== index);
+    setCurrentUser({ ...currentUser, activityRegions: updated });
+    await savePartialData({ activityRegions: updated });
+  };
+
+  // 초기 승인 요청 및 재요청 공통 핸들러 (reRequestManagerApprovalAction이 null/rejected 모두 처리)
+  const handleSubmitManagerApproval = async () => {
     if (!currentUser) return;
     setIsReRequesting(true);
     try {
@@ -681,10 +747,26 @@ export const useProfile = () => {
       setRole('pending_manager');
       toast.success(result.message);
     } catch (err) {
-      console.error('재요청 실패', err);
-      toast.error(err instanceof Error ? err.message : '재요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.error('승인 요청 실패', err);
+      toast.error(err instanceof Error ? err.message : '승인 요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsReRequesting(false);
+    }
+  };
+
+  const handleReRequestManagerApproval = handleSubmitManagerApproval;
+
+  const handleManagerVisibilityToggle = async (field: 'email' | 'phone' | 'kakaoId') => {
+    if (!currentUser) return;
+    const updated = { ...profileVisibility, [field]: !profileVisibility[field] };
+    setProfileVisibility(updated);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ profile_visibility: updated })
+      .eq('user_id', currentUser.id);
+    if (error) {
+      console.error('공개 설정 저장 실패:', error);
+      setProfileVisibility(profileVisibility);
     }
   };
 
@@ -734,5 +816,20 @@ export const useProfile = () => {
     handleCoverImageUpload,
     handleRemoveCoverImage,
     handleReRequestManagerApproval,
+    handleSubmitManagerApproval,
+    newSpecialty,
+    setNewSpecialty,
+    newRegion,
+    setNewRegion,
+    showSpecialtyInput,
+    setShowSpecialtyInput,
+    showRegionInput,
+    setShowRegionInput,
+    addSpecialty,
+    removeSpecialty,
+    addRegion,
+    removeRegion,
+    profileVisibility,
+    handleManagerVisibilityToggle,
   };
 };

@@ -6,7 +6,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { Building2, CreditCard, FileCheck, ImagePlus, X } from 'lucide-react';
+import { Building2, CreditCard, FileCheck, ImagePlus, X, Send } from 'lucide-react';
 import { formatBusinessNumber } from '../../utils/profileUtils';
 import Image from 'next/image';
 import type { ChangeEvent } from 'react';
@@ -16,7 +16,7 @@ interface Props {
   companyName?: string | null;
   businessNumber?: string | null;
   companyCertificate?: string | null;
-  companyVerifyStatus: string;
+  companyVerifyStatus: string | null;
   companyBadgeLabel: string;
   companyBadgeVariant: 'secondary' | 'default' | 'outline';
   companyInfoFilled: boolean;
@@ -24,6 +24,9 @@ interface Props {
   isAdmin: boolean;
   isSaving: boolean;
   isReRequesting?: boolean;
+  isSubmittingApproval?: boolean;
+  isPendingManagerDraft?: boolean;
+  isPendingManagerReviewing?: boolean;
   isPendingManagerRejected?: boolean;
   coverImage?: string | null;
   isUploadingCover?: boolean;
@@ -34,6 +37,7 @@ interface Props {
   onSave: () => void;
   onCancelEdit: () => void;
   onReRequest?: () => void;
+  onSubmitApproval?: () => void;
   onCoverImageUpload?: (file: File) => void;
   onRemoveCoverImage?: () => void;
 }
@@ -50,6 +54,9 @@ export function CompanyInfoCard({
   isAdmin,
   isSaving,
   isReRequesting,
+  isSubmittingApproval,
+  isPendingManagerDraft,
+  isPendingManagerReviewing,
   isPendingManagerRejected,
   coverImage,
   isUploadingCover,
@@ -60,10 +67,13 @@ export function CompanyInfoCard({
   onSave,
   onCancelEdit,
   onReRequest,
+  onSubmitApproval,
   onCoverImageUpload,
   onRemoveCoverImage,
 }: Props) {
   const coverInputRef = useRef<HTMLInputElement>(null);
+  // 검토 중일 때는 편집 모드여도 회사 정보 필드 잠금
+  const isCompanyFieldEditing = isEditing && !isPendingManagerReviewing;
 
   return (
     <>
@@ -71,11 +81,11 @@ export function CompanyInfoCard({
         <Card className="border-red-200 bg-red-50">
           <CardContent className="py-3">
             <div className="flex flex-col gap-1 text-sm text-red-700">
-              <p className="font-semibold">승인 요청이 거절되었습니다.</p>
-              <p className="text-xs">프로필 정보를 보완한 뒤 재요청을 진행해주세요.</p>
+              <p className="font-semibold">승인 요청이 반려되었습니다.</p>
+              <p className="text-xs">회사 정보를 수정한 뒤 다시 승인을 요청해주세요.</p>
               <div className="mt-2">
                 <Button size="sm" onClick={onReRequest} disabled={isReRequesting}>
-                  {isReRequesting ? '재요청 중...' : '재요청'}
+                  {isReRequesting ? '요청 중...' : '승인 재요청'}
                 </Button>
               </div>
             </div>
@@ -94,7 +104,7 @@ export function CompanyInfoCard({
               <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                 <Building2 className="size-4" />회사명
               </Label>
-              {isEditing ? (
+              {isCompanyFieldEditing ? (
                 <Input
                   value={companyName ?? ''}
                   placeholder="회사명 입력"
@@ -108,7 +118,7 @@ export function CompanyInfoCard({
               <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                 <CreditCard className="size-4" />사업자등록번호
               </Label>
-              {isEditing ? (
+              {isCompanyFieldEditing ? (
                 <Input
                   value={formatBusinessNumber(businessNumber ?? '')}
                   placeholder="숫자 10자리 (예: 123-45-67890)"
@@ -124,7 +134,7 @@ export function CompanyInfoCard({
               <Label className="flex items-center gap-2 text-muted-foreground mb-2">
                 <FileCheck className="size-4" />기업인증 파일
               </Label>
-              {isEditing ? (
+              {isCompanyFieldEditing ? (
                 <div className="flex items-center gap-3">
                   <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={onCompanyCertUpload} />
                   {companyCertificate && (
@@ -143,7 +153,7 @@ export function CompanyInfoCard({
             {coverImage ? (
               <div className="relative h-36 w-full overflow-hidden rounded-lg border border-border">
                 <Image src={coverImage} alt="커버 이미지" fill className="object-cover" />
-                {isEditing && (
+                {isCompanyFieldEditing && (
                   <Button
                     type="button"
                     size="icon"
@@ -159,7 +169,7 @@ export function CompanyInfoCard({
             ) : (
               <div className="flex flex-col gap-2">
                 <DefaultCoverImage className="h-36 w-full rounded-lg border border-border" />
-                {isEditing && (
+                {isCompanyFieldEditing && (
                   <Button
                     type="button"
                     variant="outline"
@@ -188,12 +198,12 @@ export function CompanyInfoCard({
             </div>
           </div>
 
-          {isEditing && isAdmin && onVerifyStatusChange && (
+          {isCompanyFieldEditing && isAdmin && onVerifyStatusChange && (
             <div>
               <Label className="flex items-center gap-2 text-muted-foreground mb-2">인증 상태</Label>
               <select
                 className="w-full rounded-md border border-border px-3 py-2 text-sm"
-                value={companyVerifyStatus}
+                value={companyVerifyStatus ?? 'pending'}
                 disabled={!companyInfoFilled}
                 onChange={(e) => onVerifyStatusChange(e.target.value)}
               >
@@ -209,6 +219,15 @@ export function CompanyInfoCard({
           )}
         </CardContent>
       </Card>
+
+      {isPendingManagerDraft && !isEditing && companyInfoFilled && (
+        <div className="flex justify-end mt-4">
+          <Button onClick={onSubmitApproval} disabled={isSubmittingApproval}>
+            <Send className="size-4 mr-2" />
+            {isSubmittingApproval ? '요청 중...' : '승인 요청'}
+          </Button>
+        </div>
+      )}
 
       {isEditing && (
         <div className="flex justify-end gap-2 mt-4">

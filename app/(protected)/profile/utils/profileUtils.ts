@@ -9,7 +9,7 @@ export const formatBusinessNumber = (value: string) => {
   return digits;
 };
 
-export type CompanyVerifyStatus = 'pending' | 'approved' | 'rejected';
+export type CompanyVerifyStatus = 'pending' | 'approved' | 'rejected' | null;
 
 export function getCompanyBadge(
   companyInfoFilled: boolean,
@@ -17,7 +17,9 @@ export function getCompanyBadge(
 ): { label: string; variant: 'secondary' | 'default' | 'outline' } {
   if (!companyInfoFilled) return { label: '미입력', variant: 'secondary' };
   if (companyStatusRaw === 'approved') return { label: '인증 완료', variant: 'default' };
-  return { label: '인증 처리중', variant: 'outline' };
+  if (companyStatusRaw === 'pending') return { label: '검토 중', variant: 'outline' };
+  if (companyStatusRaw === 'rejected') return { label: '반려됨', variant: 'secondary' };
+  return { label: '미제출', variant: 'secondary' };
 }
 
 export function getCompanyInfoFilled(params: {

@@ -12,7 +12,6 @@ interface Props {
   gender?: string | null;
   isEditing: boolean;
   isMember: boolean;
-  isManagerOrPending: boolean;
   onEmailChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
   onKakaoIdChange: (v: string) => void;
@@ -45,7 +44,6 @@ export function BasicInfoCard({
   gender,
   isEditing,
   isMember,
-  isManagerOrPending,
   onEmailChange,
   onPhoneChange,
   onKakaoIdChange,
@@ -141,12 +139,6 @@ export function BasicInfoCard({
             )}
           </InfoRow>
         </div>
-
-        {isManagerOrPending && (
-          <p className="text-xs text-muted-foreground mt-3 text-right">
-            프로필을 모두 채우면 기업 신뢰도가 상승해요.
-          </p>
-        )}
 
       </CardContent>
     </Card>
